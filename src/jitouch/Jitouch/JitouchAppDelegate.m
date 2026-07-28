@@ -22,7 +22,7 @@ CGKeyCode keyMap[128]; // for dvorak support
 @synthesize window;
 
 - (void)unloadJitouchLaunchAgent {
-    NSString *plistPath = [@"~/Library/LaunchAgents/io.github.magicmouseagent.agent.plist" stringByStandardizingPath];
+    NSString *plistPath = [@"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist" stringByStandardizingPath];
     NSArray *unloadArgs = [NSArray arrayWithObjects:@"unload",
                            plistPath,
                            nil];
@@ -40,14 +40,14 @@ CGKeyCode keyMap[128]; // for dvorak support
     theMenu = [[[NSMenu alloc] initWithTitle:@"Contextual Menu"] autorelease];
 
     if (enAll)
-        [theMenu insertItemWithTitle:@"Turn MagicMouseAgent Off" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
+        [theMenu insertItemWithTitle:@"Turn MagicGestures Off" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
     else
-        [theMenu insertItemWithTitle:@"Turn MagicMouseAgent On" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
+        [theMenu insertItemWithTitle:@"Turn MagicGestures On" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
 
     //[theMenu insertItem:[NSMenuItem separatorItem] atIndex:1];
     [theMenu insertItemWithTitle:@"Open Config Folder..." action:@selector(preferences:) keyEquivalent:@"" atIndex:1];
     [theMenu insertItem:[NSMenuItem separatorItem] atIndex:2];
-    [theMenu insertItemWithTitle:@"Quit MagicMouseAgent" action:@selector(quit:) keyEquivalent:@"" atIndex:3];
+    [theMenu insertItemWithTitle:@"Quit MagicGestures" action:@selector(quit:) keyEquivalent:@"" atIndex:3];
 
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
@@ -93,8 +93,8 @@ CGKeyCode keyMap[128]; // for dvorak support
         [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:openPath]];
     } else {
         NSAlert *alert = [[NSAlert alloc] init];
-        [alert setMessageText:@"Can't find the MagicMouseAgent config folder."];
-        [alert setInformativeText:@"Please relaunch MagicMouseAgent from the repository checkout."];
+        [alert setMessageText:@"Can't find the MagicGestures config folder."];
+        [alert setInformativeText:@"Please relaunch MagicGestures from the repository checkout."];
         [alert setAlertStyle:NSAlertStyleWarning];
         [NSApp activateIgnoringOtherApps:YES];
         [alert runModal];
@@ -118,9 +118,9 @@ CGKeyCode keyMap[128]; // for dvorak support
     }
     if (theItem) {
         if (enAll) {
-            [[theMenu itemAtIndex:0] setTitle:@"Turn MagicMouseAgent Off"];
+            [[theMenu itemAtIndex:0] setTitle:@"Turn MagicGestures Off"];
         } else {
-            [[theMenu itemAtIndex:0] setTitle:@"Turn MagicMouseAgent On"];
+            [[theMenu itemAtIndex:0] setTitle:@"Turn MagicGestures On"];
         }
         [self updateIconImage];
     }
@@ -207,7 +207,7 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
     [[NSDistributedNotificationCenter defaultCenter] addObserver: self
                                                         selector: @selector(settingsUpdated:)
                                                             name: @"My Notification"
-                                                          object: @"io.github.magicmouseagent.PrefpaneTarget"];
+                                                          object: @"fyi.nathancheng.magic-gestures.PrefpaneTarget"];
 
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(wokeUp:) name:NSWorkspaceDidWakeNotification object: NULL];
 

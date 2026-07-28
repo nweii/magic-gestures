@@ -1,100 +1,95 @@
-# MagicMouseAgent
+# MagicGestures
 
-MagicMouseAgent is a small macOS helper for a very specific job: replacing a small BetterTouchTool setup for Magic Mouse gestures.
+MagicGestures maps Magic Mouse and Magic Trackpad multi-touch gestures to
+keyboard shortcuts on macOS. It runs in the background and has no interface.
 
-Chinese guide: [README.zh-CN.md](README.zh-CN.md)
+Every gesture is a fix-tap. You hold one finger still on the touch surface, then
+tap beside it with a second finger. A resting hand cannot make this motion, so
+the gestures do not fire by accident.
 
-## Quick Start
+The app sends keystrokes only. It does not change how clicking works, and it
+does not add tap-to-click.
 
-If you only want to use it and do not want to read build instructions, do this:
+## Requirements
 
-1. Download the latest packaged zip from GitHub Releases when one is available.
-2. Unzip it anywhere you like.
-3. Double-click `Start MagicMouseAgent.command`.
-4. The first time, macOS will ask for Accessibility permission.
-5. In `System Settings -> Privacy & Security -> Accessibility`, enable:
+- macOS 13 or later
+- Xcode Command Line Tools
+- Python 3
 
-```text
-build/MagicMouseAgent.app
-```
+## Install
 
-6. Test the gestures in Chrome.
-7. If you want it to launch automatically after login, double-click `Install at Login.command`.
-   Running it again also repairs a previously disabled login item.
-
-If you downloaded the source code instead of a packaged zip:
-
-1. Install Xcode Command Line Tools.
-2. Double-click `Build and Start MagicMouseAgent.command`.
-3. Grant Accessibility permission when macOS asks for it.
-
-## Default Gestures
-
-- Global `One-Finger Tap` -> left click
-- Global `Right-Front Tap` -> right click
-- Google Chrome `One-Swipe-Left` -> previous tab
-- Google Chrome `One-Swipe-Right` -> next tab
-- Google Chrome `Two-Finger Tap` -> close current tab
-- Google Chrome `Middle-Fix Index-Near-Tap` -> reopen last closed tab
-- Google Chrome `Middle-Fix Index-Far-Tap` -> reopen last closed tab
-- Google Chrome `Index-Fix Middle-Near-Tap` -> new tab
-- Google Chrome `Index-Fix Middle-Far-Tap` -> new tab
-
-## Double-Click Scripts
-
-These files are meant for normal users who would rather click than type:
-
-- `Build and Start MagicMouseAgent.command`
-- `Start MagicMouseAgent.command`
-- `Stop MagicMouseAgent.command`
-- `Install at Login.command`
-- `Uninstall from Login.command`
-
-## If Something Does Not Work
-
-1. Quit Chrome and open it again.
-2. Remove `build/MagicMouseAgent.app` from Accessibility, then add it again.
-3. Run `Stop MagicMouseAgent.command`, then `Start MagicMouseAgent.command`.
-4. If macOS blocks the script or app because it is unsigned, right-click it once and choose `Open`.
-5. If it stopped launching after login, run `Install at Login.command` again to re-enable the login item.
-
-## For Technical Users
-
-Build from source:
+Build the app and start it:
 
 ```bash
 python3 ./generate_config.py
 ./build.sh
-```
-
-Create a packaged zip:
-
-```bash
-./package.sh
-```
-
-Useful shell commands:
-
-```bash
 ./start.sh
-./stop.sh
-./status.sh
-./install-login-agent.sh
-./uninstall-login-agent.sh
 ```
 
-Logs:
+macOS asks for Accessibility permission the first time. Open System Settings,
+then Privacy & Security, then Accessibility. Turn on MagicGestures in the list.
+
+The app is ad-hoc signed and not notarized. If macOS blocks it, hold Control,
+click the app, and select Open.
+
+## Default gestures
+
+| Device | Gesture | Sends |
+|---|---|---|
+| Magic Mouse | Hold the middle finger still, tap with the index finger | Return |
+| Magic Trackpad | Hold one finger still, tap to its left | Return |
+
+On the Magic Mouse, the distance between the two fingers does not matter. The
+tap must finish in 0.25 seconds, and both fingers must stay still.
+
+## Change the bindings
+
+Edit the binding tables in `generate_config.py`. Then run:
 
 ```bash
-/usr/bin/log show --style compact --last 8m --predicate 'process == "MagicMouseAgent"'
+python3 ./generate_config.py
+./stop.sh && ./start.sh
 ```
 
-## Notes
+A change to the bindings does not need a new build.
 
-- This project uses Apple's private `MultitouchSupport` framework, like Jitouch.
-- The default build is ad-hoc signed, not notarized.
-- If you want to distribute polished prebuilt binaries broadly, the next step is Developer ID signing and notarization.
+Gesture names must match the names in `src/jitouch/Jitouch/Gesture.m` exactly.
+The two devices use different names for the same motion, so a binding on one
+device does not reach the other.
+
+Shift, Control, Option, and Command are the modifiers you can send.
+
+## Start at login
+
+```bash
+./install-login-agent.sh
+```
+
+This writes one file to `~/Library/LaunchAgents`. The file starts the app at
+login and restarts it if it stops. To remove the file, run
+`./uninstall-login-agent.sh`.
+
+## Limits
+
+Some apps read the keyboard through a CGEventTap and accept only the events that
+come from real hardware. These apps ignore the keystrokes that MagicGestures
+sends. Aqua Voice is one example. Make sure that an app answers a synthesized
+keystroke before you bind a gesture to it.
+
+The Fn key cannot be sent at all. Fn is a HID usage rather than a normal key
+event.
+
+## How it works
+
+The gesture recognizers come from
+[Jitouch](https://github.com/JitouchApp/Jitouch), which reads raw touch data
+from the private `MultitouchSupport.framework`. This project keeps that engine,
+removes its preference pane, and runs the result as a background agent that
+reads a generated configuration file.
+
+`AGENTS.md` covers the build, the configuration model, and the local changes to
+the engine.
 
 ## License
 
-MagicMouseAgent is distributed under `GPL-3.0`. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+GPL-3.0, inherited from Jitouch. See `NOTICE` for attribution.

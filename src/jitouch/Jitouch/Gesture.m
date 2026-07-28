@@ -2401,11 +2401,20 @@ static void gestureMagicMouseOneFingerSwipe(const Finger *data, int nFingers, do
     if (nFingers == 1) {
         NSString *leftCommand = commandForGesture(@"One-Swipe-Left", MAGICMOUSE);
         NSString *rightCommand = commandForGesture(@"One-Swipe-Right", MAGICMOUSE);
-        if (leftCommand != nil || rightCommand != nil) {
-            // Keep browser history swipe from firing while a custom one-finger
-            // Magic Mouse swipe is active for the app under the cursor.
-            disableHorizontalScroll = 1;
+        if (leftCommand == nil && rightCommand == nil) {
+            // Nothing is bound to a one-finger swipe, so leave the finger
+            // alone entirely. Tracking it would suppress horizontal scrolling
+            // below in service of a gesture that can never fire.
+            tracking = 0;
+            touchId = -1;
+            startTime = -1;
+            triggered = 0;
+            return;
         }
+
+        // Keep browser history swipe from firing while a custom one-finger
+        // Magic Mouse swipe is active for the app under the cursor.
+        disableHorizontalScroll = 1;
 
         if (!tracking || data[0].identifier != touchId) {
             tracking = 1;
@@ -3598,7 +3607,7 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
             if (recreatingEventTap) return;
             recreatingEventTap = TRUE;
-            NSLog(@"Received kCGEventTapDisabledByTimeout; attempting to recreate CGEventTap. Allow MagicMouseAgent in System Settings -> Privacy & Security -> Accessibility.");
+            NSLog(@"Received kCGEventTapDisabledByTimeout; attempting to recreate CGEventTap. Allow MagicGestures in System Settings -> Privacy & Security -> Accessibility.");
             CFMachPortInvalidate(eventTap);
             CFRelease(eventTap);
             eventTap = [me createEventTap];
@@ -3726,7 +3735,7 @@ int eventTapTries = 0;
         if (eventTapTries < 360) {
             [NSTimer scheduledTimerWithTimeInterval:1.0 target:me selector:@selector(createEventTapTimer:) userInfo:nil repeats:NO];
         } else {
-            NSLog(@"Could not create CGEventTap after 5 minutes. Perhaps try removing MagicMouseAgent from Accessibility and relaunching it.");
+            NSLog(@"Could not create CGEventTap after 5 minutes. Perhaps try removing MagicGestures from Accessibility and relaunching it.");
         }
     } else {
         NSLog(@"CGEventTap created");
@@ -3812,7 +3821,7 @@ CFMutableArrayRef deviceList;
 
         eventTap = [me createEventTap];
         if (eventTap == nil) {
-            NSLog(@"Could not create CGEventTap. Allow MagicMouseAgent in System Settings -> Privacy & Security -> Accessibility.");
+            NSLog(@"Could not create CGEventTap. Allow MagicGestures in System Settings -> Privacy & Security -> Accessibility.");
             recreatingEventTap = TRUE;
             eventTapTries = 0;
             [NSTimer scheduledTimerWithTimeInterval:1.0 target:me selector:@selector(createEventTapTimer:) userInfo:nil repeats:NO];

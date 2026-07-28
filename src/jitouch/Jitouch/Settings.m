@@ -60,7 +60,7 @@ static int notSynchronize;
 + (void)noteSettingsUpdated2 {
     NSAutoreleasePool *autoreleasepool = [[NSAutoreleasePool alloc] init];
     [[NSDistributedNotificationCenter defaultCenter] postNotificationName: @"My Notification2"
-                                                                   object: @"io.github.magicmouseagent.PrefpaneTarget2"
+                                                                   object: @"fyi.nathancheng.magic-gestures.PrefpaneTarget2"
                                                                  userInfo: @{
      @"enAll": [NSNumber numberWithInt:enAll]
      }
@@ -291,13 +291,13 @@ static int notSynchronize;
         if (bundlePath != nil && [bundlePath length] > 0) {
             NSString *buildRoot = [bundlePath stringByDeletingLastPathComponent];
             NSString *projectRoot = [buildRoot stringByDeletingLastPathComponent];
-            bundleConfigPath = [[projectRoot stringByAppendingPathComponent:@"config/MagicMouseAgent.plist"] stringByStandardizingPath];
+            bundleConfigPath = [[projectRoot stringByAppendingPathComponent:@"config/MagicGestures.plist"] stringByStandardizingPath];
         }
 
         if (bundleConfigPath != nil && [[NSFileManager defaultManager] fileExistsAtPath:bundleConfigPath]) {
             plistPath = bundleConfigPath;
         } else {
-            plistPath = [@"~/Library/Preferences/io.github.magicmouseagent.MagicMouseAgent.plist" stringByStandardizingPath];
+            plistPath = [@"~/Library/Preferences/fyi.nathancheng.magic-gestures.plist" stringByStandardizingPath];
         }
     } else {
         plistPath = [plistPath stringByStandardizingPath];

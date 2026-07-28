@@ -5,8 +5,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_DIR = ROOT / "config"
-CONFIG_PATH = CONFIG_DIR / "MagicMouseAgent.plist"
-SUMMARY_PATH = CONFIG_DIR / "migration-summary.md"
+CONFIG_PATH = CONFIG_DIR / "MagicGestures.plist"
+SUMMARY_PATH = CONFIG_DIR / "bindings.md"
 
 
 CMD = 1 << 20
@@ -41,40 +41,42 @@ def app_entry(name: str, path: str, gestures: list[dict]) -> dict:
     return {"Application": name, "Path": path, "Gestures": gestures}
 
 
+RETURN_KEYCODE = 36  # Return, sent bare to submit the focused field
+
+
 def build_magic_mouse_commands() -> list[dict]:
+    # Hold the middle finger still and tap beside it with the index finger. A
+    # resting hand cannot produce that, unlike a plain tap or a swipe, which is
+    # what makes a fix-tap safe to bind.
+    #
+    # Near and far variants fire the same shortcut, so the gap between the two
+    # fingers does not have to be precise.
     return [
         app_entry(
             "All Applications",
             "",
             [
-                action("One-Finger Tap", "Left Click"),
-                action("Right-Front Tap", "Right Click"),
-            ],
-        ),
-        app_entry(
-            "Google Chrome",
-            "/Applications/Google Chrome.app",
-            [
-                action("One-Swipe-Left", "Previous Tab"),
-                action("One-Swipe-Right", "Next Tab"),
-                action("Two-Finger Tap", "Close / Close Tab"),
-                action("Middle-Fix Index-Near-Tap", "Open Recently Closed Tab"),
-                action("Middle-Fix Index-Far-Tap", "Open Recently Closed Tab"),
-                action("Index-Fix Middle-Near-Tap", "New Tab"),
-                action("Index-Fix Middle-Far-Tap", "New Tab"),
+                shortcut("Middle-Fix Index-Near-Tap", "Submit", RETURN_KEYCODE, 0),
+                shortcut("Middle-Fix Index-Far-Tap", "Submit", RETURN_KEYCODE, 0),
             ],
         ),
     ]
 
 
 def build_trackpad_commands() -> list[dict]:
+    # The same action as the mouse, so one muscle memory covers both devices.
+    # The trackpad names gestures by where the tap lands rather than by finger,
+    # so the equivalent of "hold middle, tap index" is a tap to the left of the
+    # anchor.
+    #
+    # No tap-to-click bindings belong here by preference: gestures fire
+    # shortcuts, never synthesized clicks.
     return [
         app_entry(
             "All Applications",
             "",
             [
-                action("One-Fix One-Slide", "Move / Resize"),
-                action("Three-Finger Tap", "Middle Click"),
+                shortcut("One-Fix Left-Tap", "Submit", RETURN_KEYCODE, 0),
             ],
         )
     ]
@@ -85,24 +87,49 @@ def build_recognition_commands() -> list[dict]:
 
 
 def write_summary() -> None:
-    text = """# Migration Summary
+    text = """# Gesture bindings
 
-This pass is intentionally mouse-first and focused on replacing the specific BetterTouchTool gestures that were still missing.
+Submit the focused field from the mouse or trackpad, without reaching for the
+keyboard. Return is far from a mouse hand and comes up constantly while
+pointing at something.
 
-Supported now:
-- Magic Mouse single-finger tap for a primary left click.
-- Magic Mouse single-finger swipe left/right for previous/next tab in Chrome.
-- Magic Mouse two-finger tap to close the current tab in Google Chrome.
-- Magic Mouse hold-right plus tap-left to reopen the most recently closed tab in Google Chrome.
-- Magic Mouse hold-left plus tap-right to open a new tab in Google Chrome.
-- Magic Mouse front-right tap for a global right click.
+Hold the middle finger still on the mouse and tap beside it with the index
+finger. On the trackpad, hold a finger and tap to its left.
 
-Not migrated 1:1 in this pass:
-- BetterTouchTool top-edge Magic Mouse touch gestures.
-- BetterTouchTool-specific 1-finger and 2-finger trackpad side-tip-tap variants.
-- Remaining browser gestures that depended on older Jitouch-specific gesture families.
+Holding one finger still while tapping with another cannot be produced by a
+resting hand, which is what makes it safe to bind. Near and far tap positions
+both fire on the mouse, so finger spacing does not have to be precise.
 
-Trackpad gesture handling is still disabled by default.
+Two constraints shape what can be bound here:
+
+- The Fn key cannot be synthesized. It is a HID usage rather than an ordinary
+  key event, so a gesture can never stand in for an Fn-based binding.
+- Nothing synthesizes mouse clicks. Native click behavior, including the
+  absence of tap-to-click, is left exactly as macOS provides it.
+
+## Applications that reject synthesized keystrokes
+
+Some applications watch the keyboard through a CGEventTap and ignore key events
+that did not originate from real hardware. They cannot be driven from here, and
+no configuration change fixes it. Verify a target responds to a synthesized
+keystroke before building bindings around it.
+
+Aqua Voice is one such application, which is why dictation is not bound here.
+This was isolated by binding a gesture to Ctrl+Shift+Cmd+4, a shortcut both
+Aqua and the macOS screenshot service listen on: firing it produced a
+screenshot and no dictation, from a single event.
+
+Getting past that needs a channel the application accepts. Aqua exposes no
+Shortcuts actions, and its aquavoice:// scheme handles only captions sessions,
+Slack status, onboarding, and auth tokens. The remaining routes are an official
+trigger added by its developers, or injecting through a virtual HID device,
+which requires a DriverKit system extension and a root helper process.
+
+## Trackpad
+
+Both devices are enabled and carry the same binding. The trackpad names its
+gestures by where the tap lands rather than by which finger is which, so
+"hold middle, tap index" becomes "hold a finger, tap to its left".
 """
     SUMMARY_PATH.write_text(text)
 
@@ -116,8 +143,8 @@ def main() -> None:
         "ClickSpeed": 0.25,
         "Sensitivity": 4.6666,
         "ShowIcon": 0,
-        "LogLevel": 1,
-        "enTPAll": 0,
+        "LogLevel": 1,  # Raise to 2 to log every dispatched gesture and shortcut.
+        "enTPAll": 1,
         "Handed": 0,
         "enMMAll": 1,
         "MMHanded": 0,

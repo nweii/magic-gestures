@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="${0:A:h}"
-APP_NAME="MagicMouseAgent"
+APP_NAME="MagicGestures"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
-CONFIG="$ROOT/config/MagicMouseAgent.plist"
-LABEL="io.github.magicmouseagent.agent"
+CONFIG="$ROOT/config/MagicGestures.plist"
+LABEL="fyi.nathancheng.magic-gestures.agent"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
 
@@ -22,6 +22,16 @@ fi
 cat > "$PLIST_DST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Maps Magic Mouse and Magic Trackpad gestures to keystrokes.
+
+  Source and configuration:  $ROOT
+  Written by:                $ROOT/install-login-agent.sh
+  To remove:                 $ROOT/uninstall-login-agent.sh
+
+  Deleting this file stops the agent from starting at login. It leaves the
+  project itself untouched.
+-->
 <plist version="1.0">
 <dict>
   <key>Label</key>

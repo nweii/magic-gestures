@@ -7,6 +7,7 @@
 
 #import "KeyUtility.h"
 #import <Carbon/Carbon.h>
+#import <IOKit/hidsystem/IOLLEvent.h>
 
 // to suppress "'CGPostKeyboardEvent' is deprecated" warnings
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -52,29 +53,40 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
     return self;
 }
 
+// Modifiers are carried as flags on the keystroke itself rather than as
+// separate synthetic modifier keypresses. Hotkey APIs read modifierFlags off
+// the key event, so an app watching for a combination sees nothing when the
+// modifiers arrive only as neighbouring events.
 - (void)simulateKeyCode:(CGKeyCode)code ShftDown:(BOOL)shft CtrlDown:(BOOL)ctrl AltDown:(BOOL)alt CmdDown:(BOOL)cmd {
+    // Each modifier needs both its generic mask and its device-dependent
+    // left-side bit. Apps that register a side-specific hotkey ("Left Cmd")
+    // test the device bits, and the generic masks alone carry no side, so a
+    // keystroke sent without them matches nothing.
+    CGEventFlags flags = 0;
+    if (shft) flags |= kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK;
+    if (ctrl) flags |= kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK;
+    if (alt)  flags |= kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK;
+    if (cmd)  flags |= kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK;
 
-     if (shft)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)56, true);
-     if (ctrl)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)59, true);
-     if (alt)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)58, true);
-     if (cmd)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)55, true);
+    CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    CGKeyCode key = a[code];
 
-     CGPostKeyboardEvent((CGCharCode)0, a[code], true);
-     CGPostKeyboardEvent((CGCharCode)0, a[code], false);
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(source, key, true);
+    CGEventRef keyUp = CGEventCreateKeyboardEvent(source, key, false);
 
-     if (shft)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)56, false);
-     if (ctrl)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)59, false);
-     if (alt)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)58, false);
-     if (cmd)
-     CGPostKeyboardEvent((CGCharCode)0, (CGKeyCode)55, false);
+    // Leave flags untouched when no modifiers are requested, so a bare
+    // keystroke still inherits whatever the user is physically holding.
+    if (flags) {
+        CGEventSetFlags(keyDown, flags);
+        CGEventSetFlags(keyUp, flags);
+    }
 
+    CGEventPost(kCGSessionEventTap, keyDown);
+    CGEventPost(kCGSessionEventTap, keyUp);
+
+    if (keyDown) CFRelease(keyDown);
+    if (keyUp) CFRelease(keyUp);
+    if (source) CFRelease(source);
 }
 
 - (void) simulateKey:(NSString *)key ShftDown:(BOOL)shft CtrlDown:(BOOL)ctrl AltDown:(BOOL)alt CmdDown:(BOOL)cmd {

@@ -1,8 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-APP_NAME="MagicMouseAgent"
-LABEL="io.github.magicmouseagent.agent"
+APP_NAME="MagicGestures"
+LABEL="fyi.nathancheng.magic-gestures.agent"
 GUI_DOMAIN="gui/$(id -u)"
 
 echo -n "app_process="

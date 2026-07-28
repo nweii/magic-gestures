@@ -5,16 +5,16 @@ STATUS=0
 
 cd "$ROOT"
 
-echo "Stopping MagicMouseAgent..."
+echo "Starting MagicGestures..."
 echo
 
-./stop.sh || STATUS=$?
+./start.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then
-  echo "MagicMouseAgent has stopped."
+  echo "MagicGestures is running."
 else
-  echo "MagicMouseAgent failed with exit code $STATUS."
+  echo "MagicGestures failed with exit code $STATUS."
 fi
 echo
 read '?Press Enter to close this window...'

@@ -5,14 +5,14 @@ STATUS=0
 
 cd "$ROOT"
 
-echo "Removing MagicMouseAgent from launch at login..."
+echo "Removing MagicGestures from launch at login..."
 echo
 
 ./uninstall-login-agent.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then
-  echo "MagicMouseAgent will no longer start automatically after login."
+  echo "MagicGestures will no longer start automatically after login."
 else
   echo "Uninstall failed with exit code $STATUS."
 fi

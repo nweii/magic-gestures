@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="${0:A:h}"
-APP_NAME="MagicMouseAgent"
+APP_NAME="MagicGestures"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
-CONFIG="$ROOT/config/MagicMouseAgent.plist"
+CONFIG="$ROOT/config/MagicGestures.plist"
 
 mkdir -p "$ROOT/run"
 

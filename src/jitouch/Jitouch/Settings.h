@@ -9,7 +9,7 @@
 
 #define kCurrentRevision 26
 #define kAcceptableOldestRevision 13
-#define appID CFSTR("io.github.magicmouseagent.MagicMouseAgent")
+#define appID CFSTR("fyi.nathancheng.magic-gestures")
 
 extern NSMutableDictionary *settings;
 extern NSMutableDictionary *trackpadMap;

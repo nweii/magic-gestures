@@ -1,8 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-APP_NAME="MagicMouseAgent"
-BUNDLE_ID="io.github.magicmouseagent.MagicMouseAgent"
+APP_NAME="MagicGestures"
+BUNDLE_ID="fyi.nathancheng.magic-gestures"
 ROOT="${0:A:h}"
 SRC_ROOT="$ROOT/src/jitouch/Jitouch"
 BUILD_ROOT="$ROOT/build"

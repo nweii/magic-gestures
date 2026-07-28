@@ -5,16 +5,16 @@ STATUS=0
 
 cd "$ROOT"
 
-echo "Building and starting MagicMouseAgent..."
+echo "Building and starting MagicGestures..."
 echo
 
 python3 ./generate_config.py && ./build.sh && ./start.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then
-  echo "MagicMouseAgent is ready."
+  echo "MagicGestures is ready."
 else
-  echo "MagicMouseAgent failed with exit code $STATUS."
+  echo "MagicGestures failed with exit code $STATUS."
 fi
 echo
 read '?Press Enter to close this window...'

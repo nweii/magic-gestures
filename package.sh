@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="${0:A:h}"
-APP_NAME="MagicMouseAgent"
+APP_NAME="MagicGestures"
 VERSION="${1:-0.1.1}"
 DIST_DIR="$ROOT/dist"
 STAGE_ROOT="$(mktemp -d "/tmp/${APP_NAME}.XXXXXX")"

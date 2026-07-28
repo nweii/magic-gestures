@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-LABEL="io.github.magicmouseagent.agent"
+LABEL="fyi.nathancheng.magic-gestures.agent"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
 
