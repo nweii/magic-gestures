@@ -1,14 +1,21 @@
 # MagicGestures
 
-MagicGestures maps Magic Mouse and Magic Trackpad multi-touch gestures to
-keyboard shortcuts on macOS. It runs in the background and has no interface.
+Press a key without taking your hand off the mouse.
 
-Every gesture is a fix-tap. You hold one finger still on the touch surface, then
-tap beside it with a second finger. A resting hand cannot make this motion, so
-the gestures do not fire by accident.
+MagicGestures turns a finger gesture on a Magic Mouse or Magic Trackpad into a
+keyboard shortcut. You hold one finger still on the touch surface and tap beside
+it with a second finger. The app sends the keystroke you picked.
 
-The app sends keystrokes only. It does not change how clicking works, and it
-does not add tap-to-click.
+By default that keystroke is Return. You can click into a text field, type, and
+submit it without reaching for the keyboard. Any shortcut works, so you can bind
+the gesture to whatever you reach for most.
+
+Two fingers that do different things at the same time is not something a resting
+hand produces. The gesture stays quiet while you scroll, drag, or just rest your
+hand on the mouse.
+
+The app runs in the background and has no interface. It sends keystrokes and
+nothing else, so clicking keeps working the way macOS set it up.
 
 ## Requirements
 
