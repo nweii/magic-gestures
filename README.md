@@ -6,9 +6,7 @@ MagicGestures turns a finger gesture on a Magic Mouse or Magic Trackpad into a
 keyboard shortcut. You hold one finger still on the touch surface and tap beside
 it with a second finger. The app sends the keystroke you picked.
 
-By default it sends Return. Bind it to any shortcut you want.
-
-It runs in the background with no interface. Clicking is unchanged.
+By default it sends Return, but you can bind this to any shortcut you want. It runs in the background with no interface and does not affect normal clicks or existing gestures by default.
 
 ## Requirements
 
@@ -30,17 +28,14 @@ macOS asks for Accessibility permission the first time. Open System Settings,
 then Privacy & Security, then Accessibility. Turn on MagicGestures in the list.
 
 The app is ad-hoc signed and not notarized. If macOS blocks it, hold Control,
-click the app, and select Open.
+click the app, and select Open. You might need to approve it in System Settings > Privacy & Security (scroll down) > "Open anyway" on MagicGestures.
 
 ## Default gestures
 
 | Device | Gesture | Sends |
 |---|---|---|
-| Magic Mouse | Hold the middle finger still, tap with the index finger | Return |
-| Magic Trackpad | Hold one finger still, tap to its left | Return |
-
-On the Magic Mouse, the distance between the two fingers does not matter. The
-tap must finish in 0.25 seconds, and both fingers must stay still.
+| Magic Mouse | Rest your middle finger, tap with your index | Return |
+| Magic Trackpad | Rest one finger, tap close to its left with another | Return |
 
 ## Change the bindings
 
@@ -73,11 +68,10 @@ login and restarts it if it stops. To remove the file, run
 
 Some apps read the keyboard through a CGEventTap and accept only the events that
 come from real hardware. These apps ignore the keystrokes that MagicGestures
-sends. Aqua Voice is one example. Make sure that an app answers a synthesized
+sends (ex. Aqua Voice). Make sure that an app answers a synthesized
 keystroke before you bind a gesture to it.
 
-The Fn key cannot be sent at all. Fn is a HID usage rather than a normal key
-event.
+The Fn key cannot be sent at all.
 
 ## How it works
 
