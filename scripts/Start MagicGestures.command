@@ -1,18 +1,18 @@
 #!/bin/zsh
 
-ROOT="${0:A:h}"
+ROOT="${0:A:h:h}"
 STATUS=0
 
 cd "$ROOT"
 
-echo "Building and starting MagicGestures..."
+echo "Starting MagicGestures..."
 echo
 
-python3 ./generate_config.py && ./build.sh && ./start.sh || STATUS=$?
+./scripts/start.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then
-  echo "MagicGestures is ready."
+  echo "MagicGestures is running."
 else
   echo "MagicGestures failed with exit code $STATUS."
 fi

@@ -20,8 +20,8 @@ Build the app and start it:
 
 ```bash
 python3 ./generate_config.py
-./build.sh
-./start.sh
+./scripts/build.sh
+./scripts/start.sh
 ```
 
 macOS asks for Accessibility permission the first time. Open System Settings,
@@ -29,6 +29,21 @@ then Privacy & Security, then Accessibility. Turn on MagicGestures in the list.
 
 The app is ad-hoc signed and not notarized. If macOS blocks it, hold Control,
 click the app, and select Open. You might need to approve it in System Settings > Privacy & Security (scroll down) > "Open anyway" on MagicGestures.
+
+## Or let an agent set it up
+
+Paste this into Claude Code, or any coding agent, from the folder where you keep
+your projects:
+
+```text
+Clone https://github.com/nweii/magic-gestures and set it up for me.
+Read AGENTS.md first. Ask me which gesture I want and which keyboard shortcut
+it should send. Then edit generate_config.py, build it, and start it.
+Tell me what I have to approve in System Settings.
+```
+
+The gesture names live in the recognizer source, and `AGENTS.md` explains where
+to find them and which names belong to which device.
 
 ## Default gestures
 
@@ -43,7 +58,7 @@ Edit the binding tables in `generate_config.py`. Then run:
 
 ```bash
 python3 ./generate_config.py
-./stop.sh && ./start.sh
+./scripts/stop.sh && ./scripts/start.sh
 ```
 
 A change to the bindings does not need a new build.
@@ -57,12 +72,12 @@ Shift, Control, Option, and Command are the modifiers you can send.
 ## Start at login
 
 ```bash
-./install-login-agent.sh
+./scripts/install-login-agent.sh
 ```
 
 This writes one file to `~/Library/LaunchAgents`. The file starts the app at
 login and restarts it if it stops. To remove the file, run
-`./uninstall-login-agent.sh`.
+`./scripts/uninstall-login-agent.sh`.
 
 ## Limits
 

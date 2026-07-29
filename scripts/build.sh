@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="MagicGestures"
 BUNDLE_ID="fyi.nathancheng.magic-gestures"
-ROOT="${0:A:h}"
+ROOT="${0:A:h:h}"
 SRC_ROOT="$ROOT/src/jitouch/Jitouch"
 BUILD_ROOT="$ROOT/build"
 APP_BUNDLE="$BUILD_ROOT/$APP_NAME.app"

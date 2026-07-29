@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-ROOT="${0:A:h}"
+ROOT="${0:A:h:h}"
 APP_NAME="MagicGestures"
 VERSION="${1:-0.1.1}"
 DIST_DIR="$ROOT/dist"

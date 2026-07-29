@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-ROOT="${0:A:h}"
+ROOT="${0:A:h:h}"
 APP_NAME="MagicGestures"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
 CONFIG="$ROOT/config/MagicGestures.plist"

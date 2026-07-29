@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-ROOT="${0:A:h}"
+ROOT="${0:A:h:h}"
 STATUS=0
 
 cd "$ROOT"
@@ -8,7 +8,7 @@ cd "$ROOT"
 echo "Removing MagicGestures from launch at login..."
 echo
 
-./uninstall-login-agent.sh || STATUS=$?
+./scripts/uninstall-login-agent.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then

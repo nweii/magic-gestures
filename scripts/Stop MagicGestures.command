@@ -1,18 +1,18 @@
 #!/bin/zsh
 
-ROOT="${0:A:h}"
+ROOT="${0:A:h:h}"
 STATUS=0
 
 cd "$ROOT"
 
-echo "Starting MagicGestures..."
+echo "Stopping MagicGestures..."
 echo
 
-./start.sh || STATUS=$?
+./scripts/stop.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then
-  echo "MagicGestures is running."
+  echo "MagicGestures has stopped."
 else
   echo "MagicGestures failed with exit code $STATUS."
 fi

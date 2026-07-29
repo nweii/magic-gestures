@@ -3,6 +3,12 @@
 Maps Magic Mouse and Magic Trackpad multi-touch gestures to keystrokes on
 macOS. Runs headless as a background agent with no interface.
 
+`CLAUDE.md` is a symlink to this file. Edit this one.
+
+Shell scripts live in `scripts/` and resolve paths from the project root, two
+levels up from themselves. `generate_config.py` stays at the root because it is
+the file you edit to change behavior.
+
 ## Vendored engine, local config layer
 
 Recognition is [Jitouch](https://github.com/JitouchApp/Jitouch), vendored under
@@ -20,26 +26,26 @@ January 2023, so breakage is ours to fix.
 
 ```bash
 python3 ./generate_config.py   # -> config/MagicGestures.plist, config/bindings.md
-./build.sh                     # single clang call, no Xcode project
-./stop.sh && ./start.sh
+./scripts/build.sh             # single clang call, no Xcode project
+./scripts/stop.sh && ./scripts/start.sh
 ```
 
-Config-only changes skip the build. The agent reloads on SIGHUP, and `start.sh`
+Config-only changes skip the build. The agent reloads on SIGHUP, and `scripts/start.sh`
 restarts it cheaply either way.
 
 The Accessibility grant binds to the bundle path plus the designated requirement
-that `build.sh` pins. Keep both stable and the grant survives every rebuild.
+that `scripts/build.sh` pins. Keep both stable and the grant survives every rebuild.
 
 ## Login item
 
-`./install-login-agent.sh` writes a launchd plist to
+`./scripts/install-login-agent.sh` writes a launchd plist to
 `~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist`, which
 starts the agent at login and restarts it if it exits. The generated plist
 opens with a comment naming what it does and pointing back here, since a bare
 launchd label is easy to find and hard to identify.
 
-`./uninstall-login-agent.sh` removes it. Deleting the plist by hand has the same
-effect and leaves the project alone.
+`./scripts/uninstall-login-agent.sh` removes it. Deleting the plist by hand has
+the same effect and leaves the project alone.
 
 This is the only file the project writes outside its own directory.
 
