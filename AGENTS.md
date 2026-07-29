@@ -95,7 +95,13 @@ Some applications watch the keyboard through a CGEventTap and accept only events
 that originated from real hardware. No configuration reaches them. Confirm a
 target responds to a synthesized keystroke before building bindings around it.
 
-`config/bindings.md` carries the worked example.
+Aqua Voice behaves this way. Binding a gesture to `Ctrl+Shift+Cmd+4`, which both
+Aqua and the macOS screenshot service listen for, produced a screenshot and no
+dictation from a single event. The same holds for keystrokes sent by Apple's own
+System Events, so the rejection is not specific to this tool.
+
+`config/bindings.md`, generated alongside the plist and untracked, repeats this
+next to the current bindings.
 
 ## Local modifications to the vendored engine
 
