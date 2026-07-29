@@ -39,11 +39,12 @@ your projects:
 Clone https://github.com/nweii/magic-gestures and set it up for me.
 Read AGENTS.md first. Ask me which gesture I want and which keyboard shortcut
 it should send. Then edit generate_config.py, build it, and start it.
+Read GESTURES.md and let me pick from the gestures listed there.
 Tell me what I have to approve in System Settings.
 ```
 
-The gesture names live in the recognizer source, and `AGENTS.md` explains where
-to find them and which names belong to which device.
+`AGENTS.md` covers the build and the configuration model. `GESTURES.md` lists
+every gesture you can bind.
 
 ## Default gestures
 
@@ -54,6 +55,9 @@ to find them and which names belong to which device.
 
 ## Change the bindings
 
+The engine recognizes 52 gestures, including three-finger and four-finger
+swipes, pinches, and taps. `GESTURES.md` lists all of them by device.
+
 Edit the binding tables in `generate_config.py`. Then run:
 
 ```bash
@@ -63,9 +67,7 @@ python3 ./generate_config.py
 
 A change to the bindings does not need a new build.
 
-Gesture names must match the names in `src/jitouch/Jitouch/Gesture.m` exactly.
-The two devices use different names for the same motion, so a binding on one
-device does not reach the other.
+Gesture names must match exactly.
 
 Shift, Control, Option, and Command are the modifiers you can send.
 

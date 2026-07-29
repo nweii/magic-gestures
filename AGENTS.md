@@ -76,11 +76,10 @@ Three binding forms:
 - A dict carrying `OpenURL` with `IsAction` true opens a URL through
   `NSWorkspace`. Any command name matching no built-in falls through to it.
 
-Gesture names must match `dispatchCommand`'s strings exactly. The two devices
-keep separate tables, enable flags, and vocabularies: the mouse names gestures
-by finger (`Index-Fix Middle-Near-Tap`), the trackpad by tap position relative
-to the anchor (`One-Fix Right-Tap`). A binding on one device does not reach the
-other.
+`GESTURES.md` lists every gesture name the engine recognizes, split by device.
+Names must match exactly, and an unrecognized name is ignored without an error.
+The two devices keep separate tables, enable flags, and vocabularies, so a
+binding on one does not reach the other.
 
 Shift, Control, Option, and Command are the available modifiers. Fn is a HID
 usage rather than a key event and cannot be synthesized.
