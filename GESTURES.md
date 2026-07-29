@@ -79,6 +79,33 @@ Finger runs:
 
 - `Index-To-Pinky`, `Pinky-To-Index`
 
+## Conflicts with built-in macOS gestures
+
+macOS claims several of these motions first, in System Settings under Trackpad
+and Mouse. When both want the same motion, both fire.
+
+Check your own settings before you bind, because the finger counts are
+adjustable. A default trackpad puts these out of reach:
+
+| Motion | Built-in use |
+|---|---|
+| `Four-Swipe-Up` | Mission Control |
+| `Four-Swipe-Down` | App Exposé |
+| `Four-Swipe-Left`, `Four-Swipe-Right` | Swipe between full-screen apps |
+| `Three-Finger Pinch-In`, `Three-Finger Pinch-Out` | Close to the thumb-and-three-finger spread for Show Desktop |
+
+Mission Control and App Exposé can be moved between three and four fingers, so
+a trackpad set to three fingers takes the `Three-Swipe` names out instead and
+frees the `Four-Swipe` ones.
+
+On the Magic Mouse, one-finger and two-finger horizontal motion drives scrolling
+and page navigation, which is why `One-Swipe-Left` and `One-Swipe-Right` fight
+the system.
+
+Free on a default setup: every fix-tap and fix-slide, `Three-Finger Tap`,
+`Four-Finger Tap`, `Index-To-Pinky`, `Pinky-To-Index`, and the `Three-Swipe`
+names.
+
 ## Choosing one
 
 A swipe or a plain tap competes with motions your hand makes anyway. A
@@ -86,7 +113,15 @@ three-finger swipe fires while you scroll with three fingers resting. A
 one-finger tap fires when you set your hand down.
 
 Fix gestures hold one finger still while another moves, which a resting hand
-does not produce. Bind those to anything you would regret firing by accident.
+does not produce. macOS also claims none of them. Bind those to anything you
+would regret firing by accident.
+
+## Actions, not just keystrokes
+
+Besides sending a keystroke, a binding can call a built-in action. `Middle
+Click` posts a real middle-button event, which gives a Magic Mouse a middle
+button it does not otherwise have. The action names are the string literals
+compared in `dispatchCommand` in `Gesture.m`.
 
 ## Where these come from
 
