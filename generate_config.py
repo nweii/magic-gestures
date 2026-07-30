@@ -143,7 +143,7 @@ def main() -> None:
         "enAll": 1,
         "ClickSpeed": 0.25,
         "Sensitivity": 4.6666,
-        "ShowIcon": 0,
+        "ShowIcon": 1,  # Menu bar item: toggle, reveal bindings, quit.
         "LogLevel": 1,  # Raise to 2 to log every dispatched gesture and shortcut.
         "enTPAll": 1,
         "Handed": 0,

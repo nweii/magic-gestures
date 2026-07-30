@@ -46,7 +46,7 @@ CGKeyCode keyMap[128]; // for dvorak support
         [theMenu insertItemWithTitle:@"Turn MagicGestures On" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
 
     //[theMenu insertItem:[NSMenuItem separatorItem] atIndex:1];
-    [theMenu insertItemWithTitle:@"Open Config Folder..." action:@selector(preferences:) keyEquivalent:@"" atIndex:1];
+    [theMenu insertItemWithTitle:@"Reveal Bindings File..." action:@selector(preferences:) keyEquivalent:@"" atIndex:1];
     [theMenu insertItem:[NSMenuItem separatorItem] atIndex:2];
     [theMenu insertItemWithTitle:@"Quit MagicGestures" action:@selector(quit:) keyEquivalent:@"" atIndex:3];
 
@@ -82,12 +82,15 @@ CGKeyCode keyMap[128]; // for dvorak support
         projectRoot = [[buildRoot stringByDeletingLastPathComponent] stringByStandardizingPath];
     }
 
-    NSString *configPath = projectRoot ? [projectRoot stringByAppendingPathComponent:@"config"] : nil;
-    NSString *openPath = configPath;
-    if (openPath == nil || ![[NSFileManager defaultManager] fileExistsAtPath:openPath]) {
-        openPath = projectRoot;
+    // Reveal the file bindings are actually edited in, rather than the
+    // generated output beside it.
+    NSString *sourcePath = projectRoot ? [projectRoot stringByAppendingPathComponent:@"generate_config.py"] : nil;
+    if (sourcePath != nil && [[NSFileManager defaultManager] fileExistsAtPath:sourcePath]) {
+        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[[NSURL fileURLWithPath:sourcePath]]];
+        return;
     }
 
+    NSString *openPath = projectRoot;
     if (openPath != nil && [[NSFileManager defaultManager] fileExistsAtPath:openPath]) {
         [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:openPath]];
     } else {

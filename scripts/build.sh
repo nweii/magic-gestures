@@ -41,9 +41,6 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-cp "$ROOT/assets/move.png" "$RES_DIR/"
-cp "$ROOT/assets/resize.png" "$RES_DIR/"
-cp "$ROOT/assets/tab.png" "$RES_DIR/"
 
 SDKROOT="$(xcrun --show-sdk-path)"
 

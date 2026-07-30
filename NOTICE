@@ -4,14 +4,14 @@ Copyright (c) 2026 Nathan Cheng
 
 This repository is distributed under the GNU General Public License v3.0.
 
-It contains modified source files and image assets derived from Jitouch:
+It contains modified source files derived from Jitouch:
 - Copyright (c) Supasorn Suwajanakorn and Sukolsak Sakshuwong
 - Modified work copyright (c) Aaron Kollasch
 - Original project: https://github.com/JitouchApp/Jitouch
 
 Modified in 2026 for this project: Gesture.m, JitouchAppDelegate.m,
 KeyUtility.m, Settings.m, and Settings.h. Each carries a modification notice in
-its header. The image assets under assets/ are unmodified Jitouch artwork.
+its header. No Jitouch artwork is bundled.
 
 This repository does not vendor any files from MiddleClick.
 Gesture tuning and compatibility investigation for modern macOS behavior were informed by reviewing:
