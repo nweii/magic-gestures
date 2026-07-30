@@ -86,13 +86,16 @@ usage rather than a key event and cannot be synthesized.
 
 ## Standing constraints
 
-- **Clicking stays native.** Gestures fire keystrokes and actions. Click
-  behavior, including tap-to-click being off, stays as macOS provides it.
-- **Hyper is reserved.** Cmd+Alt+Ctrl is Caps Lock remapped, and its letters
-  belong to application launchers. Bindings here omit Alt.
-- **Fix-taps carry anything consequential.** Holding one finger still while
-  tapping with another is unreachable by a resting hand, unlike a plain tap or
-  a swipe.
+- **Add, never replace.** A binding extends what the hardware does. Anything
+  System Settings owns — tap-to-click, secondary click, the built-in swipes —
+  keeps behaving as the user configured it. `Middle Click` is fair game on a
+  Magic Mouse, which has no middle button to override.
+- **Check both conflict surfaces before binding.** macOS claims some motions,
+  listed in `GESTURES.md`. The user's own hotkeys claim some chords, and a
+  Caps Lock remapped to Cmd+Alt+Ctrl is a common one worth asking about.
+- **Fix gestures carry anything consequential.** Holding one finger still while
+  another taps or slides is unreachable by a resting hand, and macOS uses that
+  shape nowhere.
 
 ## Hardware-only applications
 

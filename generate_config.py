@@ -69,8 +69,8 @@ def build_trackpad_commands() -> list[dict]:
     # so the equivalent of "hold middle, tap index" is a tap to the left of the
     # anchor.
     #
-    # No tap-to-click bindings belong here by preference: gestures fire
-    # shortcuts, never synthesized clicks.
+    # Bindings add behavior rather than replacing it, so nothing here overrides
+    # a click that System Settings already owns.
     return [
         app_entry(
             "All Applications",
@@ -104,8 +104,9 @@ Two constraints shape what can be bound here:
 
 - The Fn key cannot be synthesized. It is a HID usage rather than an ordinary
   key event, so a gesture can never stand in for an Fn-based binding.
-- Nothing synthesizes mouse clicks. Native click behavior, including the
-  absence of tap-to-click, is left exactly as macOS provides it.
+- Bindings add behavior rather than replacing it. Tap-to-click, secondary
+  click, and the built-in swipes keep working the way System Settings has
+  them.
 
 ## Applications that reject synthesized keystrokes
 
