@@ -112,6 +112,14 @@ reads a generated configuration file.
 `AGENTS.md` covers the build, the configuration model, and the local changes to
 the engine.
 
+## AI usage
+
+Claude Code wrote most of the code and documentation here, working from my
+direction. I decided what to build and what to leave out, chose the gesture and
+binding design, tested every change on my own hardware, and rejected the
+approaches that did not hold up. The gesture recognizers are Jitouch's, changed
+in two places.
+
 ## License
 
 GPL-3.0, inherited from Jitouch. See `NOTICE` for attribution.
