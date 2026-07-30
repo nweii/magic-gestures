@@ -94,11 +94,12 @@ The Fn key cannot be sent at all.
 
 Jitouch is a full gesture app with a catalog of actions built in. It switches
 browser tabs, snaps windows, opens Mission Control, and recognizes letters you
-draw on the trackpad. You pick from that catalog in a preference pane. It has
-shipped no release since January 2023.
+draw on the trackpad. You pick from that catalog in a preference pane.
 
-MagicGestures keeps Jitouch's recognizers and drops the catalog. A gesture sends
-the keyboard shortcut you name, set in a Python file.
+MagicGestures keeps Jitouch's recognizers and drops the catalog, so a gesture
+sends the keyboard shortcut you name instead of choosing from a fixed list. That
+covers any app with a hotkey. The bindings live in a Python file, and there is
+no interface.
 
 ## How it works
 

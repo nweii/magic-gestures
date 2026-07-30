@@ -3,6 +3,7 @@
 //  Jitouch
 //
 //  Copyright 2021 Supasorn Suwajanakorn and Sukolsak Sakshuwong. All rights reserved.
+//  Modified work Copyright 2026 Nathan Cheng. All rights reserved.
 //
 
 #import "Settings.h"
