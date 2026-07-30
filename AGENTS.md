@@ -12,8 +12,13 @@ the file you edit to change behavior.
 ## Vendored engine, local config layer
 
 Recognition is [Jitouch](https://github.com/JitouchApp/Jitouch), vendored under
-`src/jitouch/` by way of a fork that strips its preference pane. The `upstream`
-remote points at that fork.
+`src/jitouch/` by way of a fork. The `upstream` remote points at that fork.
+
+Jitouch is a gesture app with a catalog of built-in actions and a preference
+pane for choosing among them. This project keeps its recognizers and drops the
+rest, so a gesture sends whatever keyboard shortcut the configuration names.
+Prefer that shape when adding anything: the built-in actions still work and are
+worth using where they fit, but the catalog is not the point.
 
 `src/main.m` is 26 lines. `Gesture.m` is roughly 4,800 lines of recognizers.
 Changes belong in `generate_config.py` unless the engine is demonstrably wrong.
