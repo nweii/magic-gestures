@@ -11,8 +11,7 @@ It contains modified source files and image assets derived from Jitouch:
 
 Modified in 2026 for this project: Gesture.m, JitouchAppDelegate.m,
 KeyUtility.m, Settings.m, and Settings.h. Each carries a modification notice in
-its header. The image assets under assets/ are unmodified Jitouch artwork,
-except for social-preview.html and social-preview.png.
+its header. The image assets under assets/ are unmodified Jitouch artwork.
 
 This repository does not vendor any files from MiddleClick.
 Gesture tuning and compatibility investigation for modern macOS behavior were informed by reviewing:
