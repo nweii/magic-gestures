@@ -44,8 +44,6 @@ PLIST
 cp "$ROOT/assets/move.png" "$RES_DIR/"
 cp "$ROOT/assets/resize.png" "$RES_DIR/"
 cp "$ROOT/assets/tab.png" "$RES_DIR/"
-cp "$ROOT/assets/logosmall.png" "$RES_DIR/"
-cp "$ROOT/assets/logosmalloff.png" "$RES_DIR/"
 
 SDKROOT="$(xcrun --show-sdk-path)"
 

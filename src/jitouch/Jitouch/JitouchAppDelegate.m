@@ -64,16 +64,14 @@ CGKeyCode keyMap[128]; // for dvorak support
     theItem = nil;
 }
 
+// A system symbol rather than bundled artwork, so the menu bar item carries no
+// borrowed branding. Filled reads as active, outlined as suspended.
 - (void)updateIconImage {
-    if (enAll) {
-        NSImage *img = [NSImage imageNamed:@"logosmall"];
-        [img setTemplate:YES];
-        [theItem setImage:img];
-    } else {
-        NSImage *img = [NSImage imageNamed:@"logosmalloff"];
-        [img setTemplate:YES];
-        [theItem setImage:img];
-    }
+    NSString *symbol = enAll ? @"hand.tap.fill" : @"hand.tap";
+    NSImage *img = [NSImage imageWithSystemSymbolName:symbol
+                             accessibilityDescription:@"MagicGestures"];
+    [img setTemplate:YES];
+    [theItem setImage:img];
 }
 
 - (void)preferences:(id)sender  {
