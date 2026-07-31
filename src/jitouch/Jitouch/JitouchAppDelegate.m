@@ -37,18 +37,103 @@ CGKeyCode keyMap[128]; // for dvorak support
     return YES;
 }
 
+// Menu items are found by tag rather than index so the layout can change
+// without breaking the code that updates their titles and check marks.
+enum {
+    kMenuTagToggle = 1,
+    kMenuTagLoginItem = 2,
+};
+
+// Every path that needs the checkout resolves it here: the bundle sits in
+// build/ inside the project, so the root is two levels up.
+- (NSString *)projectRoot {
+    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
+    if (bundlePath == nil || [bundlePath length] == 0)
+        return nil;
+    NSString *buildRoot = [bundlePath stringByDeletingLastPathComponent];
+    return [[buildRoot stringByDeletingLastPathComponent] stringByStandardizingPath];
+}
+
+- (NSString *)loginAgentPlistPath {
+    return [@"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist" stringByStandardizingPath];
+}
+
+- (BOOL)isLoginItemInstalled {
+    return [[NSFileManager defaultManager] fileExistsAtPath:[self loginAgentPlistPath]];
+}
+
+// PLIST_ONLY keeps the scripts from touching launchd, so toggling this cannot
+// restart or terminate the app running the toggle. The change lands at login.
+- (void)toggleLoginItem:(id)sender {
+    NSString *root = [self projectRoot];
+    if (root == nil)
+        return;
+
+    NSString *script = [self isLoginItemInstalled] ? @"uninstall-login-agent.sh" : @"install-login-agent.sh";
+    NSString *path = [root stringByAppendingPathComponent:[@"scripts" stringByAppendingPathComponent:script]];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path])
+        return;
+
+    NSTask *task = [[NSTask alloc] init];
+    [task setLaunchPath:path];
+    NSMutableDictionary *env = [[[[NSProcessInfo processInfo] environment] mutableCopy] autorelease];
+    [env setObject:@"1" forKey:@"PLIST_ONLY"];
+    [task setEnvironment:env];
+    @try {
+        [task launch];
+        [task waitUntilExit];
+    } @catch (NSException *e) {
+    }
+    [task release];
+
+    [self refreshMenu];
+}
+
+// Regenerating writes the plist; loadSettings reads it back. The gesture engine
+// itself does not need restarting for a binding change.
+- (void)reloadConfiguration:(id)sender {
+    NSString *root = [self projectRoot];
+    NSString *generator = root ? [root stringByAppendingPathComponent:@"generate_config.py"] : nil;
+
+    if (generator != nil && [[NSFileManager defaultManager] fileExistsAtPath:generator]) {
+        NSTask *task = [[NSTask alloc] init];
+        [task setLaunchPath:@"/usr/bin/env"];
+        [task setArguments:@[@"python3", generator]];
+        [task setStandardOutput:[NSFileHandle fileHandleWithNullDevice]];
+        @try {
+            [task launch];
+            [task waitUntilExit];
+        } @catch (NSException *e) {
+        }
+        [task release];
+    }
+
+    [Settings loadSettings];
+    [self refreshMenu];
+    if (!enAll)
+        turnOffGestures();
+}
+
+- (void)about:(id)sender {
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/nweii/magic-gestures"]];
+}
+
 - (void)showIcon {
-    theMenu = [[[NSMenu alloc] initWithTitle:@"Contextual Menu"] autorelease];
+    theMenu = [[[NSMenu alloc] initWithTitle:@"MagicGestures"] autorelease];
 
-    if (enAll)
-        [theMenu insertItemWithTitle:@"Turn MagicGestures Off" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
-    else
-        [theMenu insertItemWithTitle:@"Turn MagicGestures On" action:@selector(switchChange:) keyEquivalent:@"" atIndex:0];
+    NSMenuItem *item = [theMenu addItemWithTitle:@"Turn MagicGestures Off" action:@selector(switchChange:) keyEquivalent:@""];
+    [item setTag:kMenuTagToggle];
 
-    //[theMenu insertItem:[NSMenuItem separatorItem] atIndex:1];
-    [theMenu insertItemWithTitle:@"Reveal Bindings File..." action:@selector(preferences:) keyEquivalent:@"" atIndex:1];
-    [theMenu insertItem:[NSMenuItem separatorItem] atIndex:2];
-    [theMenu insertItemWithTitle:@"Quit MagicGestures" action:@selector(quit:) keyEquivalent:@"" atIndex:3];
+    [theMenu addItem:[NSMenuItem separatorItem]];
+    [theMenu addItemWithTitle:@"Reload Configuration" action:@selector(reloadConfiguration:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Reveal Bindings File..." action:@selector(preferences:) keyEquivalent:@""];
+
+    item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
+    [item setTag:kMenuTagLoginItem];
+
+    [theMenu addItem:[NSMenuItem separatorItem]];
+    [theMenu addItemWithTitle:@"About MagicGestures" action:@selector(about:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Quit MagicGestures" action:@selector(quit:) keyEquivalent:@""];
 
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
@@ -119,11 +204,12 @@ CGKeyCode keyMap[128]; // for dvorak support
         [self hideIcon];
     }
     if (theItem) {
-        if (enAll) {
-            [[theMenu itemAtIndex:0] setTitle:@"Turn MagicGestures Off"];
-        } else {
-            [[theMenu itemAtIndex:0] setTitle:@"Turn MagicGestures On"];
-        }
+        NSMenuItem *toggle = [theMenu itemWithTag:kMenuTagToggle];
+        [toggle setTitle:enAll ? @"Turn MagicGestures Off" : @"Turn MagicGestures On"];
+
+        NSMenuItem *login = [theMenu itemWithTag:kMenuTagLoginItem];
+        [login setState:[self isLoginItemInstalled] ? NSControlStateValueOn : NSControlStateValueOff];
+
         [self updateIconImage];
     }
 }

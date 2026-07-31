@@ -35,8 +35,10 @@ python3 ./generate_config.py   # -> config/MagicGestures.plist, config/bindings.
 ./scripts/stop.sh && ./scripts/start.sh
 ```
 
-Config-only changes skip the build. The agent reloads on SIGHUP, and `scripts/start.sh`
-restarts it cheaply either way.
+Config-only changes skip the build. Apply them from the menu bar item's Reload
+Configuration, which regenerates the plist and reads it back, or restart with
+`scripts/start.sh`. SIGHUP re-registers the multi-touch devices without
+rereading settings, so it does not apply a binding change on its own.
 
 The Accessibility grant binds to the bundle path plus the designated requirement
 that `scripts/build.sh` pins. Keep both stable and the grant survives every rebuild.
