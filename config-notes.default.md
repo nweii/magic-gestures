@@ -41,22 +41,29 @@ Key names: letters, digits, `return` `escape` `tab` `space` `delete`
 `f1` through `f12`. Aliases: `enter` is `return`, `esc` is `escape`,
 `backspace` and `del` are `delete`.
 
-Built-in actions: `middle-click` `mission-control` `move-resize` `next-tab`
-`previous-tab` `new-tab` `close-tab` `reopen-tab` `maximize` `minimize`.
+Built-in actions: `middle-click` `mission-control` `next-tab` `previous-tab`
+`new-tab` `close-tab` `reopen-tab` `maximize` `minimize`.
 
 ## Gestures
 
-Mouse: `hold-index-tap-middle` `hold-middle-tap-index` `hold-index-slide-middle`
-`hold-middle-slide-index` `one-finger-tap` `two-finger-tap` `three-finger-tap`
+A name from one device does nothing on the other.
+
+Mouse: `hold-left-tap-right` `hold-right-tap-left` `hold-left-slide-right`
+`hold-right-slide-left` `one-finger-tap` `two-finger-tap` `three-finger-tap`
 `front-right-tap` `one-finger-swipe-left` `one-finger-swipe-right`
 `two-finger-swipe-left` `two-finger-swipe-right` `three-finger-swipe-left`
 `three-finger-swipe-right` `three-finger-swipe-up` `three-finger-swipe-down`
 
-Trackpad: `hold-tap-left` `hold-tap-right` `hold-slide` `two-finger-tap`
-`three-finger-tap` `four-finger-tap` `index-to-pinky` `pinky-to-index`
-`three-finger-swipe-left` `three-finger-swipe-right` `three-finger-swipe-up`
-`three-finger-swipe-down` `four-finger-swipe-left` `four-finger-swipe-right`
-`four-finger-swipe-up` `four-finger-swipe-down`
+Trackpad: `hold-left-tap-right` `hold-right-tap-left` `hold-slide`
+`two-finger-tap` `three-finger-tap` `four-finger-tap` `index-to-pinky`
+`pinky-to-index` `three-finger-swipe-left` `three-finger-swipe-right`
+`three-finger-swipe-up` `three-finger-swipe-down` `four-finger-swipe-left`
+`four-finger-swipe-right` `four-finger-swipe-up` `four-finger-swipe-down`
+
+The `hold-` names describe where the fingers sit, not which finger does what.
+`hold-left-tap-right` means hold a finger and tap to its right, which on a right
+hand is the index finger holding and the middle finger tapping. Either hand
+works.
 
 Holding one finger still while another taps or slides cannot be produced by a
 resting hand, and macOS binds nothing to that shape. Bind those for anything
@@ -72,13 +79,15 @@ assuming a motion is free.
 | Setting | Value |
 |---|---|
 | `show-menu-bar-icon` | `true` or `false` |
-| `open-at-login` | `true` or `false` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `tap-speed` | seconds a tap may last, default `0.25` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
+
+Starting at login is not a setting here. It is the **Open at Login** item in the
+menu bar, which writes a launchd file.
 
 ## Applications that ignore synthesized keystrokes
 

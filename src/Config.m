@@ -22,10 +22,10 @@
     static NSDictionary *m = nil;
     if (m == nil) {
         m = [@{
-            @"hold-index-tap-middle": @[@"Index-Fix Middle-Near-Tap", @"Index-Fix Middle-Far-Tap"],
-            @"hold-middle-tap-index": @[@"Middle-Fix Index-Near-Tap", @"Middle-Fix Index-Far-Tap"],
-            @"hold-index-slide-middle": @[@"Index-Fix Middle-Slide-In", @"Index-Fix Middle-Slide-Out"],
-            @"hold-middle-slide-index": @[@"Middle-Fix Index-Slide-In", @"Middle-Fix Index-Slide-Out"],
+            @"hold-left-tap-right": @[@"Index-Fix Middle-Near-Tap", @"Index-Fix Middle-Far-Tap"],
+            @"hold-right-tap-left": @[@"Middle-Fix Index-Near-Tap", @"Middle-Fix Index-Far-Tap"],
+            @"hold-left-slide-right": @[@"Index-Fix Middle-Slide-In", @"Index-Fix Middle-Slide-Out"],
+            @"hold-right-slide-left": @[@"Middle-Fix Index-Slide-In", @"Middle-Fix Index-Slide-Out"],
             @"one-finger-tap": @[@"One-Finger Tap"],
             @"two-finger-tap": @[@"Two-Finger Tap"],
             @"three-finger-tap": @[@"Three-Finger Tap"],
@@ -47,8 +47,8 @@
     static NSDictionary *m = nil;
     if (m == nil) {
         m = [@{
-            @"hold-tap-left": @[@"One-Fix Left-Tap"],
-            @"hold-tap-right": @[@"One-Fix Right-Tap"],
+            @"hold-right-tap-left": @[@"One-Fix Left-Tap"],
+            @"hold-left-tap-right": @[@"One-Fix Right-Tap"],
             @"hold-slide": @[@"One-Fix One-Slide"],
             @"two-finger-tap": @[@"Two-Finger Tap"],
             @"three-finger-tap": @[@"Three-Finger Tap"],
@@ -76,7 +76,6 @@ static NSDictionary *actionNames(void) {
         m = [@{
             @"middle-click": @"Middle Click",
             @"mission-control": @"Mission Control",
-            @"move-resize": @"Move / Resize",
             @"next-tab": @"Next Tab",
             @"previous-tab": @"Previous Tab",
             @"new-tab": @"New Tab",
@@ -95,12 +94,12 @@ static NSDictionary *actionNames(void) {
     static NSDictionary *phrases = nil;
     if (phrases == nil) {
         phrases = [@{
-            @"Index-Fix Middle-Near-Tap": @"Hold index, tap with middle",
-            @"Index-Fix Middle-Far-Tap": @"Hold index, tap wide with middle",
-            @"Middle-Fix Index-Near-Tap": @"Hold middle, tap with index",
-            @"Middle-Fix Index-Far-Tap": @"Hold middle, tap wide with index",
-            @"One-Fix Left-Tap": @"Hold one finger, tap to its left",
-            @"One-Fix Right-Tap": @"Hold one finger, tap to its right",
+            @"Index-Fix Middle-Near-Tap": @"Hold your left finger, tap to its right",
+            @"Index-Fix Middle-Far-Tap": @"Hold your left finger, tap wide to its right",
+            @"Middle-Fix Index-Near-Tap": @"Hold your right finger, tap to its left",
+            @"Middle-Fix Index-Far-Tap": @"Hold your right finger, tap wide to its left",
+            @"One-Fix Left-Tap": @"Hold your right finger, tap to its left",
+            @"One-Fix Right-Tap": @"Hold your left finger, tap to its right",
             @"One-Fix One-Slide": @"Hold one finger, slide another",
             @"One-Finger Tap": @"Tap with one finger",
             @"Two-Finger Tap": @"Tap with two fingers",
@@ -119,10 +118,10 @@ static NSDictionary *actionNames(void) {
             @"Four-Swipe-Right": @"Swipe right with four fingers",
             @"Four-Swipe-Up": @"Swipe up with four fingers",
             @"Four-Swipe-Down": @"Swipe down with four fingers",
-            @"Index-Fix Middle-Slide-In": @"Hold index, slide middle inward",
-            @"Index-Fix Middle-Slide-Out": @"Hold index, slide middle outward",
-            @"Middle-Fix Index-Slide-In": @"Hold middle, slide index inward",
-            @"Middle-Fix Index-Slide-Out": @"Hold middle, slide index outward",
+            @"Index-Fix Middle-Slide-In": @"Hold your left finger, slide the right one inward",
+            @"Index-Fix Middle-Slide-Out": @"Hold your left finger, slide the right one outward",
+            @"Middle-Fix Index-Slide-In": @"Hold your right finger, slide the left one inward",
+            @"Middle-Fix Index-Slide-Out": @"Hold your right finger, slide the left one outward",
             @"Index-To-Pinky": @"Brush index toward pinky",
             @"Pinky-To-Index": @"Brush pinky toward index",
         } retain];
@@ -260,6 +259,10 @@ static NSDictionary *parseBinding(NSString *rawValue) {
             flags |= [flag unsignedIntegerValue];
             continue;
         }
+        // A value carries exactly one key. An unknown token, or a second key,
+        // rejects the whole value instead of binding a different shortcut.
+        if (keyToken != nil || [keyNames() objectForKey:t] == nil)
+            return nil;
         keyToken = t;
     }
 

@@ -7,8 +7,8 @@ keyboard shortcut. You hold one finger still on the touch surface and tap beside
 it with a second finger. The app sends the keystroke you picked.
 
 By default it sends Return, but you can bind this to any shortcut you want. It
-runs in the background with no interface and does not affect normal clicks or
-existing gestures by default.
+runs in the background from a menu bar item, and does not affect normal clicks
+or existing gestures by default.
 
 ## Requirements
 
@@ -50,10 +50,10 @@ every gesture you can bind.
 
 ## Default gestures
 
-| Device | Gesture | Sends |
-|---|---|---|
-| Magic Mouse | Rest your middle finger, tap with your index | Return |
-| Magic Trackpad | Rest one finger, tap close to its left with another | Return |
+| Device | Gesture | Write this | Sends |
+|---|---|---|---|
+| Magic Mouse | Rest your middle finger, tap to its left with your index | `hold-right-tap-left` | Return |
+| Magic Trackpad | Rest one finger, tap to its left with another | `hold-right-tap-left` | Return |
 
 ## Change the gestures
 
@@ -68,15 +68,18 @@ opened there has what it needs without the source. Lines look like this:
 
 ```
 [mouse]
-hold-middle-tap-index = return
+hold-right-tap-left = return
 two-finger-tap = middle-click
 
 [trackpad]
-hold-tap-left = cmd+shift+a
+hold-left-tap-right = cmd+shift+a
 ```
 
 Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
-needed.
+needed. **Current Gestures** shows what is bound right now.
+
+To have a coding agent make the change, pick one under **Change Gestures with
+Agent**. It opens in the settings folder with the notes already there.
 
 `GESTURES.md` is the full reference: every gesture name by device, every key
 and modifier you can send, the built-in actions, and which motions macOS has
@@ -122,8 +125,14 @@ scroll events so it can tell a gesture from a normal click. Keyboard events are
 not in the set it listens for.
 
 Touch data from the mouse and trackpad stays in memory and is never written
-anywhere. The only file the app writes outside its own folder is the launchd
-plist, and only when you turn on Open at Login.
+anywhere.
+
+Outside its own folder, MagicGestures writes to two places. It creates
+`~/.config/magic-gestures/` on first run and puts your `config.txt` and an
+`AGENTS.md` describing the format there. Picking a coding agent under **Change
+Gestures with Agent** adds a `configure-with-agent.command` script to that same
+folder and runs it. Turning on Open at Login writes one launchd plist to
+`~/Library/LaunchAgents`.
 
 ## Limits
 
@@ -142,7 +151,7 @@ draw on the trackpad. You pick from that catalog in a preference pane.
 
 MagicGestures keeps Jitouch's recognizers and drops the catalog, so a gesture
 sends the keyboard shortcut you name instead of choosing from a fixed list. That
-covers any app with a hotkey. There is no interface beyond a menu bar item.
+covers any app with a hotkey. A menu bar item replaces the preference pane.
 
 ## How it works
 

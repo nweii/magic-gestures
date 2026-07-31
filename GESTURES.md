@@ -1,19 +1,24 @@
 # Gesture reference
 
-Everything you can write in `config.txt`. Each device has its own names, so a
+Everything you can write in `config.txt`. Each device has its own table, and a
 name from one table does nothing on the other.
 
 The recognizers are compiled in. A name that is not listed here is skipped
 without an error.
 
+Gestures that hold one finger still are named by where the fingers sit, not by
+which finger does what. `hold-left-tap-right` means hold a finger and tap to its
+right, which on a right hand is the index finger holding and the middle finger
+tapping. Either hand works, and either finger can play either part.
+
 ## Magic Mouse
 
 | Write this | The motion |
 |---|---|
-| `hold-index-tap-middle` | Hold your index finger still, tap beside it with your middle |
-| `hold-middle-tap-index` | Hold your middle finger still, tap beside it with your index |
-| `hold-index-slide-middle` | Hold your index finger still, slide your middle toward or away |
-| `hold-middle-slide-index` | Hold your middle finger still, slide your index toward or away |
+| `hold-left-tap-right` | Hold one finger still, tap to its right with another |
+| `hold-right-tap-left` | Hold one finger still, tap to its left with another |
+| `hold-left-slide-right` | Hold the left finger still, slide the right one toward or away |
+| `hold-right-slide-left` | Hold the right finger still, slide the left one toward or away |
 | `one-finger-tap` | Tap with one finger |
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
@@ -29,13 +34,13 @@ without an error.
 
 ## Magic Trackpad
 
-Trackpad gestures are named for where the tap lands rather than which finger
-taps, because the engine cannot tell your fingers apart on a flat surface.
+The trackpad recognizes a hold-and-slide in one direction only, so it has one
+slide name where the mouse has two.
 
 | Write this | The motion |
 |---|---|
-| `hold-tap-left` | Hold one finger still, tap to its left with another |
-| `hold-tap-right` | Hold one finger still, tap to its right with another |
+| `hold-left-tap-right` | Hold one finger still, tap to its right with another |
+| `hold-right-tap-left` | Hold one finger still, tap to its left with another |
 | `hold-slide` | Hold one finger still, slide another |
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
@@ -83,8 +88,8 @@ gesture can stand in for an Fn shortcut.
 
 ### Actions
 
-`middle-click` `mission-control` `move-resize` `next-tab` `previous-tab`
-`new-tab` `close-tab` `reopen-tab` `maximize` `minimize`
+`middle-click` `mission-control` `next-tab` `previous-tab` `new-tab`
+`close-tab` `reopen-tab` `maximize` `minimize`
 
 `middle-click` posts a real middle-button event, which gives a Magic Mouse a
 button it does not otherwise have.
@@ -94,13 +99,15 @@ button it does not otherwise have.
 | Setting | Value |
 |---|---|
 | `show-menu-bar-icon` | `true` or `false` |
-| `open-at-login` | `true` or `false` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `tap-speed` | Seconds a tap may last, default `0.25` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
+
+Starting at login is not a setting here. Tick **Open at Login** in the menu bar
+item, or run `scripts/install-login-agent.sh`.
 
 ## Conflicts with built-in macOS gestures
 

@@ -6,20 +6,19 @@
 #
 # Save this file, then pick "Reload Settings" from the menu bar to apply it.
 #
-# You can also pick "Change Gestures with Agent" from the menu bar to have a
+# You can also pick "Change Settings with Agent" from the menu bar to have a
 # coding agent edit this for you. AGENTS.md beside this file tells it how.
 #
 # Project: https://github.com/nweii/magic-gestures
 
 [mouse]
-hold-middle-tap-index = return
+hold-right-tap-left = return
 
 [trackpad]
-hold-tap-left = return
+hold-right-tap-left = return
 
 [general]
 show-menu-bar-icon = true
-open-at-login = true
 enable-mouse = true
 enable-trackpad = true
 tap-speed = 0.25
@@ -33,10 +32,10 @@ verbose-logging = false
 # [trackpad], or write it as mouse.{gesture} or trackpad.{gesture}. These
 # use the second form, so you can uncomment one right where it is.
 #
-# mouse.hold-index-tap-middle = cmd+shift+a
+# mouse.hold-left-tap-right = cmd+shift+a
 # mouse.two-finger-tap = middle-click
 # mouse.front-right-tap = escape
-# trackpad.hold-tap-right = mission-control
+# trackpad.hold-left-tap-right = mission-control
 # trackpad.three-finger-swipe-up = ctrl+up
 #
 # Every gesture, key, and setting:

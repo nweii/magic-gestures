@@ -21,7 +21,12 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
     for (int i = 0; i < 128; i++)
         a[i] = (CGKeyCode)i;
 
-    NSString *inputSource = (NSString*)TISGetInputSourceProperty(TISCopyCurrentKeyboardInputSource(), kTISPropertyLocalizedName);
+    // TISGetInputSourceProperty returns a value owned by the input source, so
+    // the source is held until the comparisons are done.
+    TISInputSourceRef source = TISCopyCurrentKeyboardInputSource();
+    if (source == NULL)
+        return;
+    NSString *inputSource = (NSString*)TISGetInputSourceProperty(source, kTISPropertyLocalizedName);
     if ([inputSource isEqualToString:@"Dvorak"] || [inputSource isEqualToString:@"Svorak"]) {
         a[13] = 43; //w -> ,
         a[12] = 7;  //q -> x
@@ -39,6 +44,7 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
         a[13] = 6;  //w -> z
         a[12] = 0;  //q -> a
     }
+    CFRelease(source);
 }
 
 - (id)init {
@@ -52,6 +58,15 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
         }
     }
     return self;
+}
+
+// The notification center holds an unretained pointer to this object, so the
+// observer is removed before it goes away.
+- (void)dealloc {
+    CFNotificationCenterRemoveObserver(CFNotificationCenterGetDistributedCenter(), self,
+                                       kTISNotifySelectedKeyboardInputSourceChanged, NULL);
+    [keyMap release];
+    [super dealloc];
 }
 
 // Modifier flags are set on the keystroke because hotkey APIs read

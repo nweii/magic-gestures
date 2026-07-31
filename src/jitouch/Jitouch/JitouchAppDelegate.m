@@ -174,53 +174,75 @@ static NSString *describeBinding(NSDictionary *g) {
     return [[NSFileManager defaultManager] fileExistsAtPath:[self loginAgentPlistPath]];
 }
 
+// The menu bar is the only interface, so a menu action that fails says so in an
+// alert naming the file or script involved.
+- (void)reportFailure:(NSString *)message detail:(NSString *)detail {
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:message];
+    if ([detail length] > 0)
+        [alert setInformativeText:detail];
+    [alert setAlertStyle:NSAlertStyleWarning];
+    [NSApp activateIgnoringOtherApps:YES];
+    [alert runModal];
+    [alert release];
+}
+
 // PLIST_ONLY changes the login item file without changing the running launchd
 // job. The file change takes effect at login.
 - (void)toggleLoginItem:(id)sender {
+    BOOL installed = [self isLoginItemInstalled];
     NSString *root = [self projectRoot];
-    if (root == nil)
+    NSString *script = installed ? @"uninstall-login-agent.sh" : @"install-login-agent.sh";
+    NSString *path = root ? [root stringByAppendingPathComponent:[@"scripts" stringByAppendingPathComponent:script]] : nil;
+    if (path == nil || ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        [self reportFailure:@"Can't change Open at Login."
+                     detail:[NSString stringWithFormat:@"scripts/%@ is missing from the project folder.", script]];
         return;
-
-    NSString *script = [self isLoginItemInstalled] ? @"uninstall-login-agent.sh" : @"install-login-agent.sh";
-    NSString *path = [root stringByAppendingPathComponent:[@"scripts" stringByAppendingPathComponent:script]];
-    if (![[NSFileManager defaultManager] fileExistsAtPath:path])
-        return;
+    }
 
     NSTask *task = [[NSTask alloc] init];
     [task setLaunchPath:path];
     NSMutableDictionary *env = [[[[NSProcessInfo processInfo] environment] mutableCopy] autorelease];
     [env setObject:@"1" forKey:@"PLIST_ONLY"];
     [task setEnvironment:env];
+
+    NSString *failure = nil;
     @try {
         [task launch];
         [task waitUntilExit];
+        int status = [task terminationStatus];
+        if (status != 0)
+            failure = [NSString stringWithFormat:@"scripts/%@ exited with status %d.", script, status];
     } @catch (NSException *e) {
+        failure = [NSString stringWithFormat:@"scripts/%@ could not be run. %@", script, [e reason]];
     }
     [task release];
 
+    // The script can stop partway and leave the plist half written, so the
+    // resulting state is read back from disk instead of assumed.
+    if (failure == nil && [self isLoginItemInstalled] == installed)
+        failure = [NSString stringWithFormat:@"scripts/%@ finished, but the login item is still %@.",
+                   script, installed ? @"in place" : @"missing"];
+
     [self refreshMenu];
+
+    if (failure != nil)
+        [self reportFailure:@"Can't change Open at Login." detail:failure];
 }
 
-// Regeneration writes the plist, and loadSettings applies it to the running
-// gesture engine.
+// Reads the configuration file and applies it to the running gesture engine.
+// The previous configuration stays in effect when the file cannot be read.
 - (void)reloadConfiguration:(id)sender {
-    NSString *root = [self projectRoot];
-    NSString *generator = root ? [root stringByAppendingPathComponent:@"generate_config.py"] : nil;
-
-    if (generator != nil && [[NSFileManager defaultManager] fileExistsAtPath:generator]) {
-        NSTask *task = [[NSTask alloc] init];
-        [task setLaunchPath:@"/usr/bin/env"];
-        [task setArguments:@[@"python3", generator]];
-        [task setStandardOutput:[NSFileHandle fileHandleWithNullDevice]];
-        @try {
-            [task launch];
-            [task waitUntilExit];
-        } @catch (NSException *e) {
-        }
-        [task release];
+    NSString *path = [Config resolvedPath];
+    NSDictionary *loaded = path != nil ? [Config settingsFromFile:path] : nil;
+    if (loaded == nil) {
+        NSString *expected = path ?: [[Config configDirectory] stringByAppendingPathComponent:@"config.txt"];
+        [self reportFailure:@"Can't read the MagicGestures settings."
+                     detail:[NSString stringWithFormat:@"Nothing changed. Expected a readable file at %@.", expected]];
+        return;
     }
 
-    [Settings loadSettings];
+    [Settings loadSettings2:loaded];
     [self refreshMenu];
     if (!enAll)
         turnOffGestures();
@@ -307,28 +329,40 @@ static NSString *describeBinding(NSDictionary *g) {
         return;
 
     NSString *dir = [Config configDirectory];
-    [self seedConfigDirectory];
+    NSError *error = [self seedConfigDirectory];
+    if (error != nil) {
+        [self reportFailure:@"Can't set up the MagicGestures settings folder."
+                     detail:[error localizedDescription]];
+        return;
+    }
 
     NSString *scriptPath = [dir stringByAppendingPathComponent:@"configure-with-agent.command"];
     NSString *script = [NSString stringWithFormat:
         @"#!/bin/zsh\ncd %@\nexec %@ %@\n",
         shellQuote(dir), shellQuote(agentPath), shellQuote(kAgentPrompt)];
 
-    if (![script writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:NULL])
+    if (![script writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:&error] ||
+        ![[NSFileManager defaultManager] setAttributes:@{NSFilePosixPermissions: @(0755)}
+                                          ofItemAtPath:scriptPath
+                                                 error:&error]) {
+        [self reportFailure:@"Can't start the coding agent." detail:[error localizedDescription]];
         return;
+    }
 
-    [[NSFileManager defaultManager] setAttributes:@{NSFilePosixPermissions: @(0755)}
-                                     ofItemAtPath:scriptPath
-                                            error:NULL];
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:scriptPath]];
+    if (![[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:scriptPath]])
+        [self reportFailure:@"Can't start the coding agent."
+                     detail:[NSString stringWithFormat:@"Nothing opened %@.", scriptPath]];
 }
 
 // Creates the configuration folder and fills it from the shipped defaults when
-// a file is missing. Existing files are left alone.
-- (void)seedConfigDirectory {
+// a file is missing. Existing files are left alone. Returns the error that
+// stopped it, or nil once the folder is ready.
+- (NSError *)seedConfigDirectory {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSString *dir = [Config configDirectory];
-    [fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:NULL];
+    NSError *error = nil;
+    if (![fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&error])
+        return error;
 
     NSString *root = [self projectRoot];
     NSArray *pairs = @[@[@"config.default.txt", @"config.txt"],
@@ -338,13 +372,16 @@ static NSString *describeBinding(NSDictionary *g) {
         if ([fm fileExistsAtPath:dst])
             continue;
         NSString *src = root ? [root stringByAppendingPathComponent:pair[0]] : nil;
-        if (src != nil && [fm fileExistsAtPath:src])
-            [fm copyItemAtPath:src toPath:dst error:NULL];
+        if (src == nil || ![fm fileExistsAtPath:src])
+            continue;
+        if (![fm copyItemAtPath:src toPath:dst error:&error])
+            return error;
     }
+    return nil;
 }
 
 - (NSMenu *)buildAgentSubmenu {
-    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Change Gestures with Agent"] autorelease];
+    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Change Settings with Agent"] autorelease];
     // The delegate rebuilds this submenu when it opens. Each candidate requires
     // a login-shell probe, and tools installed after launch are included.
     [sub setDelegate:self];
@@ -392,7 +429,9 @@ static NSString *describeBinding(NSDictionary *g) {
 }
 
 - (void)showIcon {
-    theMenu = [[[NSMenu alloc] initWithTitle:@"MagicGestures"] autorelease];
+    // The menu outlives this method and is read back by tag on every refresh,
+    // so it is owned here rather than left to the status item.
+    theMenu = [[NSMenu alloc] initWithTitle:@"MagicGestures"];
 
     NSMenuItem *item = [theMenu addItemWithTitle:@"Turn MagicGestures Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
@@ -408,7 +447,7 @@ static NSString *describeBinding(NSDictionary *g) {
 
     [theMenu addItem:[NSMenuItem separatorItem]];
 
-    item = [theMenu addItemWithTitle:@"Change Gestures with Agent" action:NULL keyEquivalent:@""];
+    item = [theMenu addItemWithTitle:@"Change Settings with Agent" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
@@ -435,6 +474,8 @@ static NSString *describeBinding(NSDictionary *g) {
     [[NSStatusBar systemStatusBar] removeStatusItem:theItem];
     [theItem release];
     theItem = nil;
+    [theMenu release];
+    theMenu = nil;
 }
 
 // The system symbol is filled while gestures are active and outlined while they
@@ -450,20 +491,22 @@ static NSString *describeBinding(NSDictionary *g) {
 }
 
 - (void)preferences:(id)sender  {
-    [self seedConfigDirectory];
-    NSString *path = [Config resolvedPath];
-    if (path != nil) {
-        [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]];
+    NSError *error = [self seedConfigDirectory];
+    if (error != nil) {
+        [self reportFailure:@"Can't set up the MagicGestures settings folder."
+                     detail:[error localizedDescription]];
         return;
     }
 
-    NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:@"Can't find the MagicGestures configuration."];
-    [alert setInformativeText:[NSString stringWithFormat:@"Expected it at %@/config.txt.", [Config configDirectory]]];
-    [alert setAlertStyle:NSAlertStyleWarning];
-    [NSApp activateIgnoringOtherApps:YES];
-    [alert runModal];
-    [alert release];
+    NSString *path = [Config resolvedPath];
+    if (path == nil) {
+        [self reportFailure:@"Can't find the MagicGestures configuration."
+                     detail:[NSString stringWithFormat:@"Expected it at %@/config.txt.", [Config configDirectory]]];
+        return;
+    }
+
+    if (![[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]])
+        [self reportFailure:@"Can't open the MagicGestures configuration." detail:path];
 }
 
 - (void)quit:(id)sender {
@@ -513,21 +556,18 @@ static NSString *describeBinding(NSDictionary *g) {
     }
 }
 
+// The configuration file has no field for this switch and every load turns
+// gestures back on, so the switch lasts until the settings are reloaded or the
+// app restarts.
 - (void)switchChange:(id)sender {
     enAll = !enAll;
     [self refreshMenu];
-    [self saveSettings];
 
     if (!enAll)
         turnOffGestures();
 }
 
 #pragma mark - Settings
-
-- (void)saveSettings {
-    [Settings setKey:@"enAll" withInt:enAll];
-    [Settings noteSettingsUpdated2];
-}
 
 - (void)settingsUpdated:(NSNotification *)aNotification {
     //[Settings loadSettings];
@@ -614,6 +654,9 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 
 - (void) dealloc {
     [cursorWindow release];
+    [gesture release];
+    [theItem release];
+    [theMenu release];
     [super dealloc];
 }
 

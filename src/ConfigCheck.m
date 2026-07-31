@@ -39,7 +39,7 @@ static NSDictionary *parse(NSString *text) {
 }
 
 static void expectKey(NSString *label, NSString *value, int keycode, NSUInteger flags) {
-    NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-middle-tap-index = %@\n", value];
+    NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", value];
     NSDictionary *g = bindingFor(parse(conf), @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
     if (g == nil) {
         fail(label, @"a binding", @"none");
@@ -73,8 +73,16 @@ int main(void) {
         expectKey(@"alt is option", @"ctrl+alt+right", 124, CTRL | kCGEventFlagMaskAlternate);
         expectKey(@"quoted value", @"\"cmd+shift+a\"", 0, CMD | SHIFT);
 
+        // An unknown token must reject the value instead of binding the last
+        // token that happened to parse.
+        for (NSString *bad in @[@"cmd+bogus+a", @"a+b", @"cmd+", @"nonsense"]) {
+            NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", bad];
+            if (bindingFor(parse(conf), @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") != nil)
+                fail([@"malformed value rejected: " stringByAppendingString:bad], @"nothing", @"a binding");
+        }
+
         // A slug mapped to two engine gesture names must produce both bindings.
-        NSDictionary *s = parse(@"[mouse]\nhold-middle-tap-index = return\n");
+        NSDictionary *s = parse(@"[mouse]\nhold-right-tap-left = return\n");
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Far-Tap") == nil)
             fail(@"one slug binds near and far", @"far variant present", @"missing");
 
@@ -87,17 +95,17 @@ int main(void) {
             fail(@"action name", @"Middle Click", [g objectForKey:@"Command"]);
 
         // An inline device prefix must override the current section.
-        s = parse(@"[mouse]\ntrackpad.hold-tap-left = escape\n");
+        s = parse(@"[mouse]\ntrackpad.hold-right-tap-left = escape\n");
         if (bindingFor(s, @"TrackpadCommands", @"One-Fix Left-Tap") == nil)
             fail(@"inline prefix overrides section", @"trackpad binding", @"missing");
         if (bindingFor(s, @"MagicMouseCommands", @"One-Fix Left-Tap") != nil)
             fail(@"inline prefix does not also bind the section device", @"nothing", @"a binding");
 
         // Unrecognized names must be skipped without affecting valid lines.
-        s = parse(@"[mouse]\nnot-a-gesture = return\nhold-middle-tap-index = return\n");
+        s = parse(@"[mouse]\nnot-a-gesture = return\nhold-right-tap-left = return\n");
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") == nil)
             fail(@"unknown gesture does not abort the file", @"later binding present", @"missing");
-        s = parse(@"[mouse]\nhold-middle-tap-index = not-a-key\n");
+        s = parse(@"[mouse]\nhold-right-tap-left = not-a-key\n");
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") != nil)
             fail(@"unknown key is skipped", @"nothing", @"a binding");
 
@@ -115,7 +123,7 @@ int main(void) {
         }
 
         // Comments and blank lines must not produce bindings.
-        s = parse(@"# comment\n\n[mouse]\nhold-middle-tap-index = return # trailing\n");
+        s = parse(@"# comment\n\n[mouse]\nhold-right-tap-left = return # trailing\n");
         g = bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
         if ([[g objectForKey:@"KeyCode"] intValue] != 36)
             fail(@"trailing comment stripped", @36, [g objectForKey:@"KeyCode"]);
