@@ -389,7 +389,7 @@ static NSString *describeBinding(NSDictionary *g) {
         NSMenuItem *empty = [menu addItemWithTitle:@"No coding agent installed" action:NULL keyEquivalent:@""];
         [empty setEnabled:NO];
 
-        NSMenuItem *hint = [menu addItemWithTitle:@"Edit Gestures..." action:@selector(preferences:) keyEquivalent:@""];
+        NSMenuItem *hint = [menu addItemWithTitle:@"Edit Settings..." action:@selector(preferences:) keyEquivalent:@""];
         [hint setTarget:self];
 
         NSMenuItem *docs = [menu addItemWithTitle:@"Read the Setup Guide..." action:@selector(about:) keyEquivalent:@""];
@@ -418,8 +418,8 @@ static NSString *describeBinding(NSDictionary *g) {
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
-    [theMenu addItemWithTitle:@"Edit Gestures..." action:@selector(preferences:) keyEquivalent:@""];
-    [theMenu addItemWithTitle:@"Reload Gestures" action:@selector(reloadConfiguration:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Edit Settings..." action:@selector(preferences:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Reload Settings" action:@selector(reloadConfiguration:) keyEquivalent:@""];
 
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];

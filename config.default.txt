@@ -1,7 +1,7 @@
 # MagicGestures
 #
 # Every line that is not a comment is live. Write `setting = value`.
-# Pick Reload Gestures from the menu bar to apply a change.
+# Save this file, then pick Reload Settings from the menu bar to apply it.
 # README.md in this folder lists every gesture, key, and setting you can use.
 
 [mouse]

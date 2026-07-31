@@ -56,8 +56,7 @@ every gesture you can bind.
 
 ## Change the gestures
 
-Gestures live in a text file. Open it from the menu bar item under **Edit
-Gestures**, or edit it directly:
+Gestures live in a text file. Open it from the menu bar item under **Edit Settings**, or edit it directly:
 
 ```
 ~/.config/magic-gestures/config.txt
@@ -75,7 +74,7 @@ two-finger-tap = middle-click
 hold-tap-left = cmd+shift+a
 ```
 
-Pick **Reload Gestures** from the menu bar to apply a change. No rebuild is
+Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
 needed.
 
 The engine recognizes 52 gestures, including three-finger and four-finger
