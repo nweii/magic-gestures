@@ -29,18 +29,17 @@ with a menu bar item and does not affect normal clicks or existing gestures.
 
 ## Install
 
-Magic Gestures requires macOS 13 or later. Choose one of the three installation
-methods below. The first time you run the app, macOS asks for Accessibility
-permission so it can send keystrokes. Open System Settings > Privacy & Security
-> Accessibility and turn on Magic Gestures. The app starts automatically when
-you log in. Turn off **Open at Login** from the menu bar item if you do not want
-this.
+Magic Gestures requires macOS 13 or later. The first time you run the app, macOS
+asks for Accessibility permission so it can send keystrokes. Open System
+Settings > Privacy & Security > Accessibility and turn on Magic Gestures. The
+app starts automatically when you log in. Turn off **Open at Login** from the
+menu bar item if you do not want this.
 
 ### From the release zip
 
 Download the zip from the [Releases
 page](https://github.com/nweii/magic-gestures/releases), unzip it, and drag
-`MagicGestures.app` wherever you keep apps (`/Applications` works). Open it.
+`MagicGestures.app` to Applications.
 
 The app is ad-hoc signed and not notarized, so macOS blocks it the first time
 you open it. Click **Done**, then open System Settings > Privacy & Security.
@@ -72,10 +71,9 @@ public repository does not require GitHub CLI or GitHub authentication.
 
 ### Let an agent set it up
 
-An agent can install the app, help choose gestures, and edit the configuration
-for the apps you use. It can help decide whether a keyboard shortcut, built-in
-action, or URL binding best fits each request. If a URL binding fits, it can
-construct the app deep link and encode its parameters.
+An agent can install the app, configure it for your workflow, and recommend a
+suitable gesture and binding for each action. It can also construct deeplinks
+and encode their parameters.
 
 Paste this into Claude Code, or any coding agent:
 
@@ -96,8 +94,8 @@ from source requires the Xcode Command Line Tools but skips those steps.
 
 ## Change the gestures
 
-The gesture configuration is a text file. Open it from **Edit Settings** in the
-menu bar item, or edit it directly:
+Choose **Edit Settings** from the menu bar item, or edit the configuration
+directly:
 
 ```
 ~/.config/magic-gestures/config.txt
@@ -121,7 +119,8 @@ Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
 needed. **Current Gestures** shows what is bound right now.
 
 To have a coding agent make the change, pick one under **Manage with Agent**. It
-opens in the settings folder with the current instructions already there.
+opens in the settings folder with editing guidance and access to your
+configuration.
 
 See `GESTURES.md` for the gesture names available on each device, supported keys
 and modifiers, built-in actions, custom URLs, URL substitutions, and motions
@@ -131,9 +130,9 @@ already used by macOS.
 
 ### From a zip install
 
-Untick **Open at Login** if it is on, then Quit from the menu bar item. Drag
-`MagicGestures.app` to the Trash. Delete `~/.config/magic-gestures` if you do
-not want your settings back later, and remove Magic Gestures from System
+Turn off **Open at Login** if it is enabled, then choose **Quit Magic Gestures**.
+Drag `MagicGestures.app` to the Trash. Delete `~/.config/magic-gestures` if you
+do not want your settings back later, and remove Magic Gestures from System
 Settings > Privacy & Security > Accessibility.
 
 ### From a source checkout
@@ -156,8 +155,8 @@ Magic Gestures needs Accessibility permission because macOS requires it for
 apps that send keystrokes to other apps.
 
 The app has no telemetry, analytics, or crash reporting. It makes no network
-requests itself. A URL binding asks macOS to open that URL in its registered
-application, which may then use the network.
+requests itself. Opening a URL may cause the app that handles it to use the
+network.
 
 It does not read your keystrokes. The event tap it installs watches mouse and
 scroll events so it can tell a gesture from a normal click. Keyboard events are
