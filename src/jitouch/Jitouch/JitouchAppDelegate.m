@@ -14,6 +14,7 @@
 #import <Carbon/Carbon.h>
 #import <CoreFoundation/CFPreferences.h>
 #import "SystemPreferences.h"
+#import "KeyUtility.h"
 #include <pwd.h>
 #include <unistd.h>
 
@@ -162,6 +163,32 @@ static NSString *humanGestureName(NSString *raw) {
     return phrase ?: raw;
 }
 
+// What a binding fires, read off the keycode and flags rather than its label.
+// A label says what the key is meant to accomplish, which is a guess about the
+// focused app; the key itself is the only part that is always true.
+static NSString *describeBinding(NSDictionary *g) {
+    if ([[g objectForKey:@"IsAction"] boolValue])
+        return [g objectForKey:@"Command"] ?: @"";
+
+    NSUInteger flags = [[g objectForKey:@"ModifierFlags"] unsignedIntegerValue];
+    NSMutableString *out = [NSMutableString string];
+    if (flags & kCGEventFlagMaskControl)   [out appendString:@"⌃"];
+    if (flags & kCGEventFlagMaskAlternate) [out appendString:@"⌥"];
+    if (flags & kCGEventFlagMaskShift)     [out appendString:@"⇧"];
+    if (flags & kCGEventFlagMaskCommand)   [out appendString:@"⌘"];
+
+    // Spelled-out names read better in a menu than the glyphs codeToChar
+    // returns for keys that have no printed character.
+    CGKeyCode code = (CGKeyCode)[[g objectForKey:@"KeyCode"] unsignedIntValue];
+    NSDictionary *named = @{@36: @"Return", @53: @"Escape", @48: @"Tab",
+                            @49: @"Space", @51: @"Delete", @117: @"Forward Delete",
+                            @76: @"Enter", @123: @"Left", @124: @"Right",
+                            @125: @"Down", @126: @"Up"};
+    NSString *key = [named objectForKey:@(code)] ?: [KeyUtility codeToChar:code];
+    [out appendString:key ?: @""];
+    return out;
+}
+
 // Every path that needs the checkout resolves it here: the bundle sits in
 // build/ inside the project, so the root is two levels up.
 - (NSString *)projectRoot {
@@ -274,10 +301,12 @@ static NSString *humanGestureName(NSString *raw) {
         for (NSDictionary *app in pair[1]) {
             for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
                 NSString *gesture = [g objectForKey:@"Gesture"];
-                NSString *command = [g objectForKey:@"Command"];
-                if (gesture == nil || command == nil)
+                if (gesture == nil)
                     continue;
-                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", humanGestureName(gesture), command]];
+                NSString *fires = describeBinding(g);
+                if ([fires length] == 0)
+                    continue;
+                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", humanGestureName(gesture), fires]];
             }
         }
         if ([lines count] == 0)
