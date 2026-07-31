@@ -3,8 +3,7 @@
 # Every line that is not a comment is live. Write `setting = value`.
 # Save this file, then pick Reload Settings from the menu bar to apply it.
 #
-# Reference: README.md, in this same folder
-#            https://github.com/nweii/magic-gestures
+# Reference: https://github.com/nweii/magic-gestures
 
 [mouse]
 hold-middle-tap-index = return

@@ -332,7 +332,7 @@ static NSString *describeBinding(NSDictionary *g) {
 
     NSString *root = [self projectRoot];
     NSArray *pairs = @[@[@"config.default.txt", @"config.txt"],
-                       @[@"config-notes.default.md", @"README.md"]];
+                       @[@"config-notes.default.md", @"AGENTS.md"]];
     for (NSArray *pair in pairs) {
         NSString *dst = [dir stringByAppendingPathComponent:pair[1]];
         if ([fm fileExistsAtPath:dst])
@@ -341,12 +341,6 @@ static NSString *describeBinding(NSDictionary *g) {
         if (src != nil && [fm fileExistsAtPath:src])
             [fm copyItemAtPath:src toPath:dst error:NULL];
     }
-
-    // The reference is named for the person editing the file beside it. The
-    // symlink gives coding agents the filename they look for.
-    NSString *agents = [dir stringByAppendingPathComponent:@"AGENTS.md"];
-    if (![fm fileExistsAtPath:agents])
-        [fm createSymbolicLinkAtPath:agents withDestinationPath:@"README.md" error:NULL];
 }
 
 - (NSMenu *)buildAgentSubmenu {
