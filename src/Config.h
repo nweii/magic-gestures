@@ -25,6 +25,11 @@
 // Unparseable lines are skipped rather than failing the whole file.
 + (NSDictionary *)settingsFromFile:(NSString *)path;
 
+// As above, and fills outProblems with a description of every line that was
+// skipped. Lines are skipped rather than failing the file, so this is the only
+// way a caller learns a binding did not take.
++ (NSDictionary *)settingsFromFile:(NSString *)path problems:(NSArray **)outProblems;
+
 // Every gesture slug the configuration accepts, mapped to the engine gesture
 // names it binds. One slug can bind several names where the engine splits a
 // single motion into variants a person would not distinguish.

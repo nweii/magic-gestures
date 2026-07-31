@@ -19,6 +19,8 @@
 #include <pwd.h>
 #include <unistd.h>
 
+static NSArray *lastConfigProblems = nil;
+
 CursorWindow *cursorWindow;
 CGKeyCode keyMap[128]; // for dvorak support
 
@@ -49,6 +51,7 @@ enum {
     kMenuTagAccessibility = 3,
     kMenuTagBindings = 4,
     kMenuTagAgents = 5,
+    kMenuTagProblems = 6,
 };
 
 // This prompt tells the selected coding agent where to find the binding
@@ -234,18 +237,57 @@ static NSString *describeBinding(NSDictionary *g) {
 // The previous configuration stays in effect when the file cannot be read.
 - (void)reloadConfiguration:(id)sender {
     NSString *path = [Config resolvedPath];
-    NSDictionary *loaded = path != nil ? [Config settingsFromFile:path] : nil;
-    if (loaded == nil) {
-        NSString *expected = path ?: [[Config configDirectory] stringByAppendingPathComponent:@"config.txt"];
-        [self reportFailure:@"Can't read the MagicGestures settings."
-                     detail:[NSString stringWithFormat:@"Nothing changed. Expected a readable file at %@.", expected]];
+    if (path == nil) {
+        [self reportFailure:@"No configuration file found."
+                     detail:[NSString stringWithFormat:@"Expected it at %@/config.txt. Nothing changed.",
+                             [Config configDirectory]]];
         return;
     }
 
-    [Settings loadSettings2:loaded];
+    NSArray *problems = nil;
+    NSDictionary *parsed = [Config settingsFromFile:path problems:&problems];
+    if (parsed == nil) {
+        [self reportFailure:@"Could not read the configuration."
+                     detail:[NSString stringWithFormat:@"%@ could not be opened. Nothing changed.", path]];
+        return;
+    }
+
+    [self setConfigProblems:problems];
+    [Settings loadSettings2:parsed];
     [self refreshMenu];
     if (!enAll)
         turnOffGestures();
+
+    if ([problems count] > 0)
+        [self showConfigProblems:nil];
+}
+
+- (void)setConfigProblems:(NSArray *)problems {
+    [problems retain];
+    [lastConfigProblems release];
+    lastConfigProblems = problems;
+}
+
+// Skipped lines are the common failure in a hand-edited file, and nothing else
+// in the app would show them.
+- (void)showConfigProblems:(id)sender {
+    if ([lastConfigProblems count] == 0)
+        return;
+
+    NSString *body = [lastConfigProblems componentsJoinedByString:@"\n\n"];
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:[NSString stringWithFormat:@"%lu line%@ skipped in config.txt",
+                           (unsigned long)[lastConfigProblems count],
+                           [lastConfigProblems count] == 1 ? @"" : @"s"]];
+    [alert setInformativeText:[NSString stringWithFormat:@"%@\n\nEverything else was applied.", body]];
+    [alert setAlertStyle:NSAlertStyleWarning];
+    [alert addButtonWithTitle:@"OK"];
+    [alert addButtonWithTitle:@"Edit Settings..."];
+    [NSApp activateIgnoringOtherApps:YES];
+    NSModalResponse r = [alert runModal];
+    [alert release];
+    if (r == NSAlertSecondButtonReturn)
+        [self preferences:nil];
 }
 
 - (void)about:(id)sender {
@@ -274,6 +316,22 @@ static NSString *describeBinding(NSDictionary *g) {
 }
 
 // The submenu reads bindings from the settings used by the gesture engine.
+- (void)refreshProblemsItem {
+    NSMenuItem *item = [theMenu itemWithTag:kMenuTagProblems];
+    if (item == nil)
+        return;
+
+    NSUInteger n = [lastConfigProblems count];
+    if (n == 0) {
+        [item setTitle:@"Configuration loaded"];
+        [item setAction:NULL];
+    } else {
+        [item setTitle:[NSString stringWithFormat:@"%lu line%@ skipped in config.txt...",
+                        (unsigned long)n, n == 1 ? @"" : @"s"]];
+        [item setAction:@selector(showConfigProblems:)];
+    }
+}
+
 - (void)refreshBindingsSubmenu {
     NSMenuItem *parent = [theMenu itemWithTag:kMenuTagBindings];
     if (parent == nil)
@@ -440,6 +498,10 @@ static NSString *describeBinding(NSDictionary *g) {
     [item setTag:kMenuTagAccessibility];
     [item setTarget:self];
 
+    item = [theMenu addItemWithTitle:@"Configuration" action:@selector(showConfigProblems:) keyEquivalent:@""];
+    [item setTag:kMenuTagProblems];
+    [item setTarget:self];
+
     [theMenu addItem:[NSMenuItem separatorItem]];
 
     item = [theMenu addItemWithTitle:@"Current Gestures" action:NULL keyEquivalent:@""];
@@ -551,6 +613,7 @@ static NSString *describeBinding(NSDictionary *g) {
         [login setState:[self isLoginItemInstalled] ? NSControlStateValueOn : NSControlStateValueOff];
 
         [self refreshAccessibilityItem];
+        [self refreshProblemsItem];
         [self refreshBindingsSubmenu];
         [self updateIconImage];
     }
@@ -612,7 +675,16 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 */
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-    [Settings loadSettings];
+    NSString *configPath = [Config resolvedPath];
+    if (configPath != nil) {
+        NSArray *problems = nil;
+        NSDictionary *parsed = [Config settingsFromFile:configPath problems:&problems];
+        [self setConfigProblems:problems];
+        if (parsed != nil)
+            [Settings loadSettings2:parsed];
+    } else {
+        [Settings loadSettings];
+    }
 
     [self refreshMenu];
 

@@ -293,7 +293,28 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     return [@"~/.config/magic-gestures" stringByStandardizingPath];
 }
 
+// Setting names accepted in [general]. A name outside this set is reported
+// rather than ignored, which catches a misspelling that would otherwise leave
+// the default in place with no sign anything was wrong.
+static NSSet *knownSettingNames(void) {
+    static NSSet *s = nil;
+    if (s == nil) {
+        s = [[NSSet setWithArray:@[@"show-menu-bar-icon", @"enable-mouse",
+                                   @"enable-trackpad", @"tap-speed",
+                                   @"verbose-logging"]] retain];
+    }
+    return s;
+}
+
 + (NSDictionary *)settingsFromFile:(NSString *)path {
+    return [Config settingsFromFile:path problems:NULL];
+}
+
++ (NSDictionary *)settingsFromFile:(NSString *)path problems:(NSArray **)outProblems {
+    NSMutableArray *problems = [NSMutableArray array];
+    if (outProblems != NULL)
+        *outProblems = problems;
+
     NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:NULL];
     if (text == nil)
         return nil;
@@ -302,8 +323,15 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     NSMutableArray *trackpad = [NSMutableArray array];
     NSMutableDictionary *general = [NSMutableDictionary dictionary];
     NSString *section = @"general";
+    __block NSInteger lineNumber = 0;
+
+    void (^report)(NSString *, NSString *) = ^(NSString *text, NSString *reason) {
+        [problems addObject:[NSString stringWithFormat:@"line %ld:  %@\n          %@",
+                             (long)lineNumber, text, reason]];
+    };
 
     for (NSString *rawLine in [text componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]) {
+        lineNumber++;
         NSString *line = rawLine;
         NSRange hash = [line rangeOfString:@"#"];
         if (hash.location != NSNotFound)
@@ -320,8 +348,10 @@ static NSDictionary *parseBinding(NSString *rawValue) {
         }
 
         NSRange eq = [line rangeOfString:@"="];
-        if (eq.location == NSNotFound)
+        if (eq.location == NSNotFound) {
+            report(line, @"not a setting: expected name = value");
             continue;
+        }
         NSString *key = [[line substringToIndex:eq.location]
                          stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         NSString *value = [[line substringFromIndex:eq.location + 1]
@@ -341,9 +371,15 @@ static NSDictionary *parseBinding(NSString *rawValue) {
             NSDictionary *slugs = [device isEqualToString:@"mouse"]
                 ? [Config mouseGestureSlugs] : [Config trackpadGestureSlugs];
             NSArray *engineNames = [slugs objectForKey:key];
-            NSDictionary *binding = parseBinding(value);
-            if (engineNames == nil || binding == nil)
+            if (engineNames == nil) {
+                report(line, [NSString stringWithFormat:@"no %@ gesture named \"%@\"", device, key]);
                 continue;
+            }
+            NSDictionary *binding = parseBinding(value);
+            if (binding == nil) {
+                report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, or action", value]);
+                continue;
+            }
 
             NSMutableArray *target = [device isEqualToString:@"mouse"] ? mouse : trackpad;
             for (NSString *name in engineNames) {
@@ -351,8 +387,12 @@ static NSDictionary *parseBinding(NSString *rawValue) {
                 [g setObject:name forKey:@"Gesture"];
                 [target addObject:g];
             }
-        } else {
+        } else if ([device isEqualToString:@"general"]) {
+            if (![knownSettingNames() containsObject:key])
+                report(line, [NSString stringWithFormat:@"no setting named \"%@\"", key]);
             [general setObject:value forKey:key];
+        } else {
+            report(line, [NSString stringWithFormat:@"no section or device named \"%@\"", device]);
         }
     }
 
