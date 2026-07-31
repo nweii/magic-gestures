@@ -60,11 +60,11 @@ Gestures live in a text file. Open it from the menu bar item under **Edit
 Gestures**, or edit it directly:
 
 ```
-config.txt                            in the project folder
-~/.config/magic-gestures/config.txt   everywhere else
+~/.config/magic-gestures/config.txt
 ```
 
-The project folder is used first when both exist. Lines look like this:
+That folder also gets an `AGENTS.md` describing the format, so a coding agent
+opened there has what it needs without the source. Lines look like this:
 
 ```
 [mouse]

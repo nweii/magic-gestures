@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="${0:A:h:h}"
 APP_NAME="MagicGestures"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
-CONFIG="$ROOT/config.txt"
+CONFIG_DIR="$HOME/.config/magic-gestures"
 LABEL="fyi.nathancheng.magic-gestures.agent"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
@@ -15,9 +15,9 @@ if [[ ! -x "$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]]; then
   "$ROOT/build.sh" >/dev/null
 fi
 
-if [[ ! -f "$CONFIG" ]]; then
-  cp "$ROOT/config.default.txt" "$CONFIG"
-fi
+mkdir -p "$CONFIG_DIR"
+[[ -f "$CONFIG_DIR/config.txt" ]] || cp "$ROOT/config.default.txt" "$CONFIG_DIR/config.txt"
+[[ -f "$CONFIG_DIR/AGENTS.md" ]] || cp "$ROOT/config-notes.default.md" "$CONFIG_DIR/AGENTS.md"
 
 cat > "$PLIST_DST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

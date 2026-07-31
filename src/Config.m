@@ -234,24 +234,18 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 #pragma mark - File loading
 
 + (NSString *)resolvedPath {
-    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *override = [[[NSProcessInfo processInfo] environment] objectForKey:@"MAGICGESTURES_CONFIG"];
+    if ([override length] > 0)
+        return [override stringByStandardizingPath];
 
-    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
-    if ([bundlePath length] > 0) {
-        NSString *root = [[bundlePath stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
-        NSString *inRepo = [[root stringByAppendingPathComponent:@"config.txt"] stringByStandardizingPath];
-        // Some installations contain a directory named `config`. This path must
-        // resolve to a file.
-        BOOL isDir = NO;
-        if ([fm fileExistsAtPath:inRepo isDirectory:&isDir] && !isDir)
-            return inRepo;
-    }
-
-    NSString *user = [@"~/.config/magic-gestures/config.txt" stringByStandardizingPath];
-    if ([fm fileExistsAtPath:user])
-        return user;
-
+    NSString *path = [[self configDirectory] stringByAppendingPathComponent:@"config.txt"];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:path])
+        return path;
     return nil;
+}
+
++ (NSString *)configDirectory {
+    return [@"~/.config/magic-gestures" stringByStandardizingPath];
 }
 
 + (NSDictionary *)settingsFromFile:(NSString *)path {

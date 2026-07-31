@@ -54,9 +54,9 @@ enum {
 // This prompt tells the selected coding agent where to find the binding
 // vocabulary and how to apply configuration changes.
 static NSString *const kAgentPrompt =
-    @"Read AGENTS.md and GESTURES.md first. Help me change my MagicGestures "
-    @"gestures, or troubleshoot the setup. Ask me what I want before editing "
-    @"config.txt, then apply it with Reload Gestures in the menu bar.";
+    @"Read AGENTS.md in this folder first. Help me change my MagicGestures "
+    @"gestures. Ask me what I want before editing config.txt, then tell me to "
+    @"pick Reload Gestures from the menu bar.";
 
 static NSString *shellQuote(NSString *s) {
     NSString *escaped = [s stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"];
@@ -335,29 +335,44 @@ static NSString *describeBinding(NSDictionary *g) {
 // and troubleshooting the gesture configuration.
 - (void)configureWithAgent:(id)sender {
     NSString *agentPath = [sender representedObject];
-    NSString *root = [self projectRoot];
-    if (agentPath == nil || root == nil)
+    if (agentPath == nil)
         return;
 
-    NSString *runDir = [root stringByAppendingPathComponent:@"run"];
-    [[NSFileManager defaultManager] createDirectoryAtPath:runDir
-                              withIntermediateDirectories:YES
-                                               attributes:nil
-                                                    error:NULL];
+    NSString *dir = [Config configDirectory];
+    [self seedConfigDirectory];
 
-    NSString *scriptPath = [runDir stringByAppendingPathComponent:@"configure-with-agent.command"];
+    NSString *scriptPath = [dir stringByAppendingPathComponent:@"configure-with-agent.command"];
     NSString *script = [NSString stringWithFormat:
         @"#!/bin/zsh\ncd %@\nexec %@ %@\n",
-        shellQuote(root), shellQuote(agentPath), shellQuote(kAgentPrompt)];
+        shellQuote(dir), shellQuote(agentPath), shellQuote(kAgentPrompt)];
 
-    NSError *err = nil;
-    if (![script writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:&err])
+    if (![script writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:NULL])
         return;
 
     [[NSFileManager defaultManager] setAttributes:@{NSFilePosixPermissions: @(0755)}
                                      ofItemAtPath:scriptPath
                                             error:NULL];
     [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:scriptPath]];
+}
+
+// Creates the configuration folder and fills it from the shipped defaults when
+// a file is missing. Existing files are left alone.
+- (void)seedConfigDirectory {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *dir = [Config configDirectory];
+    [fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:NULL];
+
+    NSString *root = [self projectRoot];
+    NSArray *pairs = @[@[@"config.default.txt", @"config.txt"],
+                       @[@"config-notes.default.md", @"AGENTS.md"]];
+    for (NSArray *pair in pairs) {
+        NSString *dst = [dir stringByAppendingPathComponent:pair[1]];
+        if ([fm fileExistsAtPath:dst])
+            continue;
+        NSString *src = root ? [root stringByAppendingPathComponent:pair[0]] : nil;
+        if (src != nil && [fm fileExistsAtPath:src])
+            [fm copyItemAtPath:src toPath:dst error:NULL];
+    }
 }
 
 - (NSMenu *)buildAgentSubmenu {
@@ -467,52 +482,22 @@ static NSString *describeBinding(NSDictionary *g) {
 }
 
 - (void)preferences:(id)sender  {
-    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
-    NSString *projectRoot = nil;
-    if (bundlePath != nil && [bundlePath length] > 0) {
-        NSString *buildRoot = [bundlePath stringByDeletingLastPathComponent];
-        projectRoot = [[buildRoot stringByDeletingLastPathComponent] stringByStandardizingPath];
-    }
-
-    // Opens the configuration read by the engine. If no configuration exists,
-    // the shipped example is copied to the user configuration path first.
+    [self seedConfigDirectory];
     NSString *path = [Config resolvedPath];
-    if (path == nil) {
-        NSString *dir = [@"~/.config/magic-gestures" stringByStandardizingPath];
-        [[NSFileManager defaultManager] createDirectoryAtPath:dir
-                                  withIntermediateDirectories:YES
-                                                   attributes:nil
-                                                        error:NULL];
-        NSString *dst = [dir stringByAppendingPathComponent:@"config.txt"];
-        NSString *example = projectRoot ? [projectRoot stringByAppendingPathComponent:@"config.default.txt"] : nil;
-        if (example != nil && [[NSFileManager defaultManager] fileExistsAtPath:example])
-            [[NSFileManager defaultManager] copyItemAtPath:example toPath:dst error:NULL];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:dst])
-            path = dst;
-    }
-
     if (path != nil) {
         [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]];
         return;
     }
 
-    NSString *openPath = projectRoot;
-    if (openPath != nil && [[NSFileManager defaultManager] fileExistsAtPath:openPath]) {
-        [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:openPath]];
-    } else {
-        NSAlert *alert = [[NSAlert alloc] init];
-        [alert setMessageText:@"Can't find the MagicGestures config folder."];
-        [alert setInformativeText:@"Please relaunch MagicGestures from the repository checkout."];
-        [alert setAlertStyle:NSAlertStyleWarning];
-        [NSApp activateIgnoringOtherApps:YES];
-        [alert runModal];
-        [alert release];
-    }
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:@"Can't find the MagicGestures configuration."];
+    [alert setInformativeText:[NSString stringWithFormat:@"Expected it at %@/config.txt.", [Config configDirectory]]];
+    [alert setAlertStyle:NSAlertStyleWarning];
+    [NSApp activateIgnoringOtherApps:YES];
+    [alert runModal];
+    [alert release];
 }
 
-
-// Quitting stops the launchd job because KeepAlive would restart the process.
-// When the login item is absent, the alert explains how to start the app again.
 - (void)quit:(id)sender {
     if (![self isLoginItemInstalled]) {
         NSString *root = [self projectRoot];

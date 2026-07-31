@@ -13,9 +13,12 @@
 
 @interface Config : NSObject
 
-// First existing path among: `config` beside the checkout, then
-// ~/.config/magic-gestures/config. Returns nil when neither exists.
+// ~/.config/magic-gestures/config.txt, or the path in MAGICGESTURES_CONFIG.
+// Returns nil when no configuration file exists.
 + (NSString *)resolvedPath;
+
+// ~/.config/magic-gestures, where the configuration and its agent notes live.
++ (NSString *)configDirectory;
 
 // Parses the file at `path` into a settings dictionary shaped like the plist
 // that Settings loadSettings2: expects. Returns nil if the file cannot be read.
