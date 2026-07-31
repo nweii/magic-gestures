@@ -47,7 +47,8 @@ that `scripts/build.sh` pins. Keep both stable and the grant survives every rebu
 
 ## Menu bar item
 
-A disabled header shows the name and version, read from the running bundle.
+About opens a submenu carrying the version, read from the running bundle, and
+a link to the repository.
 
 `showIcon` in `JitouchAppDelegate.m` builds it. Top to bottom:
 

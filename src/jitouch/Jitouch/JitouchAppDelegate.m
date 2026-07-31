@@ -547,14 +547,6 @@ static NSString *describeBinding(NSDictionary *g) {
     // so it is owned here rather than left to the status item.
     theMenu = [[NSMenu alloc] initWithTitle:@"Magic Gestures"];
 
-    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-    NSMenuItem *header = [theMenu addItemWithTitle:
-        [NSString stringWithFormat:@"Magic Gestures %@", version ?: @"?"]
-                                            action:NULL keyEquivalent:@""];
-    [header setEnabled:NO];
-
-    [theMenu addItem:[NSMenuItem separatorItem]];
-
     NSMenuItem *item = [theMenu addItemWithTitle:@"Turn Magic Gestures Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
 
@@ -584,7 +576,17 @@ static NSString *describeBinding(NSDictionary *g) {
     [item setTag:kMenuTagLoginItem];
 
     [theMenu addItem:[NSMenuItem separatorItem]];
-    [theMenu addItemWithTitle:@"About Magic Gestures" action:@selector(about:) keyEquivalent:@""];
+    NSMenu *aboutMenu = [[[NSMenu alloc] initWithTitle:@"About Magic Gestures"] autorelease];
+    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    NSMenuItem *versionItem = [aboutMenu addItemWithTitle:
+        [NSString stringWithFormat:@"Version %@", version ?: @"unknown"]
+                                                  action:NULL keyEquivalent:@""];
+    [versionItem setEnabled:NO];
+    NSMenuItem *repoItem = [aboutMenu addItemWithTitle:@"GitHub..." action:@selector(about:) keyEquivalent:@""];
+    [repoItem setTarget:self];
+
+    NSMenuItem *aboutItem = [theMenu addItemWithTitle:@"About Magic Gestures" action:NULL keyEquivalent:@""];
+    [aboutItem setSubmenu:aboutMenu];
     [theMenu addItemWithTitle:@"Quit Magic Gestures" action:@selector(quit:) keyEquivalent:@""];
 
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
