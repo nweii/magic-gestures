@@ -89,10 +89,18 @@ To cut a release:
 # bump CFBundleShortVersionString and CFBundleVersion in scripts/build.sh
 ./scripts/build.sh && ./scripts/check.sh
 git commit -am "Release X.Y.Z"
-git tag -a vX.Y.Z -m "Magic Gestures X.Y.Z"
+git tag -a vX.Y.Z -m "X.Y.Z"
 git push origin main --tags
-gh release create vX.Y.Z --title "Magic Gestures X.Y.Z" --notes "..."
+gh release create vX.Y.Z --title "X.Y.Z" --notes "..."
 ```
+
+The release title is the bare version. The repository name sits above it on
+every page that shows a release, so repeating it adds nothing.
+
+`gh release create` has been seen to report a missing `workflow` scope that the
+token already holds. Creating it through `gh api repos/OWNER/REPO/releases`
+works. Pass `--repo` to any `gh release` or `gh repo` command here, or it
+resolves to the `upstream` remote and reports the fork's releases instead.
 
 Releases carry source only. The app is ad-hoc signed rather than notarized, so a
 downloaded build fights Gatekeeper and building from source is the better path.
