@@ -20,4 +20,4 @@ clang \
   "$ROOT/src/ConfigCheck.m" \
   -o "$OUT" 2>/dev/null
 
-"$OUT" "$ROOT/config.default.txt"
+"$OUT" "$ROOT/config.default.txt" "$ROOT/config-notes.default.md"

@@ -48,11 +48,15 @@ Built-in actions: `middle-click` `mission-control` `move-resize` `next-tab`
 
 Mouse: `hold-index-tap-middle` `hold-middle-tap-index` `hold-index-slide-middle`
 `hold-middle-slide-index` `one-finger-tap` `two-finger-tap` `three-finger-tap`
-`front-right-tap`, and `one-`, `two-`, `three-finger-swipe-` plus a direction.
+`front-right-tap` `one-finger-swipe-left` `one-finger-swipe-right`
+`two-finger-swipe-left` `two-finger-swipe-right` `three-finger-swipe-left`
+`three-finger-swipe-right` `three-finger-swipe-up` `three-finger-swipe-down`
 
 Trackpad: `hold-tap-left` `hold-tap-right` `hold-slide` `two-finger-tap`
-`three-finger-tap` `four-finger-tap` `index-to-pinky` `pinky-to-index`, and
-`three-` or `four-finger-swipe-` plus a direction.
+`three-finger-tap` `four-finger-tap` `index-to-pinky` `pinky-to-index`
+`three-finger-swipe-left` `three-finger-swipe-right` `three-finger-swipe-up`
+`three-finger-swipe-down` `four-finger-swipe-left` `four-finger-swipe-right`
+`four-finger-swipe-up` `four-finger-swipe-down`
 
 Holding one finger still while another taps or slides cannot be produced by a
 resting hand, and macOS binds nothing to that shape. Bind those for anything

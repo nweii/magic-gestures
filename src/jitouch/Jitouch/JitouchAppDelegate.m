@@ -131,38 +131,6 @@ static NSString *resolveToolPath(NSString *tool) {
     return nil;
 }
 
-// Engine gesture names are converted to descriptions of the corresponding hand
-// motion for display in the menu.
-static NSString *humanGestureName(NSString *raw) {
-    static NSDictionary *phrases = nil;
-    if (phrases == nil) {
-        phrases = [@{
-            @"Index-Fix Middle-Near-Tap": @"Hold index, tap with middle",
-            @"Index-Fix Middle-Far-Tap": @"Hold index, tap wide with middle",
-            @"Middle-Fix Index-Near-Tap": @"Hold middle, tap with index",
-            @"Middle-Fix Index-Far-Tap": @"Hold middle, tap wide with index",
-            @"One-Fix Left-Tap": @"Hold one finger, tap to its left",
-            @"One-Fix Right-Tap": @"Hold one finger, tap to its right",
-            @"One-Fix One-Slide": @"Hold one finger, slide another",
-            @"One-Finger Tap": @"Tap with one finger",
-            @"Two-Finger Tap": @"Tap with two fingers",
-            @"Three-Finger Tap": @"Tap with three fingers",
-            @"Four-Finger Tap": @"Tap with four fingers",
-            @"Right-Front Tap": @"Tap the front right of the mouse",
-            @"One-Swipe-Left": @"Swipe left with one finger",
-            @"One-Swipe-Right": @"Swipe right with one finger",
-            @"Two-Swipe-Left": @"Swipe left with two fingers",
-            @"Two-Swipe-Right": @"Swipe right with two fingers",
-            @"Three-Swipe-Left": @"Swipe left with three fingers",
-            @"Three-Swipe-Right": @"Swipe right with three fingers",
-            @"Three-Swipe-Up": @"Swipe up with three fingers",
-            @"Three-Swipe-Down": @"Swipe down with three fingers",
-        } retain];
-    }
-    NSString *phrase = [phrases objectForKey:raw];
-    return phrase ?: raw;
-}
-
 // Describes a binding from its keycode and modifier flags. Labels describe an
 // app-dependent purpose and may not match the focused app.
 static NSString *describeBinding(NSDictionary *g) {
@@ -304,7 +272,7 @@ static NSString *describeBinding(NSDictionary *g) {
                 NSString *fires = describeBinding(g);
                 if ([fires length] == 0)
                     continue;
-                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", humanGestureName(gesture), fires]];
+                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", [Config humanNameForGesture:gesture], fires]];
             }
         }
         if ([lines count] == 0)

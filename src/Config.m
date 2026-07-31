@@ -89,6 +89,48 @@ static NSDictionary *actionNames(void) {
     return m;
 }
 
+// Engine gesture names phrased as the motion a hand makes, for the menu. Every
+// name reachable from a slug table needs an entry; scripts/check.sh enforces it.
++ (NSString *)humanNameForGesture:(NSString *)raw {
+    static NSDictionary *phrases = nil;
+    if (phrases == nil) {
+        phrases = [@{
+            @"Index-Fix Middle-Near-Tap": @"Hold index, tap with middle",
+            @"Index-Fix Middle-Far-Tap": @"Hold index, tap wide with middle",
+            @"Middle-Fix Index-Near-Tap": @"Hold middle, tap with index",
+            @"Middle-Fix Index-Far-Tap": @"Hold middle, tap wide with index",
+            @"One-Fix Left-Tap": @"Hold one finger, tap to its left",
+            @"One-Fix Right-Tap": @"Hold one finger, tap to its right",
+            @"One-Fix One-Slide": @"Hold one finger, slide another",
+            @"One-Finger Tap": @"Tap with one finger",
+            @"Two-Finger Tap": @"Tap with two fingers",
+            @"Three-Finger Tap": @"Tap with three fingers",
+            @"Four-Finger Tap": @"Tap with four fingers",
+            @"Right-Front Tap": @"Tap the front right of the mouse",
+            @"One-Swipe-Left": @"Swipe left with one finger",
+            @"One-Swipe-Right": @"Swipe right with one finger",
+            @"Two-Swipe-Left": @"Swipe left with two fingers",
+            @"Two-Swipe-Right": @"Swipe right with two fingers",
+            @"Three-Swipe-Left": @"Swipe left with three fingers",
+            @"Three-Swipe-Right": @"Swipe right with three fingers",
+            @"Three-Swipe-Up": @"Swipe up with three fingers",
+            @"Three-Swipe-Down": @"Swipe down with three fingers",
+            @"Four-Swipe-Left": @"Swipe left with four fingers",
+            @"Four-Swipe-Right": @"Swipe right with four fingers",
+            @"Four-Swipe-Up": @"Swipe up with four fingers",
+            @"Four-Swipe-Down": @"Swipe down with four fingers",
+            @"Index-Fix Middle-Slide-In": @"Hold index, slide middle inward",
+            @"Index-Fix Middle-Slide-Out": @"Hold index, slide middle outward",
+            @"Middle-Fix Index-Slide-In": @"Hold middle, slide index inward",
+            @"Middle-Fix Index-Slide-Out": @"Hold middle, slide index outward",
+            @"Index-To-Pinky": @"Brush index toward pinky",
+            @"Pinky-To-Index": @"Brush pinky toward index",
+        } retain];
+    }
+    NSString *phrase = [phrases objectForKey:raw];
+    return phrase ?: raw;
+}
+
 #pragma mark - Keystroke vocabulary
 
 static NSDictionary *keyNames(void) {

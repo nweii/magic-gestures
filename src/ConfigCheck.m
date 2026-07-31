@@ -131,6 +131,32 @@ int main(void) {
                 fail(@"shipped example binds its documented default", @"a binding", @"missing");
         }
 
+        // Every gesture a slug can reach must have a menu phrase, or the menu
+        // falls back to the engine's internal name.
+        for (NSDictionary *slugs in @[[Config mouseGestureSlugs], [Config trackpadGestureSlugs]]) {
+            for (NSString *slug in slugs) {
+                for (NSString *engineName in [slugs objectForKey:slug]) {
+                    if ([[Config humanNameForGesture:engineName] isEqualToString:engineName])
+                        fail([@"menu phrase for " stringByAppendingString:engineName],
+                             @"a description of the motion", engineName);
+                }
+            }
+        }
+
+        // Every slug must appear in the notes installed beside the config, or
+        // it exists without being documented anywhere the user will look.
+        NSString *notesPath = [[[NSProcessInfo processInfo] arguments] count] > 2
+            ? [[NSProcessInfo processInfo] arguments][2] : nil;
+        if (notesPath != nil) {
+            NSString *notes = [NSString stringWithContentsOfFile:notesPath encoding:NSUTF8StringEncoding error:NULL];
+            for (NSDictionary *slugs in @[[Config mouseGestureSlugs], [Config trackpadGestureSlugs]]) {
+                for (NSString *slug in slugs) {
+                    if ([notes rangeOfString:slug].location == NSNotFound)
+                        fail([@"documented slug " stringByAppendingString:slug], @"present in notes", @"missing");
+                }
+            }
+        }
+
         if (failures == 0) {
             printf("config parser: all checks passed\n");
             return 0;

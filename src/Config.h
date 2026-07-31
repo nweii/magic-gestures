@@ -31,4 +31,7 @@
 + (NSDictionary *)mouseGestureSlugs;
 + (NSDictionary *)trackpadGestureSlugs;
 
+// An engine gesture name phrased as a motion, for display.
++ (NSString *)humanNameForGesture:(NSString *)raw;
+
 @end
