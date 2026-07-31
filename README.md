@@ -3,12 +3,13 @@
 Press a key without taking your hand off the mouse.
 
 Magic Gestures turns a finger gesture on a Magic Mouse or Magic Trackpad into a
-keyboard shortcut. You hold one finger still on the touch surface and tap beside
-it with a second finger. The app sends the keystroke you picked.
+keyboard shortcut. There are sixteen motions on each device: taps, swipes, and
+holding one finger still while another taps or slides. Each one can send any
+shortcut you name.
 
-By default it sends Return, but you can bind this to any shortcut you want. It
-runs in the background from a menu bar item, and does not affect normal clicks
-or existing gestures by default.
+By default, holding your middle finger and tapping beside it with your index
+sends Return. It runs in the background from a menu bar item, and does not
+affect normal clicks or existing gestures.
 
 ## Requirements
 
