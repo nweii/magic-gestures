@@ -1,7 +1,9 @@
 # This is the configuration file for MagicGestures, which turns Magic Mouse
 # and Magic Trackpad gestures into keystrokes.
 #
-# Every line that is not a comment is live. Write `setting = value`.
+# A # starts a comment that runs to the end of the line. Every other line
+# is live. Write `setting = value`.
+#
 # Save this file, then pick Reload Settings from the menu bar to apply it.
 #
 # Reference: https://github.com/nweii/magic-gestures
@@ -23,9 +25,8 @@ verbose-logging = false
 
 # Examples
 # ───────────────────────────────────────────────────────────────
-# A # comments out the rest of the line, wherever it appears. Remove one
-# here to switch an example on, or add one above to park a setting
-# without deleting it.
+# Remove a # to switch one on. Add one above to park a setting without
+# deleting it.
 #
 # These name their device up front, so they work anywhere in the file.
 #
