@@ -46,8 +46,8 @@ left to approve.
 ### Or let an agent set it up
 
 Using an agent can make it easier to find the right gesture for what you want
-to trigger, or to work out mappings that fit the apps and hotkeys you already
-use.
+to trigger, or to shape the whole configuration around your own apps and
+workflows.
 
 Paste this into Claude Code, or any coding agent:
 
