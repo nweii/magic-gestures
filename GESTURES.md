@@ -109,7 +109,8 @@ Hiding the menu bar icon is not a setting here either. Use System Settings >
 Menu Bar; gestures keep working without it.
 
 Starting at login is not a setting here. Tick **Open at Login** in the menu bar
-item, or run `scripts/install-login-agent.sh`.
+item. From a source checkout, `scripts/install-login-agent.sh` does the same
+thing from the shell.
 
 ## Conflicts with built-in macOS gestures
 

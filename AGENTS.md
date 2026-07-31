@@ -88,11 +88,17 @@ To cut a release:
 ```bash
 # bump CFBundleShortVersionString and CFBundleVersion in scripts/build.sh
 ./scripts/build.sh && ./scripts/check.sh
+./scripts/package.sh
 git commit -am "Release X.Y.Z"
 git tag -a vX.Y.Z -m "X.Y.Z"
 git push origin main --tags
-gh release create vX.Y.Z --title "X.Y.Z" --notes "..."
+gh release create vX.Y.Z --title "X.Y.Z" --notes "..." build/MagicGestures-X.Y.Z.zip
 ```
+
+Every release carries the zip that `scripts/package.sh` produces, attached to
+the GitHub release. That zip is the install path the README leads with:
+download, unzip, drag the app anywhere, clear Gatekeeper once through System
+Settings > Privacy & Security > Open Anyway.
 
 The release title is the bare version. The repository name sits above it on
 every page that shows a release, so repeating it adds nothing.
@@ -102,9 +108,9 @@ token already holds. Creating it through `gh api repos/OWNER/REPO/releases`
 works. Pass `--repo` to any `gh release` or `gh repo` command here, or it
 resolves to the `upstream` remote and reports the fork's releases instead.
 
-Releases carry source only. The app is ad-hoc signed rather than notarized, so a
-downloaded build fights Gatekeeper and building from source is the better path.
-Notarizing would need a paid Apple Developer account.
+The app is ad-hoc signed rather than notarized, so anyone installing from the
+zip has to clear Gatekeeper by hand once. Notarizing would need a paid Apple
+Developer account. Building from source stays supported and skips that step.
 
 A rename or removal of a configuration name is the one change that needs a
 migration note in the release, because an existing file will silently stop

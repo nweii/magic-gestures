@@ -72,6 +72,11 @@ clang \
   "$SRC_ROOT/SizeHistory.m" \
   -o "$MACOS_DIR/$APP_NAME"
 
+# The bundle carries its own seed files so a copied app can create the
+# configuration folder without the source tree beside it.
+cp "$ROOT/config.default.txt" "$RES_DIR/config.default.txt"
+cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
+
 # A stable designated requirement lets macOS TCC associate Accessibility
 # permission with this bundle identifier across rebuilds.
 codesign --force --deep --sign - \

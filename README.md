@@ -14,23 +14,41 @@ affect normal clicks or existing gestures.
 ## Requirements
 
 - macOS 13 or later
-- Xcode Command Line Tools
+- Xcode Command Line Tools, to build from source
 
 ## Install
 
-Build the app and start it:
+Download the zip from the [Releases
+page](https://github.com/nweii/magic-gestures/releases), unzip it, and drag
+`MagicGestures.app` wherever you keep apps (`/Applications` works). Open it.
+
+The app is ad-hoc signed and not notarized, so macOS refuses to open it on the
+first double-click and offers only Done. Open System Settings, then Privacy &
+Security, and scroll down to the message saying MagicGestures was blocked.
+Click **Open Anyway** and authenticate. macOS asks once more, this time with an
+Open button.
+
+Then grant Accessibility permission, which is what lets the app send keystrokes.
+macOS prompts for it on first run. Open System Settings, then Privacy &
+Security, then Accessibility, and turn on Magic Gestures in the list.
+
+### Build from source instead
 
 ```bash
 ./scripts/build.sh
 ./scripts/start.sh
 ```
 
-macOS asks for Accessibility permission the first time. Open System Settings,
-then Privacy & Security, then Accessibility. Turn on Magic Gestures in the list.
+This builds the app in the project folder and launches it. Gatekeeper stays out
+of the way for a build you compiled yourself, so only the Accessibility grant is
+left to approve.
 
-The app is ad-hoc signed and not notarized. If macOS blocks it, hold Control,
-click the app, and select Open. You might need to approve it in System Settings >
-Privacy & Security (scroll down) > "Open anyway" on Magic Gestures.
+### Uninstall a zip install
+
+Untick **Open at Login** if it is on, then Quit from the menu bar item. Drag
+`MagicGestures.app` to the Trash. Delete `~/.config/magic-gestures` if you do
+not want your settings back later, and remove Magic Gestures from System
+Settings > Privacy & Security > Accessibility.
 
 ## Or let an agent set it up
 
@@ -88,17 +106,14 @@ already claimed.
 
 ## Start at login
 
-Tick **Open at Login** in the menu bar item, or run:
+Tick **Open at Login** in the menu bar item. This writes one file to
+`~/Library/LaunchAgents` pointing at wherever the app currently lives. The file
+starts the app at login and restarts it if it stops. Unticking removes the file.
 
-```bash
-./scripts/install-login-agent.sh
-```
+From a source checkout you can do the same from the shell with
+`./scripts/install-login-agent.sh` and `./scripts/uninstall-login-agent.sh`.
 
-This writes one file to `~/Library/LaunchAgents`. The file starts the app at
-login and restarts it if it stops. To remove the file, run
-`./scripts/uninstall-login-agent.sh`.
-
-## Uninstall
+## Uninstall a source install
 
 ```bash
 ./scripts/uninstall.sh

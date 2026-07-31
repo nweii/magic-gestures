@@ -31,10 +31,17 @@ CGKeyCode keyMap[128]; // for dvorak support
 
 @synthesize window;
 
+// The launchd job that starts the app at login.
+static NSString *const kLoginAgentLabel = @"fyi.nathancheng.magic-gestures.agent";
+static NSString *const kLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist";
+
+// Removes the launchd job by label rather than plist path, so a job whose
+// plist has already been deleted still stops instead of being respawned by
+// KeepAlive after quit.
 - (void)unloadJitouchLaunchAgent {
-    NSString *plistPath = [@"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist" stringByStandardizingPath];
-    NSArray *unloadArgs = [NSArray arrayWithObjects:@"unload",
-                           plistPath,
+    NSString *target = [NSString stringWithFormat:@"gui/%d/%@", (int)getuid(), kLoginAgentLabel];
+    NSArray *unloadArgs = [NSArray arrayWithObjects:@"bootout",
+                           target,
                            nil];
     NSTask *unloadTask = [NSTask launchedTaskWithLaunchPath:@"/bin/launchctl" arguments:unloadArgs];
     [unloadTask waitUntilExit];
@@ -162,8 +169,9 @@ static NSString *describeBinding(NSDictionary *g) {
     return out;
 }
 
-// The application bundle is in the project's build directory, two levels below
-// the project root.
+// Two levels above the bundle, which is the project root when the app was built
+// from a source checkout into its build directory. Anywhere else the path is
+// meaningless and its contents are absent.
 - (NSString *)projectRoot {
     NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
     if (bundlePath == nil || [bundlePath length] == 0)
@@ -173,7 +181,7 @@ static NSString *describeBinding(NSDictionary *g) {
 }
 
 - (NSString *)loginAgentPlistPath {
-    return [@"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist" stringByStandardizingPath];
+    return [kLoginAgentPlistPath stringByStandardizingPath];
 }
 
 - (BOOL)isLoginItemInstalled {
@@ -193,42 +201,102 @@ static NSString *describeBinding(NSDictionary *g) {
     [alert release];
 }
 
-// PLIST_ONLY changes the login item file without changing the running launchd
-// job. The file change takes effect at login.
-- (void)toggleLoginItem:(id)sender {
-    BOOL installed = [self isLoginItemInstalled];
-    NSString *root = [self projectRoot];
-    NSString *script = installed ? @"uninstall-login-agent.sh" : @"install-login-agent.sh";
-    NSString *path = root ? [root stringByAppendingPathComponent:[@"scripts" stringByAppendingPathComponent:script]] : nil;
-    if (path == nil || ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-        [self reportFailure:@"Can't change Open at Login."
-                     detail:[NSString stringWithFormat:@"scripts/%@ is missing from the project folder.", script]];
-        return;
-    }
-
+// Runs launchctl and returns YES when it exits cleanly. Failures are ignored by
+// callers that only need a best effort.
+static BOOL runLaunchctl(NSArray *arguments) {
     NSTask *task = [[NSTask alloc] init];
-    [task setLaunchPath:path];
-    NSMutableDictionary *env = [[[[NSProcessInfo processInfo] environment] mutableCopy] autorelease];
-    [env setObject:@"1" forKey:@"PLIST_ONLY"];
-    [task setEnvironment:env];
+    [task setLaunchPath:@"/bin/launchctl"];
+    [task setArguments:arguments];
+    [task setStandardOutput:[NSFileHandle fileHandleWithNullDevice]];
+    [task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
 
-    NSString *failure = nil;
+    BOOL ok = NO;
     @try {
         [task launch];
         [task waitUntilExit];
-        int status = [task terminationStatus];
-        if (status != 0)
-            failure = [NSString stringWithFormat:@"scripts/%@ exited with status %d.", script, status];
+        ok = ([task terminationStatus] == 0);
     } @catch (NSException *e) {
-        failure = [NSString stringWithFormat:@"scripts/%@ could not be run. %@", script, [e reason]];
+        ok = NO;
     }
     [task release];
+    return ok;
+}
 
-    // The script can stop partway and leave the plist half written, so the
-    // resulting state is read back from disk instead of assumed.
+// The launchd job runs the executable of whichever copy of the app wrote the
+// plist, so the login item follows the app wherever it is installed.
+- (NSString *)loginAgentPlistContents {
+    NSString *executable = [[NSBundle mainBundle] executablePath];
+    if (executable == nil)
+        return nil;
+    NSString *escaped = [[executable stringByReplacingOccurrencesOfString:@"&" withString:@"&amp;"]
+                         stringByReplacingOccurrencesOfString:@"<" withString:@"&lt;"];
+    return [NSString stringWithFormat:
+        @"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        @"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+        @"<!--\n"
+        @"  Magic Gestures maps Magic Mouse and Magic Trackpad gestures to keystrokes.\n"
+        @"\n"
+        @"  This file starts it at login and restarts it if it exits. It is written by\n"
+        @"  the app's own Open at Login menu item. Deleting it stops the agent from\n"
+        @"  starting at login and leaves the app itself untouched.\n"
+        @"-->\n"
+        @"<plist version=\"1.0\">\n"
+        @"<dict>\n"
+        @"  <key>Label</key>\n"
+        @"  <string>%@</string>\n"
+        @"  <key>ProgramArguments</key>\n"
+        @"  <array>\n"
+        @"    <string>%@</string>\n"
+        @"  </array>\n"
+        @"  <key>RunAtLoad</key>\n"
+        @"  <true/>\n"
+        @"  <key>KeepAlive</key>\n"
+        @"  <true/>\n"
+        @"  <key>ProcessType</key>\n"
+        @"  <string>Interactive</string>\n"
+        @"</dict>\n"
+        @"</plist>\n", kLoginAgentLabel, escaped];
+}
+
+// Writes or removes the login item plist directly, so the app manages it from
+// wherever it is installed. The running process is left alone: bootstrapping
+// the job here would start a second copy, and booting it out would terminate
+// this one.
+- (void)toggleLoginItem:(id)sender {
+    BOOL installed = [self isLoginItemInstalled];
+    NSString *plistPath = [self loginAgentPlistPath];
+    NSString *guiTarget = [NSString stringWithFormat:@"gui/%d/%@", (int)getuid(), kLoginAgentLabel];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSError *error = nil;
+    NSString *failure = nil;
+
+    if (installed) {
+        // No bootout here: when the app was started by launchd, the job is this
+        // process, and booting it out would quit the app mid-toggle. Removing
+        // the plist is enough to stop the next login from starting it.
+        if (![fm removeItemAtPath:plistPath error:&error])
+            failure = [NSString stringWithFormat:@"%@ could not be removed. %@", plistPath, [error localizedDescription]];
+    } else {
+        NSString *contents = [self loginAgentPlistContents];
+        NSString *dir = [plistPath stringByDeletingLastPathComponent];
+        if (contents == nil) {
+            failure = @"The app could not find its own program to start at login.";
+        } else if (![fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&error]) {
+            failure = [NSString stringWithFormat:@"%@ could not be created. %@", dir, [error localizedDescription]];
+        } else if (![contents writeToFile:plistPath atomically:YES encoding:NSUTF8StringEncoding error:&error]) {
+            failure = [NSString stringWithFormat:@"%@ could not be written. %@", plistPath, [error localizedDescription]];
+        } else {
+            // `launchctl disable` persists across logins, so a previously
+            // disabled job would stay disabled without this.
+            runLaunchctl(@[@"enable", guiTarget]);
+        }
+    }
+
+    // Writing or removing the file can stop partway, so the resulting state is
+    // read back from disk instead of assumed.
     if (failure == nil && [self isLoginItemInstalled] == installed)
-        failure = [NSString stringWithFormat:@"scripts/%@ finished, but the login item is still %@.",
-                   script, installed ? @"in place" : @"missing"];
+        failure = [NSString stringWithFormat:@"The login item is still %@.",
+                   installed ? @"in place" : @"missing"];
 
     [self refreshMenu];
 
@@ -485,7 +553,12 @@ static NSString *describeBinding(NSDictionary *g) {
         NSString *dst = [dir stringByAppendingPathComponent:pair[1]];
         if ([fm fileExistsAtPath:dst])
             continue;
-        NSString *src = root ? [root stringByAppendingPathComponent:pair[0]] : nil;
+        // The defaults ship inside the bundle. A build run from a source
+        // checkout falls back to the copies at the project root.
+        NSString *src = [[NSBundle mainBundle] pathForResource:[pair[0] stringByDeletingPathExtension]
+                                                        ofType:[pair[0] pathExtension]];
+        if (src == nil && root != nil)
+            src = [root stringByAppendingPathComponent:pair[0]];
         if (src == nil || ![fm fileExistsAtPath:src])
             continue;
         if (![fm copyItemAtPath:src toPath:dst error:&error])
@@ -639,24 +712,24 @@ static NSString *describeBinding(NSDictionary *g) {
 
 - (void)quit:(id)sender {
     if (![self isLoginItemInstalled]) {
-        NSString *root = [self projectRoot];
+        NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
         NSAlert *alert = [[[NSAlert alloc] init] autorelease];
         [alert setMessageText:@"Quit Magic Gestures?"];
-        [alert setInformativeText:@"Gestures stop until you start it again. Open at Login is off, so it will not come back by itself.\n\nStart it later by opening MagicGestures.app in the build folder, or by running scripts/start.sh."];
+        [alert setInformativeText:@"Gestures stop until you start it again. Open at Login is off, so it will not come back by itself.\n\nStart it again by reopening Magic Gestures."];
         [alert setAlertStyle:NSAlertStyleInformational];
         [alert addButtonWithTitle:@"Quit"];
         [alert addButtonWithTitle:@"Cancel"];
-        if (root != nil)
-            [alert addButtonWithTitle:@"Show Me the Folder"];
+        if ([bundlePath length] > 0)
+            [alert addButtonWithTitle:@"Show Me the App"];
 
         [NSApp activateIgnoringOtherApps:YES];
         NSModalResponse response = [alert runModal];
 
         if (response == NSAlertSecondButtonReturn)
             return;
-        if (response == NSAlertThirdButtonReturn && root != nil) {
+        if (response == NSAlertThirdButtonReturn && [bundlePath length] > 0) {
             [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:
-                @[[NSURL fileURLWithPath:[root stringByAppendingPathComponent:@"build/MagicGestures.app"]]]];
+                @[[NSURL fileURLWithPath:bundlePath]]];
             return;
         }
     }

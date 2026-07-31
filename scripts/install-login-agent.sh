@@ -25,12 +25,11 @@ cat > "$PLIST_DST" <<PLIST
 <!--
   Maps Magic Mouse and Magic Trackpad gestures to keystrokes.
 
-  Source and configuration:  $ROOT
-  Written by:                $ROOT/install-login-agent.sh
-  To remove:                 $ROOT/uninstall-login-agent.sh
+  Application:   $APP_BUNDLE
+  Settings:      $CONFIG_DIR
 
   Deleting this file stops the agent from starting at login. It leaves the
-  project itself untouched.
+  application and its settings untouched.
 -->
 <plist version="1.0">
 <dict>
