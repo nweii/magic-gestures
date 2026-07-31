@@ -4,6 +4,7 @@ This folder holds the configuration for MagicGestures, a macOS background app
 that turns Magic Mouse and Magic Trackpad gestures into keystrokes.
 
 - `config.txt` is the only file it reads. Edit it here.
+- This file is the reference. `AGENTS.md` beside it links here.
 - Apply a change with **Reload Gestures** in the menu bar item.
 
 Source and full documentation: https://github.com/nweii/magic-gestures

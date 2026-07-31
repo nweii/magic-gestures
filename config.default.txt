@@ -2,7 +2,7 @@
 #
 # Every line that is not a comment is live. Write `setting = value`.
 # Pick Reload Gestures from the menu bar to apply a change.
-# AGENTS.md in this folder lists every gesture, key, and setting you can use.
+# README.md in this folder lists every gesture, key, and setting you can use.
 
 [mouse]
 hold-middle-tap-index = return
