@@ -814,6 +814,14 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 */
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+    // A zip install has no start.sh or install script to seed the settings
+    // folder, so the app seeds it here before resolving the configuration.
+    NSError *seedError = [self seedConfigDirectory];
+    if (seedError != nil)
+        [self reportFailure:@"Can't create the settings folder."
+                     detail:[NSString stringWithFormat:@"%@\n\nGestures run with built-in defaults until %@/config.txt exists.",
+                             [seedError localizedDescription], [Config configDirectory]]];
+
     NSString *configPath = [Config resolvedPath];
     if (configPath != nil) {
         NSArray *problems = nil;
