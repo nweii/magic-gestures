@@ -2,11 +2,11 @@
 # and Magic Trackpad gestures into keystrokes.
 #
 # A # starts a comment that runs to the end of the line. Every other line
-# is live. Write `setting = value`.
+# is live.
 #
 # Save this file, then pick Reload Settings from the menu bar to apply it.
 #
-# Reference: https://github.com/nweii/magic-gestures
+# Project: https://github.com/nweii/magic-gestures
 
 [mouse]
 hold-middle-tap-index = return
@@ -25,10 +25,9 @@ verbose-logging = false
 
 # Examples
 # ───────────────────────────────────────────────────────────────
-# Remove a # to switch one on. Add one above to park a setting without
-# deleting it.
 #
 # These name their device up front, so they work anywhere in the file.
+# Drop that prefix if you move one into a section instead.
 #
 # mouse.hold-index-tap-middle = cmd+shift+a
 # mouse.two-finger-tap = middle-click
@@ -36,4 +35,5 @@ verbose-logging = false
 # trackpad.hold-tap-right = mission-control
 # trackpad.three-finger-swipe-up = ctrl+up
 #
-# Full list: https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
+# Every gesture, key, and setting:
+# https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
