@@ -10,7 +10,7 @@
 @class CursorWindow;
 @class Gesture;
 
-@interface JitouchAppDelegate : NSObject <NSApplicationDelegate> {
+@interface JitouchAppDelegate : NSObject <NSApplicationDelegate, NSMenuDelegate> {
     NSWindow *window;
     Gesture *gesture;
     NSMenu *theMenu;

@@ -335,11 +335,27 @@ static NSString *humanGestureName(NSString *raw) {
 }
 
 - (NSMenu *)buildAgentSubmenu {
-    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Configure with Agent"] autorelease];
+    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Change Gestures with Agent"] autorelease];
+    // Rebuilt each time it opens, so an agent installed after launch appears
+    // without restarting. Probing costs a login shell per candidate, which is
+    // why it happens on demand rather than on every menu open.
+    [sub setDelegate:self];
+    return sub;
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    NSMenuItem *agents = [theMenu itemWithTag:kMenuTagAgents];
+    if (menu != [agents submenu])
+        return;
+
+    [menu removeAllItems];
+
     NSArray *candidates = @[@[@"Claude Code", @"claude"],
                             @[@"Codex", @"codex"],
                             @[@"Cursor", @"cursor-agent"],
-                            @[@"Gemini", @"gemini"]];
+                            @[@"Gemini", @"gemini"],
+                            @[@"opencode", @"opencode"],
+                            @[@"Aider", @"aider"]];
     BOOL any = NO;
 
     for (NSArray *pair in candidates) {
@@ -347,19 +363,24 @@ static NSString *humanGestureName(NSString *raw) {
         if (path == nil)
             continue;
         any = YES;
-        NSMenuItem *item = [sub addItemWithTitle:pair[0]
-                                          action:@selector(configureWithAgent:)
-                                   keyEquivalent:@""];
+        NSMenuItem *item = [menu addItemWithTitle:pair[0]
+                                           action:@selector(configureWithAgent:)
+                                    keyEquivalent:@""];
         [item setRepresentedObject:path];
         [item setTarget:self];
+        [item setToolTip:path];
     }
 
     if (!any) {
-        NSMenuItem *empty = [sub addItemWithTitle:@"No coding agent found" action:NULL keyEquivalent:@""];
+        NSMenuItem *empty = [menu addItemWithTitle:@"No coding agent installed" action:NULL keyEquivalent:@""];
         [empty setEnabled:NO];
-    }
 
-    return sub;
+        NSMenuItem *hint = [menu addItemWithTitle:@"Change Gestures by Hand..." action:@selector(preferences:) keyEquivalent:@""];
+        [hint setTarget:self];
+
+        NSMenuItem *docs = [menu addItemWithTitle:@"Read the Setup Guide..." action:@selector(about:) keyEquivalent:@""];
+        [docs setTarget:self];
+    }
 }
 
 - (void)showIcon {
@@ -451,11 +472,35 @@ static NSString *humanGestureName(NSString *raw) {
 }
 
 
+// Quitting has to stop the launchd job, or KeepAlive restarts the process
+// immediately. That makes it a one-way trip from the menu, so say how to get
+// back when nothing is going to bring it back on its own.
 - (void)quit:(id)sender {
-    [self unloadJitouchLaunchAgent];
+    if (![self isLoginItemInstalled]) {
+        NSString *root = [self projectRoot];
+        NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+        [alert setMessageText:@"Quit MagicGestures?"];
+        [alert setInformativeText:@"Gestures stop until you start it again. Open at Login is off, so it will not come back by itself.\n\nStart it later by opening MagicGestures.app in the build folder, or by running scripts/start.sh."];
+        [alert setAlertStyle:NSAlertStyleInformational];
+        [alert addButtonWithTitle:@"Quit"];
+        [alert addButtonWithTitle:@"Cancel"];
+        if (root != nil)
+            [alert addButtonWithTitle:@"Show Me the Folder"];
 
-    // Quit
-    [NSApp terminate: sender];
+        [NSApp activateIgnoringOtherApps:YES];
+        NSModalResponse response = [alert runModal];
+
+        if (response == NSAlertSecondButtonReturn)
+            return;
+        if (response == NSAlertThirdButtonReturn && root != nil) {
+            [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:
+                @[[NSURL fileURLWithPath:[root stringByAppendingPathComponent:@"build/MagicGestures.app"]]]];
+            return;
+        }
+    }
+
+    [self unloadJitouchLaunchAgent];
+    [NSApp terminate:sender];
 }
 
 - (void)refreshMenu {
