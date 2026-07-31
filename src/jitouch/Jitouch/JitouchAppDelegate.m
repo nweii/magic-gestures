@@ -34,6 +34,7 @@ CGKeyCode keyMap[128]; // for dvorak support
 // The launchd job that starts the app at login.
 static NSString *const kLoginAgentLabel = @"fyi.nathancheng.magic-gestures.agent";
 static NSString *const kLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist";
+static NSString *const kDidChooseLoginItem = @"DidChooseLoginItem";
 
 // Removes the launchd job by label rather than plist path, so a job whose
 // plist has already been deleted still stops instead of being respawned by
@@ -258,19 +259,16 @@ static BOOL runLaunchctl(NSArray *arguments) {
         @"</plist>\n", kLoginAgentLabel, escaped];
 }
 
-// Writes or removes the login item plist directly, so the app manages it from
-// wherever it is installed. The running process is left alone: bootstrapping
-// the job here would start a second copy, and booting it out would terminate
-// this one.
-- (void)toggleLoginItem:(id)sender {
-    BOOL installed = [self isLoginItemInstalled];
+// Writes or removes the login item plist without changing the running launchd
+// job. Returns a description when the requested state could not be reached.
+- (NSString *)setLoginItemInstalled:(BOOL)install {
     NSString *plistPath = [self loginAgentPlistPath];
     NSString *guiTarget = [NSString stringWithFormat:@"gui/%d/%@", (int)getuid(), kLoginAgentLabel];
     NSFileManager *fm = [NSFileManager defaultManager];
     NSError *error = nil;
     NSString *failure = nil;
 
-    if (installed) {
+    if (!install) {
         // No bootout here: when the app was started by launchd, the job is this
         // process, and booting it out would quit the app mid-toggle. Removing
         // the plist is enough to stop the next login from starting it.
@@ -294,9 +292,36 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
     // Writing or removing the file can stop partway, so the resulting state is
     // read back from disk instead of assumed.
-    if (failure == nil && [self isLoginItemInstalled] == installed)
+    if (failure == nil && [self isLoginItemInstalled] != install)
         failure = [NSString stringWithFormat:@"The login item is still %@.",
-                   installed ? @"in place" : @"missing"];
+                   install ? @"missing" : @"in place"];
+
+    return failure;
+}
+
+// The app is only useful while running, so a fresh installation starts at
+// login. Recording the choice separately preserves a later opt-out.
+- (void)enableLoginItemOnFirstLaunch {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if ([defaults boolForKey:kDidChooseLoginItem])
+        return;
+
+    [defaults setBool:YES forKey:kDidChooseLoginItem];
+    [defaults synchronize];
+
+    if (![self isLoginItemInstalled]) {
+        NSString *failure = [self setLoginItemInstalled:YES];
+        if (failure != nil)
+            [self reportFailure:@"Can't turn on Open at Login." detail:failure];
+    }
+}
+
+// The running process is left alone: bootstrapping the job here would start a
+// second copy, and booting it out would terminate this one.
+- (void)toggleLoginItem:(id)sender {
+    NSString *failure = [self setLoginItemInstalled:![self isLoginItemInstalled]];
+
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:kDidChooseLoginItem];
 
     [self refreshMenu];
 
@@ -821,6 +846,8 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
         [self reportFailure:@"Can't create the settings folder."
                      detail:[NSString stringWithFormat:@"%@\n\nGestures run with built-in defaults until %@/config.txt exists.",
                              [seedError localizedDescription], [Config configDirectory]]];
+
+    [self enableLoginItemOnFirstLaunch];
 
     NSString *configPath = [Config resolvedPath];
     if (configPath != nil) {

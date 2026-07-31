@@ -2,14 +2,14 @@
 
 Press a key without taking your hand off the mouse.
 
-Magic Gestures turns a finger gesture on a Magic Mouse or Magic Trackpad into a
-keyboard shortcut. There are sixteen motions on each device: taps, swipes, and
-holding one finger still while another taps or slides. Each one can send any
-shortcut you name.
+Magic Gestures turns finger gestures on a Magic Mouse or Magic Trackpad into
+keyboard shortcuts. Each device supports sixteen gestures, including taps,
+swipes, and motions where you hold one finger still while another taps or
+slides. Each gesture can send any supported shortcut.
 
-By default, holding your middle finger and tapping beside it with your index
-sends Return. It runs in the background from a menu bar item, and does not
-affect normal clicks or existing gestures.
+By default, holding your middle finger on the device and tapping to its left
+with your index finger sends Return. The app runs in the background with a menu
+bar item and does not affect normal clicks or existing gestures.
 
 ## Requirements
 
@@ -18,10 +18,11 @@ affect normal clicks or existing gestures.
 
 ## Install
 
-Three ways in. Whichever you take, the last step is the same: grant
-Accessibility permission, which is what lets the app send keystrokes. macOS
-prompts for it on first run. Open System Settings, then Privacy & Security,
-then Accessibility, and turn on Magic Gestures in the list.
+Choose one of the three installation methods below. The first time you run the
+app, macOS asks for Accessibility permission so it can send keystrokes. Open
+System Settings > Privacy & Security > Accessibility and turn on Magic Gestures.
+The app starts automatically when you log in. Turn off **Open at Login** from
+the menu bar item if you do not want this.
 
 ### From the release zip
 
@@ -29,11 +30,10 @@ Download the zip from the [Releases
 page](https://github.com/nweii/magic-gestures/releases), unzip it, and drag
 `MagicGestures.app` wherever you keep apps (`/Applications` works). Open it.
 
-The app is ad-hoc signed and not notarized, so macOS refuses to open it on the
-first double-click and offers only Done. Open System Settings, then Privacy &
-Security, and scroll down to the message saying MagicGestures was blocked.
-Click **Open Anyway** and authenticate. macOS asks once more, this time with an
-Open button.
+The app is ad-hoc signed and not notarized, so macOS blocks it the first time
+you open it. Click **Done**, then open System Settings > Privacy & Security.
+Scroll to the message that MagicGestures was blocked, click **Open Anyway**,
+authenticate, and click **Open** in the final prompt.
 
 ### Build from source
 
@@ -42,30 +42,23 @@ Open button.
 ./scripts/start.sh
 ```
 
-This builds the app in the project folder and launches it. Gatekeeper stays out
-of the way for a build you compiled yourself, so only the Accessibility grant is
-left to approve.
+This builds the app in the project folder and launches it. A local build does
+not require the Gatekeeper steps above, but it still needs Accessibility
+permission.
 
 ### Let an agent set it up
 
-Using an agent can make it easier to find the right gesture for what you want
-to trigger, or to shape the whole configuration around your own apps and
-workflows.
+An agent can install the app, help choose gestures, and edit the configuration
+for the apps you use.
 
 Paste this into Claude Code, or any coding agent:
 
 ```text
-Set up https://github.com/nweii/magic-gestures for me. Install it from the
-latest release zip, or clone and build from source if that suits my machine
-better. Ask me what I want a gesture to do, then suggest gestures from the
-project's GESTURES.md that fit it. Then edit the settings
-file the app creates at ~/.config/magic-gestures/config.txt, and tell me
-what I have to approve in System Settings.
+Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. Then edit the settings file the app creates at ~/.config/magic-gestures/config.txt, and tell me what I have to approve in System Settings.
 ```
 
-Either path works for an agent. The zip needs you to click through the
-Gatekeeper steps above yourself, since no agent can do that for you. Building
-from source skips Gatekeeper but needs the Xcode Command Line Tools.
+For a zip install, you need to complete the Gatekeeper steps yourself. Building
+from source requires the Xcode Command Line Tools but skips those steps.
 
 ## Default gestures
 
@@ -76,14 +69,15 @@ from source skips Gatekeeper but needs the Xcode Command Line Tools.
 
 ## Change the gestures
 
-Gestures live in a text file. Open it from the menu bar item under **Edit Settings**, or edit it directly:
+The gesture configuration is a text file. Open it from **Edit Settings** in the
+menu bar item, or edit it directly:
 
 ```
 ~/.config/magic-gestures/config.txt
 ```
 
-That folder also gets an `AGENTS.md` describing the format, so a coding agent
-opened there has what it needs without the source. Lines look like this:
+The folder also contains an `AGENTS.md` that explains the format to coding
+agents. The configuration looks like this:
 
 ```
 [mouse]
@@ -100,18 +94,8 @@ needed. **Current Gestures** shows what is bound right now.
 To have a coding agent make the change, pick one under **Change Settings with
 Agent**. It opens in the settings folder with the notes already there.
 
-`GESTURES.md` is the full reference: every gesture name by device, every key
-and modifier you can send, the built-in actions, and which motions macOS has
-already claimed.
-
-## Start at login
-
-Tick **Open at Login** in the menu bar item. This writes one file to
-`~/Library/LaunchAgents` pointing at wherever the app currently lives. The file
-starts the app at login and restarts it if it stops. Unticking removes the file.
-
-From a source checkout you can do the same from the shell with
-`./scripts/install-login-agent.sh` and `./scripts/uninstall-login-agent.sh`.
+See `GESTURES.md` for the gesture names available on each device, supported keys
+and modifiers, built-in actions, and motions already used by macOS.
 
 ## Uninstall
 
@@ -132,18 +116,17 @@ This stops the app, removes the login item, and deletes the built app. Your
 settings in `~/.config/magic-gestures/` are kept; pass `--all` to remove those
 too.
 
-Two steps are left over, because no script can do them: remove Magic Gestures
-from System Settings > Privacy & Security > Accessibility, and delete the
-project folder.
+The script cannot remove the Accessibility entry or the project folder. Remove
+Magic Gestures from System Settings > Privacy & Security > Accessibility, then
+delete the project folder if you no longer need it.
 
 ## Privacy
 
-Magic Gestures needs Accessibility permission to send keystrokes. That permission
-is what lets any app post keyboard events to other apps.
+Magic Gestures needs Accessibility permission because macOS requires it for
+apps that send keystrokes to other apps.
 
-It sends no data anywhere. There is no telemetry, no analytics, no crash
-reporting, and no network code of any kind. The app makes no outbound
-connections.
+The app has no telemetry, analytics, crash reporting, or network code. It makes
+no outbound connections.
 
 It does not read your keystrokes. The event tap it installs watches mouse and
 scroll events so it can tell a gesture from a normal click. Keyboard events are
@@ -161,10 +144,10 @@ folder and runs it. Turning on Open at Login writes one launchd plist to
 
 ## Limits
 
-Some apps read the keyboard through a CGEventTap and accept only the events that
-come from real hardware. These apps ignore the keystrokes that Magic Gestures
-sends (ex. Aqua Voice). Make sure that an app answers a synthesized keystroke
-before you bind a gesture to it.
+Some apps read the keyboard through a CGEventTap and accept only events from
+physical hardware. These apps, including Aqua Voice, ignore keystrokes from
+Magic Gestures. Test the target app with a synthesized keystroke before binding
+a gesture to it.
 
 The Fn key cannot be sent at all.
 
@@ -174,9 +157,10 @@ Jitouch is a full gesture app with a catalog of actions built in. It switches
 browser tabs, snaps windows, opens Mission Control, and recognizes letters you
 draw on the trackpad. You pick from that catalog in a preference pane.
 
-Magic Gestures keeps Jitouch's recognizers and drops the catalog, so a gesture
-sends the keyboard shortcut you name instead of choosing from a fixed list. That
-covers any app with a hotkey. A menu bar item replaces the preference pane.
+Magic Gestures keeps Jitouch's recognizers but lets each gesture send a
+configurable keyboard shortcut. Jitouch's built-in actions remain available.
+It works with apps that accept synthesized hotkeys, and a menu bar item replaces
+the preference pane.
 
 ## How it works
 
