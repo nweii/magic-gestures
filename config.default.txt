@@ -1,5 +1,5 @@
-# This is the settings file for MagicGestures, which turns Magic Mouse and
-# Magic Trackpad gestures into keystrokes.
+# This is the configuration file for MagicGestures, which turns Magic Mouse
+# and Magic Trackpad gestures into keystrokes.
 #
 # Every line that is not a comment is live. Write `setting = value`.
 # Save this file, then pick Reload Settings from the menu bar to apply it.
