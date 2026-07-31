@@ -14,6 +14,7 @@
 #import <Carbon/Carbon.h>
 #import <CoreFoundation/CFPreferences.h>
 #import "SystemPreferences.h"
+#import "Config.h"
 #import "KeyUtility.h"
 #include <pwd.h>
 #include <unistd.h>
@@ -55,8 +56,8 @@ enum {
 // to rediscover them.
 static NSString *const kAgentPrompt =
     @"Read AGENTS.md and GESTURES.md first. Help me change my MagicGestures "
-    @"gesture bindings, or troubleshoot the setup. Ask me what I want before "
-    @"editing generate_config.py, then apply it with Reload Configuration.";
+    @"gestures, or troubleshoot the setup. Ask me what I want before editing "
+    @"config.txt, then apply it with Reload Gestures in the menu bar.";
 
 static NSString *shellQuote(NSString *s) {
     NSString *escaped = [s stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"];
@@ -404,7 +405,7 @@ static NSString *describeBinding(NSDictionary *g) {
         NSMenuItem *empty = [menu addItemWithTitle:@"No coding agent installed" action:NULL keyEquivalent:@""];
         [empty setEnabled:NO];
 
-        NSMenuItem *hint = [menu addItemWithTitle:@"Change Gestures by Hand..." action:@selector(preferences:) keyEquivalent:@""];
+        NSMenuItem *hint = [menu addItemWithTitle:@"Edit Gestures..." action:@selector(preferences:) keyEquivalent:@""];
         [hint setTarget:self];
 
         NSMenuItem *docs = [menu addItemWithTitle:@"Read the Setup Guide..." action:@selector(about:) keyEquivalent:@""];
@@ -433,7 +434,7 @@ static NSString *describeBinding(NSDictionary *g) {
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
-    [theMenu addItemWithTitle:@"Change Gestures by Hand..." action:@selector(preferences:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Edit Gestures..." action:@selector(preferences:) keyEquivalent:@""];
     [theMenu addItemWithTitle:@"Reload Gestures" action:@selector(reloadConfiguration:) keyEquivalent:@""];
 
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
@@ -478,11 +479,26 @@ static NSString *describeBinding(NSDictionary *g) {
         projectRoot = [[buildRoot stringByDeletingLastPathComponent] stringByStandardizingPath];
     }
 
-    // Reveal the file bindings are actually edited in, rather than the
-    // generated output beside it.
-    NSString *sourcePath = projectRoot ? [projectRoot stringByAppendingPathComponent:@"generate_config.py"] : nil;
-    if (sourcePath != nil && [[NSFileManager defaultManager] fileExistsAtPath:sourcePath]) {
-        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[[NSURL fileURLWithPath:sourcePath]]];
+    // Opens the configuration the engine is actually reading. When none exists
+    // yet, the shipped example is copied into place first so there is a file to
+    // edit rather than an error.
+    NSString *path = [Config resolvedPath];
+    if (path == nil) {
+        NSString *dir = [@"~/.config/magic-gestures" stringByStandardizingPath];
+        [[NSFileManager defaultManager] createDirectoryAtPath:dir
+                                  withIntermediateDirectories:YES
+                                                   attributes:nil
+                                                        error:NULL];
+        NSString *dst = [dir stringByAppendingPathComponent:@"config.txt"];
+        NSString *example = projectRoot ? [projectRoot stringByAppendingPathComponent:@"config.default.txt"] : nil;
+        if (example != nil && [[NSFileManager defaultManager] fileExistsAtPath:example])
+            [[NSFileManager defaultManager] copyItemAtPath:example toPath:dst error:NULL];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:dst])
+            path = dst;
+    }
+
+    if (path != nil) {
+        [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]];
         return;
     }
 

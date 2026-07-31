@@ -241,7 +241,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
     if ([bundlePath length] > 0) {
         NSString *root = [[bundlePath stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
-        NSString *inRepo = [[root stringByAppendingPathComponent:@"gestures.conf"] stringByStandardizingPath];
+        NSString *inRepo = [[root stringByAppendingPathComponent:@"config.txt"] stringByStandardizingPath];
         // `config` is the file; the older layout used a directory of the same
         // name, so make sure this is not that.
         BOOL isDir = NO;
@@ -249,7 +249,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
             return inRepo;
     }
 
-    NSString *user = [@"~/.config/magic-gestures/gestures.conf" stringByStandardizingPath];
+    NSString *user = [@"~/.config/magic-gestures/config.txt" stringByStandardizingPath];
     if ([fm fileExistsAtPath:user])
         return user;
 

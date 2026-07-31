@@ -282,48 +282,10 @@ static int notSynchronize;
 }
 
 + (void)loadSettings {
-    // The text configuration is the source of truth when one exists. The plist
-    // path below stays for checkouts that have not migrated yet.
-    NSString *configPath = [Config resolvedPath];
-    if (configPath != nil) {
-        NSDictionary *parsed = [Config settingsFromFile:configPath];
-        if (parsed != nil) {
-            [Settings loadSettings2:parsed];
-            return;
-        }
-    }
-
-    NSString *plistPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"MAGIC_MOUSE_AGENT_SETTINGS"];
-    if (plistPath == nil || [plistPath length] == 0) {
-        plistPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"BTT_GESTURE_AGENT_SETTINGS"];
-    }
-
-    if (plistPath == nil || [plistPath length] == 0) {
-        NSString *bundleConfigPath = nil;
-        NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
-        if (bundlePath != nil && [bundlePath length] > 0) {
-            NSString *buildRoot = [bundlePath stringByDeletingLastPathComponent];
-            NSString *projectRoot = [buildRoot stringByDeletingLastPathComponent];
-            bundleConfigPath = [[projectRoot stringByAppendingPathComponent:@"generated/MagicGestures.plist"] stringByStandardizingPath];
-        }
-
-        if (bundleConfigPath != nil && [[NSFileManager defaultManager] fileExistsAtPath:bundleConfigPath]) {
-            plistPath = bundleConfigPath;
-        } else {
-            plistPath = [@"~/Library/Preferences/fyi.nathancheng.magic-gestures.plist" stringByStandardizingPath];
-        }
-    } else {
-        plistPath = [plistPath stringByStandardizingPath];
-    }
-
-    NSData *plistXML = [[NSFileManager defaultManager] contentsAtPath:plistPath];
-    NSError *error = nil;
-    NSDictionary *newSettings = [NSPropertyListSerialization
-                             propertyListWithData:plistXML
-                             options:NSPropertyListMutableContainersAndLeaves
-                             format:NULL
-                             error:&error];
-    [Settings loadSettings2:newSettings];
+    NSString *path = [Config resolvedPath];
+    if (path == nil)
+        return;
+    [Settings loadSettings2:[Config settingsFromFile:path]];
 }
 
 + (void)loadSettings:(id)sender {

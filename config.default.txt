@@ -1,0 +1,39 @@
+# MagicGestures
+#
+# Write `setting = value`. A # starts a comment. Unknown settings are ignored.
+#
+# A value is either a keystroke, like `return` or `cmd+shift+a`, or a built-in
+# action, like `middle-click`. GESTURES.md lists every gesture you can bind and
+# every key you can send.
+#
+# This is the starting point copied to config.txt on first run. Edit config.txt,
+# not this file.
+
+
+[mouse]
+# Hold one finger still and tap beside it with another. A resting hand cannot
+# make that shape, so these do not fire by accident.
+hold-middle-tap-index = return
+# hold-index-tap-middle = cmd+shift+a
+# two-finger-tap = middle-click
+
+
+[trackpad]
+# Named by where the tap lands rather than by which finger taps.
+hold-tap-left = return
+# hold-tap-right = escape
+# three-finger-swipe-up = ctrl+up
+
+
+[general]
+show-menu-bar-icon = true
+open-at-login = true
+
+enable-mouse = true
+enable-trackpad = true
+
+# Seconds a tap may last. Raise it if a gesture is hard to land.
+tap-speed = 0.25
+
+# Log every gesture and keystroke to Console.
+verbose-logging = false

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="${0:A:h:h}"
 APP_NAME="MagicGestures"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
-CONFIG="$ROOT/config/MagicGestures.plist"
+CONFIG="$ROOT/config.txt"
 LABEL="fyi.nathancheng.magic-gestures.agent"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
@@ -16,7 +16,7 @@ if [[ ! -x "$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]]; then
 fi
 
 if [[ ! -f "$CONFIG" ]]; then
-  python3 "$ROOT/generate_config.py" >/dev/null
+  cp "$ROOT/config.default.txt" "$CONFIG"
 fi
 
 cat > "$PLIST_DST" <<PLIST
