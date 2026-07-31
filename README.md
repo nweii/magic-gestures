@@ -45,13 +45,16 @@ left to approve.
 
 ### Or let an agent set it up
 
+Using an agent can make it easier to find the right gesture for what you want
+to trigger, or to steer clear of motions macOS already claims.
+
 Paste this into Claude Code, or any coding agent:
 
 ```text
 Set up https://github.com/nweii/magic-gestures for me. Install it from the
 latest release zip, or clone and build from source if that suits my machine
-better. Ask me which gesture I want and which keyboard shortcut it should
-send, letting me pick from the project's GESTURES.md. Then edit the settings
+better. Ask me what I want a gesture to do, then suggest gestures from the
+project's GESTURES.md that fit it. Then edit the settings
 file the app creates at ~/.config/magic-gestures/config.txt, and tell me
 what I have to approve in System Settings.
 ```
