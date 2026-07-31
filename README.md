@@ -77,9 +77,9 @@ hold-tap-left = cmd+shift+a
 Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
 needed.
 
-The engine recognizes 52 gestures, including three-finger and four-finger
-swipes, pinches, and taps. `GESTURES.md` lists all of them by device, along with
-every key name and modifier spelling you can write.
+`GESTURES.md` is the full reference: every gesture name by device, every key
+and modifier you can send, the built-in actions, and which motions macOS has
+already claimed.
 
 ## Start at login
 

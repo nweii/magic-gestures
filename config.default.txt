@@ -18,3 +18,19 @@ enable-mouse = true
 enable-trackpad = true
 tap-speed = 0.25
 verbose-logging = false
+
+
+# ── A few examples ──────────────────────────────────────────────────────────
+#
+# These are not active. Copy a line up into a section above to use it.
+#
+#   [mouse]      hold-index-tap-middle = cmd+shift+a
+#                two-finger-tap = middle-click
+#                front-right-tap = escape
+#
+#   [trackpad]   hold-tap-right = mission-control
+#                three-finger-tap = middle-click
+#                three-finger-swipe-up = ctrl+up
+#
+# The naming follows the motion, so the rest are guessable. Full list:
+# https://github.com/nweii/magic-gestures/blob/main/GESTURES.md

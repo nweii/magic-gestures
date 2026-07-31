@@ -1,134 +1,146 @@
-# Gesture vocabulary
+# Gesture reference
 
-Every gesture name that the engine recognizes. Bind any of these in
-`generate_config.py`. The names must match exactly, and each device has its own
-list, so a name from one table does nothing on the other.
+Everything you can write in `config.txt`. Each device has its own names, so a
+name from one table does nothing on the other.
 
-You cannot invent a gesture. The recognizers are compiled in, and a name that is
-not on this list is silently ignored.
-
-## Reading the names
-
-| Term | Meaning |
-|---|---|
-| Fix | Hold this finger still while another one moves or taps |
-| Tap | Touch and lift |
-| Slide | Touch and move, holding contact |
-| Swipe | Move several fingers together across the surface |
-| Near, Far | How far the tapping finger lands from the held one |
-| In, Out | Toward or away from the held finger |
-
-Two-finger swipes are missing from both lists because macOS already uses that
-motion for scrolling.
+The recognizers are compiled in. A name that is not listed here is skipped
+without an error.
 
 ## Magic Mouse
 
-Taps:
-
-- `One-Finger Tap`
-- `Two-Finger Tap`
-- `Right-Front Tap`
-- `Thumb`
-
-Swipes and pinches:
-
-- `One-Swipe-Left`, `One-Swipe-Right`
-- `Three-Swipe-Up`, `Three-Swipe-Down`, `Three-Swipe-Left`, `Three-Swipe-Right`
-- `Pinch In`, `Pinch Out`
-
-Fix-taps, which hold one finger still and tap with another:
-
-- `Index-Fix Middle-Near-Tap`, `Index-Fix Middle-Far-Tap`
-- `Middle-Fix Index-Near-Tap`, `Middle-Fix Index-Far-Tap`
-
-Fix-slides, which hold one finger still and drag with another:
-
-- `Index-Fix Middle-Slide-In`, `Index-Fix Middle-Slide-Out`
-- `Middle-Fix Index-Slide-In`, `Middle-Fix Index-Slide-Out`
-- `Two-Fix One-Slide-Up`, `Two-Fix One-Slide-Down`
-- `Two-Fix One-Slide-Left`, `Two-Fix One-Slide-Right`
+| Write this | The motion |
+|---|---|
+| `hold-index-tap-middle` | Hold your index finger still, tap beside it with your middle |
+| `hold-middle-tap-index` | Hold your middle finger still, tap beside it with your index |
+| `hold-index-slide-middle` | Hold your index finger still, slide your middle toward or away |
+| `hold-middle-slide-index` | Hold your middle finger still, slide your index toward or away |
+| `one-finger-tap` | Tap with one finger |
+| `two-finger-tap` | Tap with two fingers |
+| `three-finger-tap` | Tap with three fingers |
+| `front-right-tap` | Tap the front right of the surface |
+| `one-finger-swipe-left` | Swipe left with one finger |
+| `one-finger-swipe-right` | Swipe right with one finger |
+| `two-finger-swipe-left` | Swipe left with two fingers |
+| `two-finger-swipe-right` | Swipe right with two fingers |
+| `three-finger-swipe-left` | Swipe left with three fingers |
+| `three-finger-swipe-right` | Swipe right with three fingers |
+| `three-finger-swipe-up` | Swipe up with three fingers |
+| `three-finger-swipe-down` | Swipe down with three fingers |
 
 ## Magic Trackpad
 
-Taps:
+Trackpad gestures are named for where the tap lands rather than which finger
+taps, because the engine cannot tell your fingers apart on a flat surface.
 
-- `Three-Finger Tap`
-- `Four-Finger Tap`
+| Write this | The motion |
+|---|---|
+| `hold-tap-left` | Hold one finger still, tap to its left with another |
+| `hold-tap-right` | Hold one finger still, tap to its right with another |
+| `hold-slide` | Hold one finger still, slide another |
+| `two-finger-tap` | Tap with two fingers |
+| `three-finger-tap` | Tap with three fingers |
+| `four-finger-tap` | Tap with four fingers |
+| `three-finger-swipe-left` | Swipe left with three fingers |
+| `three-finger-swipe-right` | Swipe right with three fingers |
+| `three-finger-swipe-up` | Swipe up with three fingers |
+| `three-finger-swipe-down` | Swipe down with three fingers |
+| `four-finger-swipe-left` | Swipe left with four fingers |
+| `four-finger-swipe-right` | Swipe right with four fingers |
+| `four-finger-swipe-up` | Swipe up with four fingers |
+| `four-finger-swipe-down` | Swipe down with four fingers |
+| `index-to-pinky` | Brush your fingers across in sequence, index first |
+| `pinky-to-index` | Brush your fingers across in sequence, pinky first |
 
-Swipes and pinches:
+## What a gesture can send
 
-- `Three-Swipe-Up`, `Three-Swipe-Down`, `Three-Swipe-Left`, `Three-Swipe-Right`
-- `Four-Swipe-Up`, `Four-Swipe-Down`, `Four-Swipe-Left`, `Four-Swipe-Right`
-- `Three-Finger Pinch-In`, `Three-Finger Pinch-Out`
+A keystroke, or a built-in action.
 
-Fix-taps:
+### Keystrokes
 
-- `One-Fix Left-Tap`, `One-Fix Right-Tap`
-- `Two-Fix Index-Double-Tap`, `Two-Fix Middle-Double-Tap`,
-  `Two-Fix Ring-Double-Tap`
+Modifiers, then one key. These four are the same binding:
 
-Fix-slides:
+    cmd+shift+a
+    command-shift-a
+    ⌘⇧A
+    Cmd Shift A
 
-- `One-Fix Two-Slide-Up`, `One-Fix Two-Slide-Down`
-- `One-Fix-Press Two-Slide-Up`, `One-Fix-Press Two-Slide-Down`
-- `One-Fix Three-Slide`
-- `Two-Fix One-Slide-Up`, `Two-Fix One-Slide-Down`
-- `Two-Fix One-Slide-Left`, `Two-Fix One-Slide-Right`
+| Modifier | Write any of |
+|---|---|
+| Command | `cmd` `command` `⌘` |
+| Control | `ctrl` `control` `⌃` |
+| Option | `opt` `option` `alt` `⌥` |
+| Shift | `shift` `⇧` |
 
-Finger runs:
+Keys: any letter or digit, plus `return` `escape` `tab` `space` `delete`
+`forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down`
+and `f1` through `f12`.
 
-- `Index-To-Pinky`, `Pinky-To-Index`
+Aliases: `enter` is `return`, `esc` is `escape`, `backspace` and `del` are
+`delete`, `spacebar` is `space`.
+
+Fn cannot be sent. It is a HID usage rather than an ordinary key event, so no
+gesture can stand in for an Fn shortcut.
+
+### Actions
+
+`middle-click` `mission-control` `move-resize` `next-tab` `previous-tab`
+`new-tab` `close-tab` `reopen-tab` `maximize` `minimize`
+
+`middle-click` posts a real middle-button event, which gives a Magic Mouse a
+button it does not otherwise have.
+
+## Settings
+
+| Setting | Value |
+|---|---|
+| `show-menu-bar-icon` | `true` or `false` |
+| `open-at-login` | `true` or `false` |
+| `enable-mouse` | `true` or `false` |
+| `enable-trackpad` | `true` or `false` |
+| `tap-speed` | Seconds a tap may last, default `0.25` |
+| `verbose-logging` | `true` logs every gesture and keystroke to Console |
+
+Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
 
 ## Conflicts with built-in macOS gestures
 
 macOS claims several of these motions first, in System Settings under Trackpad
 and Mouse. When both want the same motion, both fire.
 
-Check your own settings before you bind, because the finger counts are
+Check your own settings before binding, because the finger counts are
 adjustable. A default trackpad puts these out of reach:
 
 | Motion | Built-in use |
 |---|---|
-| `Four-Swipe-Up` | Mission Control |
-| `Four-Swipe-Down` | App Exposé |
-| `Four-Swipe-Left`, `Four-Swipe-Right` | Swipe between full-screen apps |
-| `Three-Finger Pinch-In`, `Three-Finger Pinch-Out` | Close to the thumb-and-three-finger spread for Show Desktop |
+| `four-finger-swipe-up` | Mission Control |
+| `four-finger-swipe-down` | App Exposé |
+| `four-finger-swipe-left`, `four-finger-swipe-right` | Swipe between full-screen apps |
 
-Mission Control and App Exposé can be moved between three and four fingers, so
-a trackpad set to three fingers takes the `Three-Swipe` names out instead and
-frees the `Four-Swipe` ones.
+Mission Control and App Exposé can be moved between three and four fingers, so a
+trackpad set to three fingers takes the `three-finger-swipe` names out instead
+and frees the four-finger ones.
 
 On the Magic Mouse, one-finger and two-finger horizontal motion drives scrolling
-and page navigation, which is why `One-Swipe-Left` and `One-Swipe-Right` fight
-the system.
+and page navigation, which is why `one-finger-swipe-left` and
+`one-finger-swipe-right` fight the system.
 
-Free on a default setup: every fix-tap and fix-slide, `Three-Finger Tap`,
-`Four-Finger Tap`, `Index-To-Pinky`, `Pinky-To-Index`, and the `Three-Swipe`
-names.
+Free on a default setup: every `hold-` gesture, `three-finger-tap`,
+`four-finger-tap`, `index-to-pinky`, `pinky-to-index`, and the
+`three-finger-swipe` names.
 
 ## Choosing one
 
-A swipe or a plain tap competes with motions your hand makes anyway. A
-three-finger swipe fires while you scroll with three fingers resting. A
-one-finger tap fires when you set your hand down.
+The `hold-` gestures hold one finger still while another taps or slides. A
+resting hand does not produce that shape and macOS binds nothing to it, so they
+stay clear on both counts. Bind those for anything you would regret firing by
+accident.
 
-Fix gestures hold one finger still while another moves, which a resting hand
-does not produce. macOS also claims none of them. Bind those to anything you
-would regret firing by accident.
-
-## Actions, not just keystrokes
-
-Besides sending a keystroke, a binding can call a built-in action. `Middle
-Click` posts a real middle-button event, which gives a Magic Mouse a middle
-button it does not otherwise have. The action names are the string literals
-compared in `dispatchCommand` in `Gesture.m`.
+A tap fires while your hand rests on the surface. A swipe competes with
+scrolling. Both are fine for something harmless.
 
 ## Where these come from
 
-This list is the set of names passed to `dispatchCommand` in
-`src/jitouch/Jitouch/Gesture.m`. To confirm it against the source:
-
-```bash
-grep -oE 'dispatchCommand\(@"[^"]+", MAGICMOUSE' src/jitouch/Jitouch/Gesture.m | sort -u
-grep -oE 'dispatchCommand\(@"[^"]+", TRACKPAD' src/jitouch/Jitouch/Gesture.m | sort -u
-```
+The recognizers are [Jitouch](https://github.com/JitouchApp/Jitouch), vendored
+under `src/jitouch/`. `src/Config.m` maps the names above to the engine's
+internal names, which are longer and encode detail a hand does not distinguish,
+such as how far apart two fingers land.

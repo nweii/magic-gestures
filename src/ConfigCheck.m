@@ -145,14 +145,16 @@ int main(void) {
 
         // Every slug must appear in the notes installed beside the config, or
         // it exists without being documented anywhere the user will look.
-        NSString *notesPath = [[[NSProcessInfo processInfo] arguments] count] > 2
-            ? [[NSProcessInfo processInfo] arguments][2] : nil;
-        if (notesPath != nil) {
-            NSString *notes = [NSString stringWithContentsOfFile:notesPath encoding:NSUTF8StringEncoding error:NULL];
+        NSArray *args = [[NSProcessInfo processInfo] arguments];
+        for (NSUInteger i = 2; i < [args count]; i++) {
+            NSString *doc = [NSString stringWithContentsOfFile:args[i] encoding:NSUTF8StringEncoding error:NULL];
+            if (doc == nil)
+                continue;
+            NSString *name = [args[i] lastPathComponent];
             for (NSDictionary *slugs in @[[Config mouseGestureSlugs], [Config trackpadGestureSlugs]]) {
                 for (NSString *slug in slugs) {
-                    if ([notes rangeOfString:slug].location == NSNotFound)
-                        fail([@"documented slug " stringByAppendingString:slug], @"present in notes", @"missing");
+                    if ([doc rangeOfString:slug].location == NSNotFound)
+                        fail([NSString stringWithFormat:@"%@ documents %@", name, slug], @"present", @"missing");
                 }
             }
         }
