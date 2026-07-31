@@ -112,14 +112,14 @@ int main(void) {
         // Each accepted boolean spelling must parse.
         NSArray *truthy = @[@"true", @"yes", @"on", @"1"];
         for (NSString *v in truthy) {
-            s = parse([NSString stringWithFormat:@"[general]\nshow-menu-bar-icon = %@\n", v]);
-            if ([[s objectForKey:@"ShowIcon"] intValue] != 1)
-                fail([@"boolean " stringByAppendingString:v], @1, [s objectForKey:@"ShowIcon"]);
+            s = parse([NSString stringWithFormat:@"[general]\nenable-mouse = %@\n", v]);
+            if ([[s objectForKey:@"enMMAll"] intValue] != 1)
+                fail([@"boolean " stringByAppendingString:v], @1, [s objectForKey:@"enMMAll"]);
         }
         for (NSString *v in @[@"false", @"no", @"off", @"0"]) {
-            s = parse([NSString stringWithFormat:@"[general]\nshow-menu-bar-icon = %@\n", v]);
-            if ([[s objectForKey:@"ShowIcon"] intValue] != 0)
-                fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"ShowIcon"]);
+            s = parse([NSString stringWithFormat:@"[general]\nenable-mouse = %@\n", v]);
+            if ([[s objectForKey:@"enMMAll"] intValue] != 0)
+                fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"enMMAll"]);
         }
 
         // Comments and blank lines must not produce bindings.

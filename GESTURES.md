@@ -98,13 +98,15 @@ button it does not otherwise have.
 
 | Setting | Value |
 |---|---|
-| `show-menu-bar-icon` | `true` or `false` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `tap-speed` | Seconds a tap may last, default `0.25` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
+
+Hiding the menu bar icon is not a setting here either. Use System Settings >
+Menu Bar; gestures keep working without it.
 
 Starting at login is not a setting here. Tick **Open at Login** in the menu bar
 item, or run `scripts/install-login-agent.sh`.

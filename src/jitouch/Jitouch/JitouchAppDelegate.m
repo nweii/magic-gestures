@@ -18,8 +18,11 @@
 #import "KeyUtility.h"
 #include <pwd.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 static NSArray *lastConfigProblems = nil;
+static dispatch_source_t configWatcher = nil;
+static int configWatcherFD = -1;
 
 CursorWindow *cursorWindow;
 CGKeyCode keyMap[128]; // for dvorak support
@@ -260,6 +263,59 @@ static NSString *describeBinding(NSDictionary *g) {
 
     if ([problems count] > 0)
         [self showConfigProblems:nil];
+}
+
+// Applies the configuration file without reporting skipped lines. A save while
+// a line is half-typed would otherwise raise an alert about work in progress.
+- (void)applyConfigurationQuietly {
+    NSString *path = [Config resolvedPath];
+    if (path == nil)
+        return;
+    NSArray *problems = nil;
+    NSDictionary *parsed = [Config settingsFromFile:path problems:&problems];
+    if (parsed == nil)
+        return;
+    [self setConfigProblems:problems];
+    [Settings loadSettings2:parsed];
+    [self refreshMenu];
+    if (!enAll)
+        turnOffGestures();
+}
+
+// Opening an already-running menu bar app restores its icon. This is the way
+// back if the item was hidden and the setting to show it is gone.
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)app hasVisibleWindows:(BOOL)flag {
+    if (theItem == nil)
+        [self showIcon];
+    return YES;
+}
+
+- (void)startWatchingConfig {
+    if (configWatcher != nil)
+        return;
+
+    NSString *dir = [Config configDirectory];
+    configWatcherFD = open([dir fileSystemRepresentation], O_EVTONLY);
+    if (configWatcherFD < 0)
+        return;
+
+    configWatcher = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE, configWatcherFD,
+                                           DISPATCH_VNODE_WRITE | DISPATCH_VNODE_RENAME |
+                                           DISPATCH_VNODE_DELETE | DISPATCH_VNODE_ATTRIB,
+                                           dispatch_get_main_queue());
+    __block dispatch_source_t source = configWatcher;
+    dispatch_source_set_event_handler(source, ^{
+        // Coalesce the several events one save produces.
+        [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                                 selector:@selector(applyConfigurationQuietly)
+                                                   object:nil];
+        [self performSelector:@selector(applyConfigurationQuietly) withObject:nil afterDelay:0.3];
+    });
+    dispatch_source_set_cancel_handler(source, ^{
+        close(configWatcherFD);
+        configWatcherFD = -1;
+    });
+    dispatch_resume(source);
 }
 
 - (void)setConfigProblems:(NSArray *)problems {
@@ -700,6 +756,8 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
     gesture = [[Gesture alloc] init];
 
     //[self showIcon];
+
+    [self startWatchingConfig];
 
     [self checkAXAPI];
 

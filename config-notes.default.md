@@ -78,13 +78,15 @@ assuming a motion is free.
 
 | Setting | Value |
 |---|---|
-| `show-menu-bar-icon` | `true` or `false` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `tap-speed` | seconds a tap may last, default `0.25` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
+
+Hiding the menu bar icon is not a setting here either. Use System Settings >
+Menu Bar; gestures keep working without it.
 
 Starting at login is not a setting here. It is the **Open at Login** item in the
 menu bar, which writes a launchd file.

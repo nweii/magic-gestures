@@ -6,6 +6,9 @@
 #
 # Save this file, then pick "Reload Settings" from the menu bar to apply it.
 #
+# To hide the menu bar icon, use System Settings > Menu Bar. Gestures keep
+# working, and you can manage this file from a terminal or an agent.
+#
 # You can also pick "Change Settings with Agent" from the menu bar to have a
 # coding agent edit this for you. AGENTS.md beside this file tells it how.
 #
@@ -18,7 +21,6 @@ hold-right-tap-left = return
 hold-right-tap-left = return
 
 [general]
-show-menu-bar-icon = true
 enable-mouse = true
 enable-trackpad = true
 tap-speed = 0.25

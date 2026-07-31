@@ -299,8 +299,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 static NSSet *knownSettingNames(void) {
     static NSSet *s = nil;
     if (s == nil) {
-        s = [[NSSet setWithArray:@[@"show-menu-bar-icon", @"enable-mouse",
-                                   @"enable-trackpad", @"tap-speed",
+        s = [[NSSet setWithArray:@[@"enable-mouse", @"enable-trackpad", @"tap-speed",
                                    @"verbose-logging"]] retain];
     }
     return s;
@@ -405,7 +404,7 @@ static NSSet *knownSettingNames(void) {
         @"enAll": @1,
         @"ClickSpeed": @([str(@"tap-speed", @"0.25") floatValue]),
         @"Sensitivity": @4.6666,
-        @"ShowIcon": @(parseBoolean(str(@"show-menu-bar-icon", @"true"), YES) ? 1 : 0),
+        @"ShowIcon": @1,
         @"LogLevel": @(parseBoolean(str(@"verbose-logging", @"false"), NO) ? 2 : 1),
         @"enTPAll": @(parseBoolean(str(@"enable-trackpad", @"true"), YES) ? 1 : 0),
         @"enMMAll": @(parseBoolean(str(@"enable-mouse", @"true"), YES) ? 1 : 0),
