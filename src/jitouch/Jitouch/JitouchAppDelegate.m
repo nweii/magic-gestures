@@ -14,6 +14,8 @@
 #import <Carbon/Carbon.h>
 #import <CoreFoundation/CFPreferences.h>
 #import "SystemPreferences.h"
+#include <pwd.h>
+#include <unistd.h>
 
 CursorWindow *cursorWindow;
 CGKeyCode keyMap[128]; // for dvorak support
@@ -60,11 +62,42 @@ static NSString *shellQuote(NSString *s) {
     return [NSString stringWithFormat:@"'%@'", escaped];
 }
 
-// Agents are installed through shell profiles, so they land in places a GUI
-// app's PATH never covers. A login shell resolves them the way a terminal does.
+// Directories that install scripts commonly write to, checked when the login
+// shell turns up nothing. Covers Homebrew on both architectures, the standard
+// user-local bin, and the JavaScript runtimes agents often ship through.
+static NSArray *fallbackToolDirectories(void) {
+    NSString *home = NSHomeDirectory();
+    return @[[home stringByAppendingPathComponent:@".local/bin"],
+             @"/opt/homebrew/bin",
+             @"/usr/local/bin",
+             @"/usr/bin",
+             [home stringByAppendingPathComponent:@".bun/bin"],
+             [home stringByAppendingPathComponent:@".deno/bin"],
+             [home stringByAppendingPathComponent:@".cargo/bin"],
+             [home stringByAppendingPathComponent:@".volta/bin"],
+             [home stringByAppendingPathComponent:@".npm-global/bin"],
+             [home stringByAppendingPathComponent:@".yarn/bin"],
+             [home stringByAppendingPathComponent:@"bin"]];
+}
+
+// The login shell is read from the account record rather than the environment,
+// because a launchd-started GUI app inherits neither SHELL nor the user's PATH.
+static NSString *loginShellPath(void) {
+    struct passwd *pw = getpwuid(getuid());
+    if (pw != NULL && pw->pw_shell != NULL) {
+        NSString *shell = [NSString stringWithUTF8String:pw->pw_shell];
+        if ([[NSFileManager defaultManager] isExecutableFileAtPath:shell])
+            return shell;
+    }
+    return @"/bin/zsh";
+}
+
+// Agents install through shell profiles, so they land in places a GUI app's
+// PATH never covers. Asking the user's own login shell resolves them the way
+// their terminal would, whatever shell and package manager they use.
 static NSString *resolveToolPath(NSString *tool) {
     NSTask *task = [[NSTask alloc] init];
-    [task setLaunchPath:@"/bin/zsh"];
+    [task setLaunchPath:loginShellPath()];
     [task setArguments:@[@"-lc", [NSString stringWithFormat:@"command -v %@", tool]]];
     NSPipe *pipe = [NSPipe pipe];
     [task setStandardOutput:pipe];
@@ -85,7 +118,48 @@ static NSString *resolveToolPath(NSString *tool) {
         path = nil;
     }
     [task release];
-    return path;
+
+    if (path != nil)
+        return path;
+
+    for (NSString *dir in fallbackToolDirectories()) {
+        NSString *candidate = [dir stringByAppendingPathComponent:tool];
+        if ([[NSFileManager defaultManager] isExecutableFileAtPath:candidate])
+            return candidate;
+    }
+    return nil;
+}
+
+// Gesture names are written for the configuration file, where precision matters
+// more than readability. The menu describes the same motion as a hand does it.
+static NSString *humanGestureName(NSString *raw) {
+    static NSDictionary *phrases = nil;
+    if (phrases == nil) {
+        phrases = [@{
+            @"Index-Fix Middle-Near-Tap": @"Hold index, tap with middle",
+            @"Index-Fix Middle-Far-Tap": @"Hold index, tap wide with middle",
+            @"Middle-Fix Index-Near-Tap": @"Hold middle, tap with index",
+            @"Middle-Fix Index-Far-Tap": @"Hold middle, tap wide with index",
+            @"One-Fix Left-Tap": @"Hold one finger, tap to its left",
+            @"One-Fix Right-Tap": @"Hold one finger, tap to its right",
+            @"One-Fix One-Slide": @"Hold one finger, slide another",
+            @"One-Finger Tap": @"Tap with one finger",
+            @"Two-Finger Tap": @"Tap with two fingers",
+            @"Three-Finger Tap": @"Tap with three fingers",
+            @"Four-Finger Tap": @"Tap with four fingers",
+            @"Right-Front Tap": @"Tap the front right of the mouse",
+            @"One-Swipe-Left": @"Swipe left with one finger",
+            @"One-Swipe-Right": @"Swipe right with one finger",
+            @"Two-Swipe-Left": @"Swipe left with two fingers",
+            @"Two-Swipe-Right": @"Swipe right with two fingers",
+            @"Three-Swipe-Left": @"Swipe left with three fingers",
+            @"Three-Swipe-Right": @"Swipe right with three fingers",
+            @"Three-Swipe-Up": @"Swipe up with three fingers",
+            @"Three-Swipe-Down": @"Swipe down with three fingers",
+        } retain];
+    }
+    NSString *phrase = [phrases objectForKey:raw];
+    return phrase ?: raw;
 }
 
 // Every path that needs the checkout resolves it here: the bundle sits in
@@ -190,7 +264,7 @@ static NSString *resolveToolPath(NSString *tool) {
     if (parent == nil)
         return;
 
-    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Bindings"] autorelease];
+    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Current Gestures"] autorelease];
     NSArray *sources = @[@[@"Mouse", magicMouseCommands ?: @[]],
                          @[@"Trackpad", trackpadCommands ?: @[]]];
     BOOL any = NO;
@@ -203,7 +277,7 @@ static NSString *resolveToolPath(NSString *tool) {
                 NSString *command = [g objectForKey:@"Command"];
                 if (gesture == nil || command == nil)
                     continue;
-                [lines addObject:[NSString stringWithFormat:@"%@ → %@", gesture, command]];
+                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", humanGestureName(gesture), command]];
             }
         }
         if ([lines count] == 0)
@@ -223,7 +297,7 @@ static NSString *resolveToolPath(NSString *tool) {
     }
 
     if (!any) {
-        NSMenuItem *empty = [sub addItemWithTitle:@"No bindings configured" action:NULL keyEquivalent:@""];
+        NSMenuItem *empty = [sub addItemWithTitle:@"Nothing configured yet" action:NULL keyEquivalent:@""];
         [empty setEnabled:NO];
     }
 
@@ -300,15 +374,17 @@ static NSString *resolveToolPath(NSString *tool) {
 
     [theMenu addItem:[NSMenuItem separatorItem]];
 
-    item = [theMenu addItemWithTitle:@"Bindings" action:NULL keyEquivalent:@""];
+    item = [theMenu addItemWithTitle:@"Current Gestures" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagBindings];
 
-    item = [theMenu addItemWithTitle:@"Configure with Agent" action:NULL keyEquivalent:@""];
+    [theMenu addItem:[NSMenuItem separatorItem]];
+
+    item = [theMenu addItemWithTitle:@"Change Gestures with Agent" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
-    [theMenu addItemWithTitle:@"Reload Configuration" action:@selector(reloadConfiguration:) keyEquivalent:@""];
-    [theMenu addItemWithTitle:@"Reveal Bindings File..." action:@selector(preferences:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Change Gestures by Hand..." action:@selector(preferences:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Reload Gestures" action:@selector(reloadConfiguration:) keyEquivalent:@""];
 
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];
