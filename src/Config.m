@@ -9,16 +9,15 @@
 #import <Carbon/Carbon.h>
 #import <ApplicationServices/ApplicationServices.h>
 
-// The tables below accept several spellings for each value. Both people and
-// agents write this file, and they do not converge on one spelling.
+// The tables accept common alternative spellings because people and coding
+// agents may use different names for the same value.
 
 @implementation Config
 
 #pragma mark - Gesture vocabulary
 
-// Configuration slugs mapped to the engine's gesture names. The engine
-// distinguishes how far apart two fingers land; a slug binding several names
-// covers a split the hand does not make.
+// Configuration slugs map to the engine's gesture names. One slug may cover
+// several engine names that differ only by the distance between two fingers.
 + (NSDictionary *)mouseGestureSlugs {
     static NSDictionary *m = nil;
     if (m == nil) {
@@ -116,7 +115,7 @@ static NSDictionary *keyNames(void) {
         };
         [d addEntriesFromDictionary:named];
 
-        // Letters and digits, so the tables above stay short.
+        // Letters and digits are derived directly instead of listed in the tables.
         NSString *letters = @"asdfhgzxcv bqweryt123465=97-80]ou[ip lj'k;\\,/nm.";
         const int letterCodes[] = {0,1,2,3,4,5,6,7,8,9,-1,11,12,13,14,15,16,17,
                                    18,19,20,21,23,22,24,25,26,27,28,29,30,31,32,
@@ -133,8 +132,8 @@ static NSDictionary *keyNames(void) {
     return m;
 }
 
-// Modifier spellings, all lowercase. The symbols are here so a value copied out
-// of a keyboard shortcut reference parses without being retyped.
+// Modifier spellings are lowercase. Symbols allow copied keyboard shortcuts to
+// parse without replacing the symbols with names.
 static NSDictionary *modifierNames(void) {
     static NSDictionary *m = nil;
     if (m == nil) {
@@ -169,9 +168,8 @@ static BOOL parseBoolean(NSString *v, BOOL fallback) {
     return fallback;
 }
 
-// Returns a gesture dictionary in the engine's shape, or nil when the value
-// names nothing recognizable. A keystroke is modifiers plus one key; anything
-// matching an action name is dispatched by name instead.
+// Returns an engine gesture dictionary, or nil for an unrecognized value.
+// Keystrokes contain modifiers and one key. Actions are dispatched by name.
 static NSDictionary *parseBinding(NSString *rawValue) {
     NSString *value = [stripQuotes([rawValue stringByTrimmingCharactersInSet:
                        [NSCharacterSet whitespaceCharacterSet]]) lowercaseString];
@@ -186,7 +184,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 
     NSUInteger flags = 0;
 
-    // Leading symbol modifiers carry no separator, so consume them first.
+    // Leading modifier symbols have no separator and must be consumed first.
     while ([value length] > 0) {
         NSString *head = [value substringToIndex:1];
         NSNumber *flag = [modifierNames() objectForKey:head];
@@ -198,8 +196,8 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 
     NSArray *tokens = nil;
     if ([keyNames() objectForKey:value] != nil) {
-        // A whole-value match wins before splitting, so page-down and
-        // forward-delete are not torn apart by the hyphen separator.
+        // Match the full value before splitting so the hyphens in page-down and
+        // forward-delete are treated as part of the key name.
         tokens = @[value];
     } else {
         tokens = [value componentsSeparatedByString:@"+"];
@@ -242,8 +240,8 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     if ([bundlePath length] > 0) {
         NSString *root = [[bundlePath stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
         NSString *inRepo = [[root stringByAppendingPathComponent:@"config.txt"] stringByStandardizingPath];
-        // `config` is the file; the older layout used a directory of the same
-        // name, so make sure this is not that.
+        // Some installations contain a directory named `config`. This path must
+        // resolve to a file.
         BOOL isDir = NO;
         if ([fm fileExistsAtPath:inRepo isDirectory:&isDir] && !isDir)
             return inRepo;
@@ -291,8 +289,8 @@ static NSDictionary *parseBinding(NSString *rawValue) {
                            stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         key = [key lowercaseString];
 
-        // An inline device name overrides the section, so a line appended to
-        // the end of the file cannot be misfiled by whatever preceded it.
+        // An inline device name overrides the current section. This keeps an
+        // appended binding independent of the section above it.
         NSString *device = section;
         NSRange dot = [key rangeOfString:@"."];
         if (dot.location != NSNotFound) {

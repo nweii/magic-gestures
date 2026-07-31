@@ -56,12 +56,12 @@ cat > "$PLIST_DST" <<PLIST
 </plist>
 PLIST
 
-# PLIST_ONLY writes the file and stops. The menu bar item uses it so toggling
-# the setting cannot restart or terminate the app that is running the toggle.
+# PLIST_ONLY writes the file without changing the running launchd job. The menu
+# bar item uses it to avoid restarting or terminating its own process.
 if [[ -z "${PLIST_ONLY:-}" ]]; then
   launchctl bootout "$GUI_DOMAIN" "$PLIST_DST" >/dev/null 2>&1 || true
-  # `launchctl disable` persists across logins. Re-enable first so a reinstall
-  # can recover a previously removed or disabled login item before bootstrapping.
+  # `launchctl disable` persists across logins. Re-enable the job before
+  # bootstrapping so installation also works after the job has been disabled.
   launchctl enable "$GUI_DOMAIN/$LABEL"
   launchctl bootstrap "$GUI_DOMAIN" "$PLIST_DST"
   launchctl kickstart -k "$GUI_DOMAIN/$LABEL" >/dev/null 2>&1 || true

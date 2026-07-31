@@ -41,8 +41,8 @@ CGKeyCode keyMap[128]; // for dvorak support
     return YES;
 }
 
-// Menu items are found by tag rather than index so the layout can change
-// without breaking the code that updates their titles and check marks.
+// Tags identify menu items whose titles or check marks are updated after the
+// menu is created.
 enum {
     kMenuTagToggle = 1,
     kMenuTagLoginItem = 2,
@@ -51,9 +51,8 @@ enum {
     kMenuTagAgents = 5,
 };
 
-// The prompt handed to whichever coding agent the user picks. It points at the
-// two documents that explain the binding vocabulary, so the agent does not have
-// to rediscover them.
+// This prompt tells the selected coding agent where to find the binding
+// vocabulary and how to apply configuration changes.
 static NSString *const kAgentPrompt =
     @"Read AGENTS.md and GESTURES.md first. Help me change my MagicGestures "
     @"gestures, or troubleshoot the setup. Ask me what I want before editing "
@@ -64,9 +63,9 @@ static NSString *shellQuote(NSString *s) {
     return [NSString stringWithFormat:@"'%@'", escaped];
 }
 
-// Directories that install scripts commonly write to, checked when the login
-// shell turns up nothing. Covers Homebrew on both architectures, the standard
-// user-local bin, and the JavaScript runtimes agents often ship through.
+// These directories are checked when the login shell cannot find a tool. They
+// cover Homebrew on both architectures, user-local binaries, and common
+// JavaScript runtime installers.
 static NSArray *fallbackToolDirectories(void) {
     NSString *home = NSHomeDirectory();
     return @[[home stringByAppendingPathComponent:@".local/bin"],
@@ -82,8 +81,8 @@ static NSArray *fallbackToolDirectories(void) {
              [home stringByAppendingPathComponent:@"bin"]];
 }
 
-// The login shell is read from the account record rather than the environment,
-// because a launchd-started GUI app inherits neither SHELL nor the user's PATH.
+// A launchd-started GUI app does not inherit SHELL or the user's PATH, so the
+// login shell is read from the account record.
 static NSString *loginShellPath(void) {
     struct passwd *pw = getpwuid(getuid());
     if (pw != NULL && pw->pw_shell != NULL) {
@@ -94,9 +93,9 @@ static NSString *loginShellPath(void) {
     return @"/bin/zsh";
 }
 
-// Agents install through shell profiles, so they land in places a GUI app's
-// PATH never covers. Asking the user's own login shell resolves them the way
-// their terminal would, whatever shell and package manager they use.
+// Coding agents may be installed through shell profiles outside a GUI app's
+// PATH. The user's login shell resolves them with the same shell and package
+// manager paths available in a terminal.
 static NSString *resolveToolPath(NSString *tool) {
     NSTask *task = [[NSTask alloc] init];
     [task setLaunchPath:loginShellPath()];
@@ -132,8 +131,8 @@ static NSString *resolveToolPath(NSString *tool) {
     return nil;
 }
 
-// Gesture names are written for the configuration file, where precision matters
-// more than readability. The menu describes the same motion as a hand does it.
+// Engine gesture names are converted to descriptions of the corresponding hand
+// motion for display in the menu.
 static NSString *humanGestureName(NSString *raw) {
     static NSDictionary *phrases = nil;
     if (phrases == nil) {
@@ -164,9 +163,8 @@ static NSString *humanGestureName(NSString *raw) {
     return phrase ?: raw;
 }
 
-// What a binding fires, read off the keycode and flags rather than its label.
-// A label says what the key is meant to accomplish, which is a guess about the
-// focused app; the key itself is the only part that is always true.
+// Describes a binding from its keycode and modifier flags. Labels describe an
+// app-dependent purpose and may not match the focused app.
 static NSString *describeBinding(NSDictionary *g) {
     if ([[g objectForKey:@"IsAction"] boolValue])
         return [g objectForKey:@"Command"] ?: @"";
@@ -178,8 +176,8 @@ static NSString *describeBinding(NSDictionary *g) {
     if (flags & kCGEventFlagMaskShift)     [out appendString:@"⇧"];
     if (flags & kCGEventFlagMaskCommand)   [out appendString:@"⌘"];
 
-    // Spelled-out names read better in a menu than the glyphs codeToChar
-    // returns for keys that have no printed character.
+    // Keys without a printed character use names instead of the glyphs returned
+    // by codeToChar.
     CGKeyCode code = (CGKeyCode)[[g objectForKey:@"KeyCode"] unsignedIntValue];
     NSDictionary *named = @{@36: @"Return", @53: @"Escape", @48: @"Tab",
                             @49: @"Space", @51: @"Delete", @117: @"Forward Delete",
@@ -190,8 +188,8 @@ static NSString *describeBinding(NSDictionary *g) {
     return out;
 }
 
-// Every path that needs the checkout resolves it here: the bundle sits in
-// build/ inside the project, so the root is two levels up.
+// The application bundle is in the project's build directory, two levels below
+// the project root.
 - (NSString *)projectRoot {
     NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
     if (bundlePath == nil || [bundlePath length] == 0)
@@ -208,8 +206,8 @@ static NSString *describeBinding(NSDictionary *g) {
     return [[NSFileManager defaultManager] fileExistsAtPath:[self loginAgentPlistPath]];
 }
 
-// PLIST_ONLY keeps the scripts from touching launchd, so toggling this cannot
-// restart or terminate the app running the toggle. The change lands at login.
+// PLIST_ONLY changes the login item file without changing the running launchd
+// job. The file change takes effect at login.
 - (void)toggleLoginItem:(id)sender {
     NSString *root = [self projectRoot];
     if (root == nil)
@@ -235,8 +233,8 @@ static NSString *describeBinding(NSDictionary *g) {
     [self refreshMenu];
 }
 
-// Regenerating writes the plist; loadSettings reads it back. The gesture engine
-// itself does not need restarting for a binding change.
+// Regeneration writes the plist, and loadSettings applies it to the running
+// gesture engine.
 - (void)reloadConfiguration:(id)sender {
     NSString *root = [self projectRoot];
     NSString *generator = root ? [root stringByAppendingPathComponent:@"generate_config.py"] : nil;
@@ -269,8 +267,8 @@ static NSString *describeBinding(NSDictionary *g) {
     [[NSWorkspace sharedWorkspace] openURL:url];
 }
 
-// Without this grant the event tap never starts and every gesture silently does
-// nothing, so the state is worth showing rather than leaving to the log.
+// The event tap requires Accessibility access. The menu shows whether the
+// process has this access because gestures do nothing without it.
 - (void)refreshAccessibilityItem {
     NSMenuItem *item = [theMenu itemWithTag:kMenuTagAccessibility];
     if (item == nil)
@@ -285,8 +283,7 @@ static NSString *describeBinding(NSDictionary *g) {
     }
 }
 
-// Reading the bindings back from the loaded settings means the menu cannot drift
-// from what the engine is actually matching against.
+// The submenu reads bindings from the settings used by the gesture engine.
 - (void)refreshBindingsSubmenu {
     NSMenuItem *parent = [theMenu itemWithTag:kMenuTagBindings];
     if (parent == nil)
@@ -334,9 +331,8 @@ static NSString *describeBinding(NSDictionary *g) {
     [parent setSubmenu:sub];
 }
 
-// Configuring by hand means editing Python. Handing the job to an agent that has
-// already been told where the vocabulary is documented is the lighter path, and
-// the same session covers troubleshooting.
+// Starts the selected coding agent in the project with instructions for editing
+// and troubleshooting the gesture configuration.
 - (void)configureWithAgent:(id)sender {
     NSString *agentPath = [sender representedObject];
     NSString *root = [self projectRoot];
@@ -366,9 +362,8 @@ static NSString *describeBinding(NSDictionary *g) {
 
 - (NSMenu *)buildAgentSubmenu {
     NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Change Gestures with Agent"] autorelease];
-    // Rebuilt each time it opens, so an agent installed after launch appears
-    // without restarting. Probing costs a login shell per candidate, which is
-    // why it happens on demand rather than on every menu open.
+    // The delegate rebuilds this submenu when it opens. Each candidate requires
+    // a login-shell probe, and tools installed after launch are included.
     [sub setDelegate:self];
     return sub;
 }
@@ -459,15 +454,15 @@ static NSString *describeBinding(NSDictionary *g) {
     theItem = nil;
 }
 
-// A system symbol rather than bundled artwork, so the menu bar item carries no
-// borrowed branding. Filled reads as active, outlined as suspended.
+// The system symbol is filled while gestures are active and outlined while they
+// are suspended.
 - (void)updateIconImage {
     NSString *symbol = enAll ? @"hand.tap.fill" : @"hand.tap";
     NSImage *img = [NSImage imageWithSystemSymbolName:symbol
                              accessibilityDescription:@"MagicGestures"];
     [img setTemplate:YES];
-    // The button, rather than the status item itself: setImage: and
-    // setHighlightMode: on NSStatusItem have been deprecated since 10.14.
+    // NSStatusItem image methods have been deprecated since macOS 10.14, so the
+    // image is set on its button.
     [[theItem button] setImage:img];
 }
 
@@ -479,9 +474,8 @@ static NSString *describeBinding(NSDictionary *g) {
         projectRoot = [[buildRoot stringByDeletingLastPathComponent] stringByStandardizingPath];
     }
 
-    // Opens the configuration the engine is actually reading. When none exists
-    // yet, the shipped example is copied into place first so there is a file to
-    // edit rather than an error.
+    // Opens the configuration read by the engine. If no configuration exists,
+    // the shipped example is copied to the user configuration path first.
     NSString *path = [Config resolvedPath];
     if (path == nil) {
         NSString *dir = [@"~/.config/magic-gestures" stringByStandardizingPath];
@@ -517,9 +511,8 @@ static NSString *describeBinding(NSDictionary *g) {
 }
 
 
-// Quitting has to stop the launchd job, or KeepAlive restarts the process
-// immediately. That makes it a one-way trip from the menu, so say how to get
-// back when nothing is going to bring it back on its own.
+// Quitting stops the launchd job because KeepAlive would restart the process.
+// When the login item is absent, the alert explains how to start the app again.
 - (void)quit:(id)sender {
     if (![self isLoginItemInstalled]) {
         NSString *root = [self projectRoot];

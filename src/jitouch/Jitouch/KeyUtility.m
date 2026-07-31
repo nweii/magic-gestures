@@ -54,15 +54,12 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
     return self;
 }
 
-// Modifiers are carried as flags on the keystroke itself rather than as
-// separate synthetic modifier keypresses. Hotkey APIs read modifierFlags off
-// the key event, so an app watching for a combination sees nothing when the
-// modifiers arrive only as neighbouring events.
+// Modifier flags are set on the keystroke because hotkey APIs read
+// modifierFlags from the key event. Separate synthetic modifier events do not
+// mark the keystroke as a combination.
 - (void)simulateKeyCode:(CGKeyCode)code ShftDown:(BOOL)shft CtrlDown:(BOOL)ctrl AltDown:(BOOL)alt CmdDown:(BOOL)cmd {
-    // Each modifier needs both its generic mask and its device-dependent
-    // left-side bit. Apps that register a side-specific hotkey ("Left Cmd")
-    // test the device bits, and the generic masks alone carry no side, so a
-    // keystroke sent without them matches nothing.
+    // Each modifier includes its generic mask and device-dependent left-side
+    // bit. Side-specific hotkeys test the device bits, which generic masks omit.
     CGEventFlags flags = 0;
     if (shft) flags |= kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK;
     if (ctrl) flags |= kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK;
@@ -75,8 +72,8 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
     CGEventRef keyDown = CGEventCreateKeyboardEvent(source, key, true);
     CGEventRef keyUp = CGEventCreateKeyboardEvent(source, key, false);
 
-    // Leave flags untouched when no modifiers are requested, so a bare
-    // keystroke still inherits whatever the user is physically holding.
+    // With no requested modifiers, the keystroke inherits the modifier keys
+    // the user is physically holding.
     if (flags) {
         CGEventSetFlags(keyDown, flags);
         CGEventSetFlags(keyUp, flags);

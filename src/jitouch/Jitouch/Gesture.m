@@ -2403,9 +2403,9 @@ static void gestureMagicMouseOneFingerSwipe(const Finger *data, int nFingers, do
         NSString *leftCommand = commandForGesture(@"One-Swipe-Left", MAGICMOUSE);
         NSString *rightCommand = commandForGesture(@"One-Swipe-Right", MAGICMOUSE);
         if (leftCommand == nil && rightCommand == nil) {
-            // Nothing is bound to a one-finger swipe, so leave the finger
-            // alone entirely. Tracking it would suppress horizontal scrolling
-            // below in service of a gesture that can never fire.
+            // Skip one-finger swipe tracking when neither direction is bound.
+            // Tracking would suppress horizontal scrolling without dispatching
+            // a gesture.
             tracking = 0;
             touchId = -1;
             startTime = -1;

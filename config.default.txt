@@ -6,20 +6,20 @@
 # action, like `middle-click`. GESTURES.md lists every gesture you can bind and
 # every key you can send.
 #
-# This is the starting point copied to config.txt on first run. Edit config.txt,
-# not this file.
+# This file is copied to config.txt on first run. Make binding changes in
+# config.txt.
 
 
 [mouse]
-# Hold one finger still and tap beside it with another. A resting hand cannot
-# make that shape, so these do not fire by accident.
+# Hold one finger still and tap beside it with another. This shape prevents a
+# resting hand from triggering the gesture.
 hold-middle-tap-index = return
 # hold-index-tap-middle = cmd+shift+a
 # two-finger-tap = middle-click
 
 
 [trackpad]
-# Named by where the tap lands rather than by which finger taps.
+# These gestures are named for the tap location instead of the tapping finger.
 hold-tap-left = return
 # hold-tap-right = escape
 # three-finger-swipe-up = ctrl+up
@@ -32,8 +32,8 @@ open-at-login = true
 enable-mouse = true
 enable-trackpad = true
 
-# Seconds a tap may last. Raise it if a gesture is hard to land.
+# Sets the maximum tap duration in seconds. Increase it if taps are not recognized.
 tap-speed = 0.25
 
-# Log every gesture and keystroke to Console.
+# Logs every gesture and keystroke to Console.
 verbose-logging = false

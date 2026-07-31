@@ -70,8 +70,8 @@ clang \
   "$SRC_ROOT/SizeHistory.m" \
   -o "$MACOS_DIR/$APP_NAME"
 
-# Keep the designated requirement stable across rebuilds so macOS TCC can
-# continue associating Accessibility permission with this bundle identifier.
+# A stable designated requirement lets macOS TCC associate Accessibility
+# permission with this bundle identifier across rebuilds.
 codesign --force --deep --sign - \
   --requirements "=designated => identifier \"$BUNDLE_ID\"" \
   "$APP_BUNDLE" >/dev/null 2>&1 || true

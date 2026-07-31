@@ -1,9 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-# Compiles and runs the configuration parser checks. No framework, no fixtures:
-# the parser is the one part of this project that is pure input to output, and
-# a wrong binding there reads as success while doing nothing.
+# Compiles and runs the configuration parser checks without a test framework or
+# fixtures. These checks catch bindings that parse without producing an action.
 
 ROOT="${0:A:h:h}"
 OUT="$(mktemp -d)/configcheck"

@@ -21,7 +21,7 @@ static void fail(NSString *what, id expected, id actual) {
     failures++;
 }
 
-// Finds the binding for one engine gesture name inside a parsed settings dict.
+// Finds a binding by its engine gesture name in parsed settings.
 static NSDictionary *bindingFor(NSDictionary *settings, NSString *deviceKey, NSString *gesture) {
     for (NSDictionary *app in [settings objectForKey:deviceKey]) {
         for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
@@ -57,14 +57,14 @@ int main(void) {
         NSUInteger SHIFT = kCGEventFlagMaskShift;
         NSUInteger CTRL = kCGEventFlagMaskControl;
 
-        // A bare key, and the keys whose names contain the separator character.
+        // Bare keys and key names containing the separator must parse.
         expectKey(@"return", @"return", 36, 0);
         expectKey(@"enter alias", @"enter", 36, 0);
         expectKey(@"escape", @"escape", 53, 0);
         expectKey(@"page-down survives hyphen split", @"page-down", 121, 0);
         expectKey(@"forward-delete survives hyphen split", @"forward-delete", 117, 0);
 
-        // Every documented spelling of one chord must agree.
+        // Every documented spelling of a chord must produce the same binding.
         expectKey(@"plus separator", @"cmd+shift+a", 0, CMD | SHIFT);
         expectKey(@"hyphen separator", @"command-shift-a", 0, CMD | SHIFT);
         expectKey(@"space separator", @"Cmd Shift A", 0, CMD | SHIFT);
@@ -73,12 +73,12 @@ int main(void) {
         expectKey(@"alt is option", @"ctrl+alt+right", 124, CTRL | kCGEventFlagMaskAlternate);
         expectKey(@"quoted value", @"\"cmd+shift+a\"", 0, CMD | SHIFT);
 
-        // A slug binding two engine names must produce both.
+        // A slug mapped to two engine gesture names must produce both bindings.
         NSDictionary *s = parse(@"[mouse]\nhold-middle-tap-index = return\n");
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Far-Tap") == nil)
             fail(@"one slug binds near and far", @"far variant present", @"missing");
 
-        // A built-in action dispatches by name rather than as a keystroke.
+        // A built-in action must dispatch by name instead of as a keystroke.
         s = parse(@"[trackpad]\nthree-finger-tap = middle-click\n");
         NSDictionary *g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
         if (![[g objectForKey:@"IsAction"] boolValue])
@@ -86,14 +86,14 @@ int main(void) {
         if (![[g objectForKey:@"Command"] isEqualToString:@"Middle Click"])
             fail(@"action name", @"Middle Click", [g objectForKey:@"Command"]);
 
-        // An inline device prefix beats the section it lands in.
+        // An inline device prefix must override the current section.
         s = parse(@"[mouse]\ntrackpad.hold-tap-left = escape\n");
         if (bindingFor(s, @"TrackpadCommands", @"One-Fix Left-Tap") == nil)
             fail(@"inline prefix overrides section", @"trackpad binding", @"missing");
         if (bindingFor(s, @"MagicMouseCommands", @"One-Fix Left-Tap") != nil)
             fail(@"inline prefix does not also bind the section device", @"nothing", @"a binding");
 
-        // Unrecognized names are skipped, leaving the rest of the file usable.
+        // Unrecognized names must be skipped without affecting valid lines.
         s = parse(@"[mouse]\nnot-a-gesture = return\nhold-middle-tap-index = return\n");
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") == nil)
             fail(@"unknown gesture does not abort the file", @"later binding present", @"missing");
@@ -101,7 +101,7 @@ int main(void) {
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") != nil)
             fail(@"unknown key is skipped", @"nothing", @"a binding");
 
-        // Booleans, in each accepted spelling.
+        // Each accepted boolean spelling must parse.
         NSArray *truthy = @[@"true", @"yes", @"on", @"1"];
         for (NSString *v in truthy) {
             s = parse([NSString stringWithFormat:@"[general]\nshow-menu-bar-icon = %@\n", v]);
@@ -114,14 +114,13 @@ int main(void) {
                 fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"ShowIcon"]);
         }
 
-        // Comments and blank lines carry no meaning.
+        // Comments and blank lines must not produce bindings.
         s = parse(@"# comment\n\n[mouse]\nhold-middle-tap-index = return # trailing\n");
         g = bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
         if ([[g objectForKey:@"KeyCode"] intValue] != 36)
             fail(@"trailing comment stripped", @36, [g objectForKey:@"KeyCode"]);
 
-        // The shipped example must parse, or the first thing a user copies is
-        // already broken.
+        // The shipped example must parse before it is copied into a user config.
         NSString *example = [[[NSProcessInfo processInfo] arguments] count] > 1
             ? [[NSProcessInfo processInfo] arguments][1] : nil;
         if (example != nil) {
