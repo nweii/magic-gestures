@@ -18,6 +18,13 @@ affect normal clicks or existing gestures.
 
 ## Install
 
+Three ways in. Whichever you take, the last step is the same: grant
+Accessibility permission, which is what lets the app send keystrokes. macOS
+prompts for it on first run. Open System Settings, then Privacy & Security,
+then Accessibility, and turn on Magic Gestures in the list.
+
+### From the release zip
+
 Download the zip from the [Releases
 page](https://github.com/nweii/magic-gestures/releases), unzip it, and drag
 `MagicGestures.app` wherever you keep apps (`/Applications` works). Open it.
@@ -28,11 +35,7 @@ Security, and scroll down to the message saying MagicGestures was blocked.
 Click **Open Anyway** and authenticate. macOS asks once more, this time with an
 Open button.
 
-Then grant Accessibility permission, which is what lets the app send keystrokes.
-macOS prompts for it on first run. Open System Settings, then Privacy &
-Security, then Accessibility, and turn on Magic Gestures in the list.
-
-### Build from source instead
+### Build from source
 
 ```bash
 ./scripts/build.sh
@@ -43,7 +46,7 @@ This builds the app in the project folder and launches it. Gatekeeper stays out
 of the way for a build you compiled yourself, so only the Accessibility grant is
 left to approve.
 
-### Or let an agent set it up
+### Let an agent set it up
 
 Using an agent can make it easier to find the right gesture for what you want
 to trigger, or to shape the whole configuration around your own apps and
