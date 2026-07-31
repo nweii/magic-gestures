@@ -22,16 +22,15 @@ verbose-logging = false
 
 # Examples
 # ───────────────────────────────────────────────────────────────
-# A # turns a line off. Remove it here to switch one of these on, or
-# add one above to park a setting without deleting it.
+# A # turns a line off. Remove it to switch one of these on, or add one
+# above to park a setting without deleting it.
 #
-# [mouse]
-# hold-index-tap-middle = cmd+shift+a
-# two-finger-tap = middle-click
-# front-right-tap = escape
+# These name their device up front, so they work anywhere in the file.
 #
-# [trackpad]
-# hold-tap-right = mission-control
-# three-finger-swipe-up = ctrl+up
+# mouse.hold-index-tap-middle = cmd+shift+a
+# mouse.two-finger-tap = middle-click
+# mouse.front-right-tap = escape
+# trackpad.hold-tap-right = mission-control
+# trackpad.three-finger-swipe-up = ctrl+up
 #
 # Full list: https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
