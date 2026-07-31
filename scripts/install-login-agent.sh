@@ -17,7 +17,9 @@ fi
 
 mkdir -p "$CONFIG_DIR"
 [[ -f "$CONFIG_DIR/config.txt" ]] || cp "$ROOT/config.default.txt" "$CONFIG_DIR/config.txt"
-[[ -f "$CONFIG_DIR/AGENTS.md" ]] || cp "$ROOT/config-notes.default.md" "$CONFIG_DIR/AGENTS.md"
+AGENT_TMP="$(mktemp "$CONFIG_DIR/.AGENTS.md.XXXXXX")"
+cp "$ROOT/config-notes.default.md" "$AGENT_TMP"
+mv -f "$AGENT_TMP" "$CONFIG_DIR/AGENTS.md"
 
 cat > "$PLIST_DST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

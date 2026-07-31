@@ -1,26 +1,42 @@
 # Magic Gestures configuration
 
+This file is managed by Magic Gestures and refreshed when the app starts. If
+`AGENTS.local.md` exists beside it, read that file for user-specific instructions.
+
 This folder holds the configuration for Magic Gestures, a macOS background app
-that turns Magic Mouse and Magic Trackpad gestures into keystrokes.
+that turns Magic Mouse and Magic Trackpad gestures into shortcuts, actions, or
+custom URLs.
 
 - `config.txt` is the only file it reads. Edit it here.
 - Save the file, then pick **Reload Settings** in the menu bar to apply it.
+
+## Preserve the installation
+
+- Treat `config.txt` as user-owned. Change only what the user requested and
+  preserve every unrelated binding and setting.
+- Keep the application at its installed path during an update.
+- Preview release notes and get approval before replacing the application or
+  migrating its configuration.
+- Validate `config.txt` before and after an edit or update. Finish when the
+  requested behavior is represented by a valid binding and unrelated bindings
+  are unchanged.
 
 Source and full documentation: https://github.com/nweii/magic-gestures
 
 ## Format
 
-`setting = value`, one per line. A `#` starts a comment. Unknown settings are
-ignored rather than treated as errors.
+`setting = value`, one per line. A `#` at the start of a line or after whitespace
+starts a comment. Unknown or malformed lines are skipped and reported when you
+pick Reload Settings.
 
 `[mouse]`, `[trackpad]`, and `[general]` headers set what the lines below them
-apply to. A line can also name its device inline, as `mouse.two-finger-tap`,
-which works anywhere in the file. Use the inline form when appending a line
-programmatically, so the section above it does not change its meaning.
+apply to. Use sections when editing related bindings by hand. An agent or script
+can append one binding as `mouse.two-finger-tap` or `trackpad.two-finger-tap`,
+which overrides the surrounding section. General settings belong in `[general]`.
 
 ## Values
 
-A value is a keystroke or a built-in action.
+A value is a keystroke, a built-in action, or a URL.
 
 Keystrokes are modifiers plus one key. These are equivalent:
 
@@ -43,6 +59,36 @@ Key names: letters, digits, `return` `escape` `tab` `space` `delete`
 
 Built-in actions: `middle-click` `mission-control` `next-tab` `previous-tab`
 `new-tab` `close-tab` `reopen-tab` `maximize` `minimize`.
+
+Prefix an absolute URL with `url:`. macOS opens it in the application registered
+for its scheme. This includes web URLs and app deep links that target a specific
+place or action in Raycast, Obsidian, Things, or another app:
+
+    hold-right-tap-left = url:raycast://extensions/raycast/raycast-ai/ai-chat
+    three-finger-tap = url:obsidian://daily
+    four-finger-tap = url:https://example.com/page#section
+
+Reload Settings reports malformed URLs, unencoded spaces, and malformed percent
+escapes. It does not require an application for the scheme to be installed. A
+URL fragment can contain `#`; add whitespace before a trailing comment.
+
+A URL binding can contain substitutions that resolve when its gesture fires:
+
+| Substitution | Resolved value |
+|---|---|
+| `{{clipboard}}` | Clipboard text unchanged |
+| `{{clipboard\|urlencode}}` | Clipboard text encoded as one URL component |
+| `{{datetime:FORMAT}}` | Current local date and time in an Apple date format |
+
+Examples:
+
+    hold-left-slide-right = url:things:///add?title={{clipboard|urlencode}}
+    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
+
+Use `urlencode` for clipboard text in a query parameter. Raw clipboard text must
+already be safe in its position. Reload Settings reports malformed substitution
+syntax. The expanded URL is checked again when the gesture fires, without
+logging expanded clipboard contents.
 
 ## Gestures
 
@@ -78,6 +124,7 @@ assuming a motion is free.
 
 | Setting | Value |
 |---|---|
+| `config-version` | Configuration format used by this file, currently `1` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `tap-speed` | seconds a tap may last, default `0.25` |
@@ -90,6 +137,17 @@ Menu Bar; gestures keep working without it.
 
 Starting at login is not a setting here. It is the **Open at Login** item in the
 menu bar, which writes a launchd file.
+
+## Updating
+
+The prompt that opened this agent names the running app path. If that app is
+inside a source checkout containing `scripts/update.sh`, use that script. It
+previews incoming commits, requires approval, validates the source, rebuilds,
+and restarts the app.
+
+A copied release app currently updates by replacing the app with a newer release
+at the same path. Show the release notes and get approval before replacement.
+Keep `config.txt`; the updated app refreshes this file when it starts.
 
 ## Applications that ignore synthesized keystrokes
 

@@ -1,20 +1,28 @@
 # Magic Gestures
 
-Press a key without taking your hand off the mouse.
+Trigger a shortcut or open a URL without taking your hand off the mouse.
 
 Magic Gestures turns finger gestures on a Magic Mouse or Magic Trackpad into
-keyboard shortcuts. Each device supports sixteen gestures, including taps,
-swipes, and motions where you hold one finger still while another taps or
-slides. Each gesture can send any supported shortcut.
+keyboard shortcuts, built-in actions, or custom URLs. Each device supports
+sixteen gestures, including taps, swipes, and motions where you hold one finger
+still while another taps or slides.
 
 By default, holding your middle finger on the device and tapping to its left
 with your index finger sends Return. The app runs in the background with a menu
 bar item and does not affect normal clicks or existing gestures.
 
+## What gestures can trigger
+
+- Keyboard shortcuts such as `cmd+shift+a`
+- Built-in actions such as middle click or Mission Control
+- URL bindings, including web URLs and app deep links for Raycast, Obsidian,
+  Things, and any other installed app with a URL scheme
+
+URL bindings can include clipboard and date/time substitutions.
+
 ## Requirements
 
 - macOS 13 or later
-- Xcode Command Line Tools, to build from source
 
 ## Install
 
@@ -37,6 +45,8 @@ authenticate, and click **Open** in the final prompt.
 
 ### Build from source
 
+Source builds require Xcode Command Line Tools.
+
 ```bash
 ./scripts/build.sh
 ./scripts/start.sh
@@ -46,15 +56,27 @@ This builds the app in the project folder and launches it. A local build does
 not require the Gatekeeper steps above, but it still needs Accessibility
 permission.
 
+To update a source checkout later:
+
+```bash
+./scripts/update.sh
+```
+
+The script requires a clean checkout, previews incoming commits, asks before
+installing them, runs the checks, rebuilds, and restarts the app. Fetching the
+public repository does not require GitHub CLI or GitHub authentication.
+
 ### Let an agent set it up
 
 An agent can install the app, help choose gestures, and edit the configuration
-for the apps you use.
+for the apps you use. It can help decide whether a keyboard shortcut, built-in
+action, or URL binding best fits each request. If a URL binding fits, it can
+construct the app deep link and encode its parameters.
 
 Paste this into Claude Code, or any coding agent:
 
 ```text
-Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. Then edit the settings file the app creates at ~/.config/magic-gestures/config.txt, and tell me what I have to approve in System Settings.
+Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, or open a URL. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/magic-gestures/config.txt, and tell me what I have to approve in System Settings.
 ```
 
 For a zip install, you need to complete the Gatekeeper steps yourself. Building
@@ -86,16 +108,19 @@ two-finger-tap = middle-click
 
 [trackpad]
 hold-left-tap-right = cmd+shift+a
+three-finger-tap = url:obsidian://daily
+four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
 ```
 
 Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
 needed. **Current Gestures** shows what is bound right now.
 
-To have a coding agent make the change, pick one under **Change Settings with
-Agent**. It opens in the settings folder with the notes already there.
+To have a coding agent make the change, pick one under **Manage with Agent**. It
+opens in the settings folder with the current instructions already there.
 
 See `GESTURES.md` for the gesture names available on each device, supported keys
-and modifiers, built-in actions, and motions already used by macOS.
+and modifiers, built-in actions, custom URLs, URL substitutions, and motions
+already used by macOS.
 
 ## Uninstall
 
@@ -125,8 +150,9 @@ delete the project folder if you no longer need it.
 Magic Gestures needs Accessibility permission because macOS requires it for
 apps that send keystrokes to other apps.
 
-The app has no telemetry, analytics, crash reporting, or network code. It makes
-no outbound connections.
+The app has no telemetry, analytics, or crash reporting. It makes no network
+requests itself. A URL binding asks macOS to open that URL in its registered
+application, which may then use the network.
 
 It does not read your keystrokes. The event tap it installs watches mouse and
 scroll events so it can tell a gesture from a normal click. Keyboard events are
@@ -137,9 +163,10 @@ anywhere.
 
 Outside its own folder, Magic Gestures writes to two places. It creates
 `~/.config/magic-gestures/` on first run and puts your `config.txt` and an
-`AGENTS.md` describing the format there. Picking a coding agent under **Change
-Settings with Agent** adds a `configure-with-agent.command` script to that same
-folder and runs it. Turning on Open at Login writes one launchd plist to
+`AGENTS.md` describing the installed version there. The app refreshes that file
+when it starts and preserves `config.txt`. Picking a coding agent under **Manage
+with Agent** adds a `manage-with-agent.command` script to that same folder and
+runs it. Turning on Open at Login writes one launchd plist to
 `~/Library/LaunchAgents`.
 
 ## Limits
@@ -158,9 +185,9 @@ browser tabs, snaps windows, opens Mission Control, and recognizes letters you
 draw on the trackpad. You pick from that catalog in a preference pane.
 
 Magic Gestures keeps Jitouch's recognizers but lets each gesture send a
-configurable keyboard shortcut. Jitouch's built-in actions remain available.
-It works with apps that accept synthesized hotkeys, and a menu bar item replaces
-the preference pane.
+configurable keyboard shortcut or open a custom URL. Jitouch's built-in actions
+remain available. It works with apps that accept synthesized hotkeys, and a menu
+bar item replaces the preference pane.
 
 ## How it works
 

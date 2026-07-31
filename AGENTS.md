@@ -1,7 +1,8 @@
 # magic-gestures
 
-Maps Magic Mouse and Magic Trackpad multi-touch gestures to keystrokes on
-macOS. Runs as a background agent with a menu bar item and no window.
+Maps Magic Mouse and Magic Trackpad multi-touch gestures to keystrokes, built-in
+actions, or custom URLs on macOS. Runs as a background agent with a menu bar item
+and no window.
 
 `CLAUDE.md` is a symlink to this file. Edit this one.
 
@@ -32,6 +33,7 @@ January 2023, so breakage is ours to fix.
 ./scripts/build.sh             # single clang call, no Xcode project
 ./scripts/check.sh             # configuration parser checks
 ./scripts/stop.sh && ./scripts/start.sh
+./scripts/update.sh            # preview and install a source update
 ```
 
 `start.sh` builds when the bundle is missing, seeds the configuration folder,
@@ -41,6 +43,11 @@ Configuration changes skip the build. Apply them from the menu bar item's Reload
 Settings, or restart with `scripts/start.sh`. SIGHUP re-registers the
 multi-touch devices without rereading the file, so it does not apply a binding
 change on its own.
+
+`update.sh` requires a clean checkout, fetches public `origin/main`, previews the
+incoming commits, and asks before a fast-forward update. After approval it runs
+the checks, rebuilds, and restarts. `--yes` skips only the prompt and is for an
+agent to use after the user has approved the displayed update.
 
 The Accessibility grant binds to the bundle path plus the designated requirement
 that `scripts/build.sh` pins. Keep both stable and the grant survives every rebuild.
@@ -56,11 +63,11 @@ a link to the repository.
 - The Accessibility status, which opens the Privacy pane when access is missing.
 - Current Gestures, a submenu listing the live bindings by device, each phrased
   through `humanNameForGesture:`.
-- Change Settings with Agent, a submenu of the coding agents found through the
+- Manage with Agent, a submenu of the coding agents found through the
   user's login shell. Picking one writes
-  `~/.config/magic-gestures/configure-with-agent.command` and opens it, starting
-  that agent in the configuration folder with a prompt pointing at the notes
-  installed beside `config.txt`.
+  `~/.config/magic-gestures/manage-with-agent.command` and opens it, starting
+  that agent in the configuration folder with the running app path and a prompt
+  pointing at the installed instructions.
 - Edit Settings, which opens `config.txt` in the user's editor.
 - Reload Settings, which rereads the file into the running engine.
 - Open at Login, a checkbox running `install-login-agent.sh` or
@@ -125,22 +132,48 @@ downstream knows the format changed. `MAGICGESTURES_CONFIG` overrides the path.
 `resolvedPath` returns nil when no file exists.
 
 The folder is seeded from two files at the project root: `config.default.txt`
-becomes `config.txt`, and `config-notes.default.md` becomes `AGENTS.md`, giving
-an agent opened there what it needs without the source. `start.sh`,
-`install-login-agent.sh`, and the menu bar item all seed, and none overwrite a
-file that already exists.
+becomes the user-owned `config.txt`, and `config-notes.default.md` becomes the
+app-managed `AGENTS.md`. `start.sh`, `install-login-agent.sh`, and the app create
+`config.txt` only when missing and atomically refresh `AGENTS.md` from the running
+version. An optional user-owned `AGENTS.local.md` survives updates.
 
-Lines are `key = value`. A `#` starts a comment. `[mouse]`, `[trackpad]`, and
-`[general]` headers set what follows, and a `mouse.` or `trackpad.` prefix on a
-key overrides the section, which keeps an appended binding independent of the
-section above it.
+Lines are `key = value`. A `#` at the start of a line or after whitespace starts
+a comment. `[mouse]` and `[trackpad]` are the normal form for hand-edited binding
+groups. A `mouse.` or `trackpad.` prefix overrides the section, making one
+appended binding safe for an agent or script. General settings belong in
+`[general]`; there is no `general.` prefix.
 
-Two value forms:
+`config-version` identifies the file format and is currently `1`. A missing
+version is format 1. An unsupported value rejects the entire reload so a newer
+file cannot be partially reinterpreted.
+
+Three value forms:
 
 - A keystroke: any modifiers plus one key. Separators may be `+`, `-`, or a
   space, and modifier symbols may run together with no separator at all.
 - A built-in action. `actionNames` maps each slug to the exact string
   `dispatchCommand` in `Gesture.m` compares against.
+- A custom URL prefixed with `url:`. The parser validates its scheme, whitespace,
+  and percent escapes while preserving the payload's case. `NSWorkspace` resolves
+  the installed handler when the gesture fires.
+
+A **substitution** is a named expression in a URL binding that resolves when its
+gesture fires. Use this term in code and documentation; avoid snippet, variable,
+and token. The supported forms are `{{clipboard}}`,
+`{{clipboard|urlencode}}`, and `{{datetime:FORMAT}}`. URL encoding treats the
+clipboard as one component. Date formats use `NSDateFormatter`, the POSIX locale,
+and the Mac's local time zone.
+
+Reload validates substitution names, filters, braces, empty date formats,
+unmatched date-format quotes, and the URL with safe placeholder values. Dispatch
+reads the clipboard, resolves the current date and time, and validates the
+expanded URL. Logs may include the configured binding but never expanded
+clipboard contents.
+
+Use **URL binding** for the configuration capability. An **app deep link** is a
+URL binding that opens a specific place or action in an app. A **URL scheme** is
+the protocol name at the start, such as `raycast`, `obsidian`, or `things`. Do
+not use URI in user-facing copy; it adds no useful distinction here.
 
 An unparseable line is skipped rather than failing the file.
 
@@ -166,9 +199,10 @@ setting.
 `./scripts/check.sh` compiles `src/Config.m` with `src/ConfigCheck.m` and runs
 the result against the parser. No framework, no fixtures.
 
-It asserts keystroke parsing, action dispatch, section and inline-prefix
-handling, skipped bad lines, boolean spellings, and comment stripping. It also
-asserts that every slug appears in both `GESTURES.md` and
+It asserts keystroke parsing, action dispatch, URL substitution parsing and
+resolution, section and inline-prefix handling, skipped bad lines, boolean
+spellings, and comment stripping. It also asserts that every slug appears in
+both `GESTURES.md` and
 `config-notes.default.md`, and that every engine name reachable from a slug has
 a menu phrase. Adding a gesture without documenting it fails the check.
 
@@ -189,7 +223,7 @@ steps that cannot be scripted.
 
 The project writes two things outside its own directory: the launchd plist, and
 `~/.config/magic-gestures/`, which holds `config.txt`, `AGENTS.md`, and
-`configure-with-agent.command`.
+`manage-with-agent.command`.
 
 ## Logging
 

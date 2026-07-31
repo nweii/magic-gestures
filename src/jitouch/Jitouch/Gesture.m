@@ -22,6 +22,7 @@
 #import "GestureWindow.h"
 #import "SizeHistory.h"
 #import "KeyUtility.h"
+#import "Config.h"
 
 #define TRACKPAD 0
 #define MAGICMOUSE 1
@@ -1172,7 +1173,20 @@ static void doCommand(NSString *gesture, int device) {
                     [pool release];
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
                     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-                    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:[commandDict objectForKey:@"OpenURL"]]];
+                    NSString *configuredURL = [commandDict objectForKey:@"OpenURL"];
+                    NSString *clipboard = [[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString];
+                    NSString *problem = nil;
+                    NSString *urlString = [Config URLByResolvingSubstitutions:configuredURL
+                                                                    clipboard:clipboard
+                                                                         date:[NSDate date]
+                                                                      problem:&problem];
+                    if (urlString == nil) {
+                        // The expanded value may contain private clipboard text,
+                        // so log only the configured URL binding and its problem.
+                        NSLog(@"Could not resolve configured URL \"%@\": %@", configuredURL, problem);
+                    } else if (![[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:urlString]]) {
+                        NSLog(@"Could not open configured URL \"%@\": no application accepted it", configuredURL);
+                    }
                     [pool release];
                 }
             }

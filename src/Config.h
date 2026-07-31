@@ -30,6 +30,13 @@
 // way a caller learns a binding did not take.
 + (NSDictionary *)settingsFromFile:(NSString *)path problems:(NSArray **)outProblems;
 
+// Resolves the supported substitutions in a URL binding. Explicit clipboard
+// and date inputs keep resolution deterministic for parser checks.
++ (NSString *)URLByResolvingSubstitutions:(NSString *)url
+                                clipboard:(NSString *)clipboard
+                                     date:(NSDate *)date
+                                  problem:(NSString **)outProblem;
+
 // Every gesture slug the configuration accepts, mapped to the engine gesture
 // names it binds. One slug can bind several names where the engine splits a
 // single motion into variants a person would not distinguish.

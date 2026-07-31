@@ -65,13 +65,6 @@ enum {
     kMenuTagProblems = 6,
 };
 
-// This prompt tells the selected coding agent where to find the binding
-// vocabulary and how to apply configuration changes.
-static NSString *const kAgentPrompt =
-    @"Read AGENTS.md in this folder first. Help me change my Magic Gestures "
-    @"gestures. Ask me what I want before editing config.txt, then tell me to "
-    @"pick \"Reload Settings\" from the menu bar.";
-
 static NSString *shellQuote(NSString *s) {
     NSString *escaped = [s stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"];
     return [NSString stringWithFormat:@"'%@'", escaped];
@@ -148,6 +141,14 @@ static NSString *resolveToolPath(NSString *tool) {
 // Describes a binding from its keycode and modifier flags. Labels describe an
 // app-dependent purpose and may not match the focused app.
 static NSString *describeBinding(NSDictionary *g) {
+    NSString *url = [g objectForKey:@"OpenURL"];
+    if ([url length] > 0) {
+        const NSUInteger maxLength = 52;
+        NSString *shown = [url length] > maxLength
+            ? [[url substringToIndex:maxLength - 1] stringByAppendingString:@"…"]
+            : url;
+        return [@"Open " stringByAppendingString:shown];
+    }
     if ([[g objectForKey:@"IsAction"] boolValue])
         return [g objectForKey:@"Command"] ?: @"";
 
@@ -343,8 +344,10 @@ static BOOL runLaunchctl(NSArray *arguments) {
     NSArray *problems = nil;
     NSDictionary *parsed = [Config settingsFromFile:path problems:&problems];
     if (parsed == nil) {
-        [self reportFailure:@"Could not read the configuration."
-                     detail:[NSString stringWithFormat:@"%@ could not be opened. Nothing changed.", path]];
+        NSString *detail = [problems count] > 0
+            ? [[problems componentsJoinedByString:@"\n\n"] stringByAppendingString:@"\n\nNothing changed."]
+            : [NSString stringWithFormat:@"%@ could not be opened. Nothing changed.", path];
+        [self reportFailure:@"Could not apply the configuration." detail:detail];
         return;
     }
 
@@ -528,9 +531,9 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [parent setSubmenu:sub];
 }
 
-// Starts the selected coding agent in the project with instructions for editing
-// and troubleshooting the gesture configuration.
-- (void)configureWithAgent:(id)sender {
+// Starts the selected coding agent in the settings folder with the running app
+// path, which distinguishes a source build from a copied release app.
+- (void)manageWithAgent:(id)sender {
     NSString *agentPath = [sender representedObject];
     if (agentPath == nil)
         return;
@@ -543,10 +546,15 @@ static BOOL runLaunchctl(NSArray *arguments) {
         return;
     }
 
-    NSString *scriptPath = [dir stringByAppendingPathComponent:@"configure-with-agent.command"];
+    NSString *appPath = [[NSBundle mainBundle] bundlePath] ?: @"unknown";
+    NSString *prompt = [NSString stringWithFormat:
+        @"Read AGENTS.md in this folder first. Help me manage Magic Gestures. "
+        @"Ask what I want to do before changing settings or the application. "
+        @"The running app is at %@.", appPath];
+    NSString *scriptPath = [dir stringByAppendingPathComponent:@"manage-with-agent.command"];
     NSString *script = [NSString stringWithFormat:
         @"#!/bin/zsh\ncd %@\nexec %@ %@\n",
-        shellQuote(dir), shellQuote(agentPath), shellQuote(kAgentPrompt)];
+        shellQuote(dir), shellQuote(agentPath), shellQuote(prompt)];
 
     if (![script writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:&error] ||
         ![[NSFileManager defaultManager] setAttributes:@{NSFilePosixPermissions: @(0755)}
@@ -561,9 +569,8 @@ static BOOL runLaunchctl(NSArray *arguments) {
                      detail:[NSString stringWithFormat:@"Nothing opened %@.", scriptPath]];
 }
 
-// Creates the configuration folder and fills it from the shipped defaults when
-// a file is missing. Existing files are left alone. Returns the error that
-// stopped it, or nil once the folder is ready.
+// Creates the user-owned configuration once and atomically refreshes the
+// app-managed agent instructions from the running version.
 - (NSError *)seedConfigDirectory {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSString *dir = [Config configDirectory];
@@ -572,28 +579,41 @@ static BOOL runLaunchctl(NSArray *arguments) {
         return error;
 
     NSString *root = [self projectRoot];
-    NSArray *pairs = @[@[@"config.default.txt", @"config.txt"],
-                       @[@"config-notes.default.md", @"AGENTS.md"]];
-    for (NSArray *pair in pairs) {
-        NSString *dst = [dir stringByAppendingPathComponent:pair[1]];
-        if ([fm fileExistsAtPath:dst])
-            continue;
-        // The defaults ship inside the bundle. A build run from a source
-        // checkout falls back to the copies at the project root.
-        NSString *src = [[NSBundle mainBundle] pathForResource:[pair[0] stringByDeletingPathExtension]
-                                                        ofType:[pair[0] pathExtension]];
-        if (src == nil && root != nil)
-            src = [root stringByAppendingPathComponent:pair[0]];
-        if (src == nil || ![fm fileExistsAtPath:src])
-            continue;
-        if (![fm copyItemAtPath:src toPath:dst error:&error])
+    NSString *(^source)(NSString *) = ^(NSString *name) {
+        // A source checkout owns the freshest copy even before the app is
+        // rebuilt. A copied release app has no matching project-root file and
+        // uses the resource carried in its bundle.
+        NSString *checkoutSource = root != nil ? [root stringByAppendingPathComponent:name] : nil;
+        if (checkoutSource != nil && [fm fileExistsAtPath:checkoutSource])
+            return checkoutSource;
+        return [[NSBundle mainBundle] pathForResource:[name stringByDeletingPathExtension]
+                                               ofType:[name pathExtension]];
+    };
+
+    NSString *configPath = [dir stringByAppendingPathComponent:@"config.txt"];
+    if (![fm fileExistsAtPath:configPath]) {
+        NSString *configSource = source(@"config.default.txt");
+        if (configSource != nil && [fm fileExistsAtPath:configSource] &&
+            ![fm copyItemAtPath:configSource toPath:configPath error:&error])
             return error;
+    }
+
+    NSString *agentSource = source(@"config-notes.default.md");
+    if (agentSource != nil && [fm fileExistsAtPath:agentSource]) {
+        NSData *instructions = [NSData dataWithContentsOfFile:agentSource];
+        NSString *agentPath = [dir stringByAppendingPathComponent:@"AGENTS.md"];
+        if (instructions == nil ||
+            ![instructions writeToFile:agentPath options:NSDataWritingAtomic error:&error])
+            return error ?: [NSError errorWithDomain:@"MagicGestures"
+                                                 code:1
+                                             userInfo:@{NSLocalizedDescriptionKey:
+                                                 @"The installed AGENTS.md could not be refreshed."}];
     }
     return nil;
 }
 
 - (NSMenu *)buildAgentSubmenu {
-    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Change Settings with Agent"] autorelease];
+    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Manage with Agent"] autorelease];
     // The delegate rebuilds this submenu when it opens. Each candidate requires
     // a login-shell probe, and tools installed after launch are included.
     [sub setDelegate:self];
@@ -621,7 +641,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
             continue;
         any = YES;
         NSMenuItem *item = [menu addItemWithTitle:pair[0]
-                                           action:@selector(configureWithAgent:)
+                                           action:@selector(manageWithAgent:)
                                     keyEquivalent:@""];
         [item setRepresentedObject:path];
         [item setTarget:self];
@@ -663,7 +683,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
     [theMenu addItem:[NSMenuItem separatorItem]];
 
-    item = [theMenu addItemWithTitle:@"Change Settings with Agent" action:NULL keyEquivalent:@""];
+    item = [theMenu addItemWithTitle:@"Manage with Agent" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
@@ -856,6 +876,10 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
         [self setConfigProblems:problems];
         if (parsed != nil)
             [Settings loadSettings2:parsed];
+        else if ([problems count] > 0)
+            [self reportFailure:@"Could not apply the configuration."
+                         detail:[[problems componentsJoinedByString:@"\n\n"]
+                                 stringByAppendingString:@"\n\nBuilt-in defaults are active."]];
     } else {
         [Settings loadSettings];
     }

@@ -58,7 +58,7 @@ slide name where the mouse has two.
 
 ## What a gesture can send
 
-A keystroke, or a built-in action.
+A keystroke, a built-in action, or a URL.
 
 ### Keystrokes
 
@@ -94,10 +94,57 @@ gesture can stand in for an Fn shortcut.
 `middle-click` posts a real middle-button event, which gives a Magic Mouse a
 button it does not otherwise have.
 
+### URL bindings and app deep links
+
+Prefix an absolute URL with `url:`. macOS opens it in the application registered
+for its scheme. A URL binding can open a web URL or an app deep link that targets
+a specific place or action in Raycast, Obsidian, Things, or another app:
+
+    hold-right-tap-left = url:raycast://extensions/raycast/raycast-ai/ai-chat
+    three-finger-tap = url:obsidian://daily
+    four-finger-tap = url:https://example.com/page#section
+
+The URL must include a scheme followed by `:`. Reload Settings reports malformed
+URLs, unencoded spaces, and malformed percent escapes. It does not require an
+application for the scheme to be installed; macOS resolves the handler when the
+gesture fires.
+
+A `#` starts a comment only at the start of a line or after whitespace. This
+keeps URL fragments intact. Add whitespace before a trailing comment:
+
+    three-finger-tap = url:obsidian://daily # Open today's daily note
+
+#### Substitutions
+
+A URL binding can contain substitutions that resolve when its gesture fires:
+
+| Substitution | Resolved value |
+|---|---|
+| `{{clipboard}}` | Clipboard text unchanged |
+| `{{clipboard\|urlencode}}` | Clipboard text encoded as one URL component |
+| `{{datetime:FORMAT}}` | Current local date and time in the given Apple date format |
+
+For example:
+
+    hold-left-slide-right = url:things:///add?title={{clipboard|urlencode}}
+    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
+
+Use `urlencode` for clipboard text placed in a query parameter. It escapes
+characters such as spaces, `&`, `=`, `/`, and `?` so the clipboard cannot change
+the URL's structure. Use raw `{{clipboard}}` only when the copied text is already
+safe in that position.
+
+An empty clipboard resolves to an empty value. Reload Settings reports unknown
+substitutions and filters, unmatched braces, empty date formats, and unmatched
+quotes in date formats. The expanded URL is checked again when the gesture fires.
+If it is invalid, nothing opens and Console records the problem without the
+expanded clipboard contents.
+
 ## Settings
 
 | Setting | Value |
 |---|---|
+| `config-version` | Configuration format used by this file, currently `1` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `tap-speed` | Seconds a tap may last, default `0.25` |

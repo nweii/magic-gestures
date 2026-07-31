@@ -38,6 +38,12 @@ static NSDictionary *parse(NSString *text) {
     return [Config settingsFromFile:path];
 }
 
+static NSDictionary *parseWithProblems(NSString *text, NSArray **problems) {
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.conf"];
+    [text writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+    return [Config settingsFromFile:path problems:problems];
+}
+
 static void expectKey(NSString *label, NSString *value, int keycode, NSUInteger flags) {
     NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", value];
     NSDictionary *g = bindingFor(parse(conf), @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
@@ -94,12 +100,119 @@ int main(void) {
         if (![[g objectForKey:@"Command"] isEqualToString:@"Middle Click"])
             fail(@"action name", @"Middle Click", [g objectForKey:@"Command"]);
 
+        // URL bindings preserve their payload exactly and dispatch as actions.
+        NSString *customURL = @"raycast://extensions/Raycast/raycast-ai/ai-chat?ref=A%20B&mode=Fast#Prompt";
+        s = parse([NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = url:%@\n", customURL]);
+        g = bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
+        if (![[g objectForKey:@"OpenURL"] isEqualToString:customURL])
+            fail(@"URL preserves case, query, escapes, and fragment", customURL, [g objectForKey:@"OpenURL"]);
+        if (![[g objectForKey:@"IsAction"] boolValue])
+            fail(@"URL is not a keystroke", @YES, [g objectForKey:@"IsAction"]);
+
+        s = parse(@"[trackpad]\nthree-finger-tap = url:obsidian://daily # trailing comment\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"OpenURL"] isEqualToString:@"obsidian://daily"])
+            fail(@"URL permits a trailing comment", @"obsidian://daily", [g objectForKey:@"OpenURL"]);
+
+        NSDictionary *badURLs = @{
+            @"url:raycast//extensions": @"URL is missing a valid scheme followed by \":\"",
+            @"url:1raycast://extensions": @"URL scheme must begin with a letter",
+            @"url:ray cast://extensions": @"URL contains unencoded whitespace",
+            @"url:https://example.com/%ZZ": @"URL contains a malformed percent escape",
+        };
+        for (NSString *bad in badURLs) {
+            NSArray *problems = nil;
+            NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", bad];
+            s = parseWithProblems(conf, &problems);
+            if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") != nil)
+                fail([@"malformed URL rejected: " stringByAppendingString:bad], @"nothing", @"a binding");
+            NSString *problem = [problems count] > 0 ? [problems objectAtIndex:0] : @"";
+            if ([problem rangeOfString:[badURLs objectForKey:bad]].location == NSNotFound)
+                fail([@"malformed URL explains: " stringByAppendingString:bad], [badURLs objectForKey:bad], problem);
+        }
+
+        // Substitutions are validated at reload and resolved only when the
+        // gesture fires. URL encoding treats the clipboard as one component.
+        NSDateComponents *parts = [[[NSDateComponents alloc] init] autorelease];
+        [parts setYear:2026];
+        [parts setMonth:7];
+        [parts setDay:31];
+        [parts setHour:14];
+        [parts setMinute:5];
+        NSCalendar *calendar = [[[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian] autorelease];
+        [calendar setTimeZone:[NSTimeZone localTimeZone]];
+        NSDate *date = [calendar dateFromComponents:parts];
+        NSString *problem = nil;
+        NSString *resolved = [Config URLByResolvingSubstitutions:
+                              @"things:///add?when={{datetime:yyyy-MM-dd'T'HH:mm}}&title={{clipboard|urlencode}}"
+                                                        clipboard:@"Café & tea?"
+                                                             date:date
+                                                          problem:&problem];
+        NSString *expectedURL = @"things:///add?when=2026-07-31T14:05&title=Caf%C3%A9%20%26%20tea%3F";
+        if (![resolved isEqualToString:expectedURL])
+            fail(@"substitutions resolve deterministically", expectedURL, resolved ?: problem);
+
+        resolved = [Config URLByResolvingSubstitutions:@"example://open/{{clipboard}}"
+                                             clipboard:@"already-safe"
+                                                  date:date
+                                               problem:&problem];
+        if (![resolved isEqualToString:@"example://open/already-safe"])
+            fail(@"raw clipboard substitution", @"example://open/already-safe", resolved ?: problem);
+
+        resolved = [Config URLByResolvingSubstitutions:@"example://open?q={{clipboard|urlencode}}"
+                                             clipboard:nil
+                                                  date:date
+                                               problem:&problem];
+        if (![resolved isEqualToString:@"example://open?q="])
+            fail(@"empty clipboard becomes an empty value", @"example://open?q=", resolved ?: problem);
+
+        resolved = [Config URLByResolvingSubstitutions:@"example://open?q={{clipboard}}"
+                                             clipboard:@"two words"
+                                                  date:date
+                                               problem:&problem];
+        if (resolved != nil || [problem rangeOfString:@"unencoded whitespace"].location == NSNotFound)
+            fail(@"expanded URL is revalidated", @"unencoded whitespace problem", resolved ?: problem);
+
+        NSDictionary *badSubstitutions = @{
+            @"url:example://open?q={{clipbord}}": @"unknown substitution \"clipbord\"",
+            @"url:example://open?q={{clipboard|encode}}": @"unknown clipboard substitution filter \"encode\"",
+            @"url:example://open?q={{clipboard}": @"substitution has unmatched braces",
+            @"url:example://open?q=clipboard}}": @"substitution has unmatched braces",
+            @"url:example://open?q={{datetime:}}": @"datetime substitution needs a format",
+            @"url:example://open?q={{datetime:yyyy-MM-dd'T}}": @"datetime substitution has an unmatched quote",
+        };
+        for (NSString *bad in badSubstitutions) {
+            NSArray *problems = nil;
+            NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", bad];
+            s = parseWithProblems(conf, &problems);
+            if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") != nil)
+                fail([@"malformed substitution rejected: " stringByAppendingString:bad], @"nothing", @"a binding");
+            NSString *reported = [problems count] > 0 ? [problems objectAtIndex:0] : @"";
+            if ([reported rangeOfString:[badSubstitutions objectForKey:bad]].location == NSNotFound)
+                fail([@"malformed substitution explains: " stringByAppendingString:bad],
+                     [badSubstitutions objectForKey:bad], reported);
+        }
+
+        s = parse(@"[mouse]\nhold-right-tap-left = url:https://example.com?q={{clipboard|urlencode}}\n");
+        g = bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
+        if (![[g objectForKey:@"OpenURL"] isEqualToString:@"https://example.com?q={{clipboard|urlencode}}"])
+            fail(@"configured substitution remains unresolved", @"configured expression", [g objectForKey:@"OpenURL"]);
+
         // An inline device prefix must override the current section.
         s = parse(@"[mouse]\ntrackpad.hold-right-tap-left = escape\n");
         if (bindingFor(s, @"TrackpadCommands", @"One-Fix Left-Tap") == nil)
             fail(@"inline prefix overrides section", @"trackpad binding", @"missing");
         if (bindingFor(s, @"MagicMouseCommands", @"One-Fix Left-Tap") != nil)
             fail(@"inline prefix does not also bind the section device", @"nothing", @"a binding");
+
+        NSArray *generalPrefixProblems = nil;
+        s = parseWithProblems(@"general.enable-mouse = false\n", &generalPrefixProblems);
+        if ([[s objectForKey:@"enMMAll"] intValue] != 1)
+            fail(@"general prefix is rejected", @1, [s objectForKey:@"enMMAll"]);
+        NSString *generalPrefixProblem = [generalPrefixProblems count] > 0
+            ? [generalPrefixProblems objectAtIndex:0] : @"";
+        if ([generalPrefixProblem rangeOfString:@"belong under a [general] header"].location == NSNotFound)
+            fail(@"general prefix explains section form", @"[general] guidance", generalPrefixProblem);
 
         // Unrecognized names must be skipped without affecting valid lines.
         s = parse(@"[mouse]\nnot-a-gesture = return\nhold-right-tap-left = return\n");
@@ -122,7 +235,23 @@ int main(void) {
                 fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"enMMAll"]);
         }
 
-        // Comments and blank lines must not produce bindings.
+        // Format 1 is explicit in new files and implicit in files written
+        // before versioning. An unsupported format rejects the whole file.
+        if (parse(@"[general]\nconfig-version = 1\n") == nil)
+            fail(@"configuration format 1", @"settings", @"nothing");
+        if (parse(@"[general]\nenable-mouse = true\n") == nil)
+            fail(@"missing configuration version means format 1", @"settings", @"nothing");
+        NSArray *versionProblems = nil;
+        s = parseWithProblems(@"[general]\nconfig-version = 2\n", &versionProblems);
+        if (s != nil)
+            fail(@"unsupported configuration format rejects file", @"nothing", @"settings");
+        NSString *versionProblem = [versionProblems count] > 0 ? [versionProblems objectAtIndex:0] : @"";
+        if ([versionProblem rangeOfString:@"this version reads format 1"].location == NSNotFound)
+            fail(@"unsupported configuration format explains rejection",
+                 @"format 1 explanation", versionProblem);
+
+        // Comments and blank lines must not produce bindings. A # without
+        // preceding whitespace is ordinary value content, as URL fragments need.
         s = parse(@"# comment\n\n[mouse]\nhold-right-tap-left = return # trailing\n");
         g = bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
         if ([[g objectForKey:@"KeyCode"] intValue] != 36)
