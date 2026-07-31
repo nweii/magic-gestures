@@ -26,8 +26,9 @@ verbose-logging = false
 # Examples
 # ───────────────────────────────────────────────────────────────
 #
-# These name their device up front, so they work anywhere in the file.
-# Drop that prefix if you move one into a section instead.
+# You can assign a gesture to a device two ways: put it under [mouse] or
+# [trackpad], or write it as mouse.{gesture} or trackpad.{gesture}. These
+# use the second form, so you can uncomment one right where it is.
 #
 # mouse.hold-index-tap-middle = cmd+shift+a
 # mouse.two-finger-tap = middle-click
