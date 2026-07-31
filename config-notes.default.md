@@ -79,8 +79,16 @@ Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
 ## Applications that ignore synthesized keystrokes
 
 Some applications watch the keyboard through a `CGEventTap` and accept only
-events that came from real hardware. No configuration reaches them. Aqua Voice
-behaves this way. Confirm an application responds to a synthesized keystroke
-before binding a gesture to it.
+events that came from real hardware. A gesture cannot drive those, and no
+configuration changes it.
 
-The Fn key cannot be sent. It is a HID usage rather than an ordinary key event.
+Test an application before binding a gesture to it. Set the hotkey in that
+application, then send the same keystroke from Terminal:
+
+    osascript -e 'tell application "System Events" to keystroke "a" using {command down, shift down}'
+
+If it responds when you type the keys but not when Terminal sends them, a
+gesture will not reach it either.
+
+The Fn key cannot be sent at all. It is a HID usage rather than an ordinary key
+event.
