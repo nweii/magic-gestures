@@ -6,6 +6,9 @@
 #
 # Save this file, then pick Reload Settings from the menu bar to apply it.
 #
+# You can also pick Change Gestures with Agent from the menu bar to have a
+# coding agent edit this for you. AGENTS.md beside this file tells it how.
+#
 # Project: https://github.com/nweii/magic-gestures
 
 [mouse]

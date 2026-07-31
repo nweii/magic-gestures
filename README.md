@@ -93,6 +93,20 @@ This writes one file to `~/Library/LaunchAgents`. The file starts the app at
 login and restarts it if it stops. To remove the file, run
 `./scripts/uninstall-login-agent.sh`.
 
+## Uninstall
+
+```bash
+./scripts/uninstall.sh
+```
+
+This stops the app, removes the login item, and deletes the built app. Your
+settings in `~/.config/magic-gestures/` are kept; pass `--all` to remove those
+too.
+
+Two steps are left over, because no script can do them: remove MagicGestures
+from System Settings > Privacy & Security > Accessibility, and delete the
+project folder.
+
 ## Privacy
 
 MagicGestures needs Accessibility permission to send keystrokes. That permission

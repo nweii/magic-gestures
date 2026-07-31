@@ -54,6 +54,10 @@ launchd label is easy to find and hard to identify.
 `./scripts/uninstall-login-agent.sh` removes it. Deleting the plist by hand has
 the same effect and leaves the project alone.
 
+`./scripts/uninstall.sh` removes everything the project installed: the login
+item, the running app, and the build. It keeps the settings folder unless
+called with `--all`, and prints the two steps that cannot be scripted.
+
 This is the only file the project writes outside its own directory.
 
 ## Logging
