@@ -42,7 +42,51 @@ CGKeyCode keyMap[128]; // for dvorak support
 enum {
     kMenuTagToggle = 1,
     kMenuTagLoginItem = 2,
+    kMenuTagAccessibility = 3,
+    kMenuTagBindings = 4,
+    kMenuTagAgents = 5,
 };
+
+// The prompt handed to whichever coding agent the user picks. It points at the
+// two documents that explain the binding vocabulary, so the agent does not have
+// to rediscover them.
+static NSString *const kAgentPrompt =
+    @"Read AGENTS.md and GESTURES.md first. Help me change my MagicGestures "
+    @"gesture bindings, or troubleshoot the setup. Ask me what I want before "
+    @"editing generate_config.py, then apply it with Reload Configuration.";
+
+static NSString *shellQuote(NSString *s) {
+    NSString *escaped = [s stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"];
+    return [NSString stringWithFormat:@"'%@'", escaped];
+}
+
+// Agents are installed through shell profiles, so they land in places a GUI
+// app's PATH never covers. A login shell resolves them the way a terminal does.
+static NSString *resolveToolPath(NSString *tool) {
+    NSTask *task = [[NSTask alloc] init];
+    [task setLaunchPath:@"/bin/zsh"];
+    [task setArguments:@[@"-lc", [NSString stringWithFormat:@"command -v %@", tool]]];
+    NSPipe *pipe = [NSPipe pipe];
+    [task setStandardOutput:pipe];
+    [task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
+
+    NSString *path = nil;
+    @try {
+        [task launch];
+        NSData *out = [[pipe fileHandleForReading] readDataToEndOfFile];
+        [task waitUntilExit];
+        if ([task terminationStatus] == 0) {
+            path = [[[NSString alloc] initWithData:out encoding:NSUTF8StringEncoding] autorelease];
+            path = [path stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            if ([path length] == 0)
+                path = nil;
+        }
+    } @catch (NSException *e) {
+        path = nil;
+    }
+    [task release];
+    return path;
+}
 
 // Every path that needs the checkout resolves it here: the bundle sits in
 // build/ inside the project, so the root is two levels up.
@@ -118,13 +162,151 @@ enum {
     [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/nweii/magic-gestures"]];
 }
 
+- (void)openAccessibilitySettings:(id)sender {
+    NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"];
+    [[NSWorkspace sharedWorkspace] openURL:url];
+}
+
+// Without this grant the event tap never starts and every gesture silently does
+// nothing, so the state is worth showing rather than leaving to the log.
+- (void)refreshAccessibilityItem {
+    NSMenuItem *item = [theMenu itemWithTag:kMenuTagAccessibility];
+    if (item == nil)
+        return;
+
+    if (AXIsProcessTrusted()) {
+        [item setTitle:@"Accessibility access granted"];
+        [item setAction:NULL];
+    } else {
+        [item setTitle:@"Accessibility access needed..."];
+        [item setAction:@selector(openAccessibilitySettings:)];
+    }
+}
+
+// Reading the bindings back from the loaded settings means the menu cannot drift
+// from what the engine is actually matching against.
+- (void)refreshBindingsSubmenu {
+    NSMenuItem *parent = [theMenu itemWithTag:kMenuTagBindings];
+    if (parent == nil)
+        return;
+
+    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Bindings"] autorelease];
+    NSArray *sources = @[@[@"Mouse", magicMouseCommands ?: @[]],
+                         @[@"Trackpad", trackpadCommands ?: @[]]];
+    BOOL any = NO;
+
+    for (NSArray *pair in sources) {
+        NSMutableArray *lines = [NSMutableArray array];
+        for (NSDictionary *app in pair[1]) {
+            for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
+                NSString *gesture = [g objectForKey:@"Gesture"];
+                NSString *command = [g objectForKey:@"Command"];
+                if (gesture == nil || command == nil)
+                    continue;
+                [lines addObject:[NSString stringWithFormat:@"%@ → %@", gesture, command]];
+            }
+        }
+        if ([lines count] == 0)
+            continue;
+
+        if (any)
+            [sub addItem:[NSMenuItem separatorItem]];
+        any = YES;
+
+        NSMenuItem *header = [sub addItemWithTitle:pair[0] action:NULL keyEquivalent:@""];
+        [header setEnabled:NO];
+        for (NSString *line in lines) {
+            NSMenuItem *row = [sub addItemWithTitle:line action:NULL keyEquivalent:@""];
+            [row setEnabled:NO];
+            [row setIndentationLevel:1];
+        }
+    }
+
+    if (!any) {
+        NSMenuItem *empty = [sub addItemWithTitle:@"No bindings configured" action:NULL keyEquivalent:@""];
+        [empty setEnabled:NO];
+    }
+
+    [parent setSubmenu:sub];
+}
+
+// Configuring by hand means editing Python. Handing the job to an agent that has
+// already been told where the vocabulary is documented is the lighter path, and
+// the same session covers troubleshooting.
+- (void)configureWithAgent:(id)sender {
+    NSString *agentPath = [sender representedObject];
+    NSString *root = [self projectRoot];
+    if (agentPath == nil || root == nil)
+        return;
+
+    NSString *runDir = [root stringByAppendingPathComponent:@"run"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:runDir
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:NULL];
+
+    NSString *scriptPath = [runDir stringByAppendingPathComponent:@"configure-with-agent.command"];
+    NSString *script = [NSString stringWithFormat:
+        @"#!/bin/zsh\ncd %@\nexec %@ %@\n",
+        shellQuote(root), shellQuote(agentPath), shellQuote(kAgentPrompt)];
+
+    NSError *err = nil;
+    if (![script writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:&err])
+        return;
+
+    [[NSFileManager defaultManager] setAttributes:@{NSFilePosixPermissions: @(0755)}
+                                     ofItemAtPath:scriptPath
+                                            error:NULL];
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:scriptPath]];
+}
+
+- (NSMenu *)buildAgentSubmenu {
+    NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Configure with Agent"] autorelease];
+    NSArray *candidates = @[@[@"Claude Code", @"claude"],
+                            @[@"Codex", @"codex"],
+                            @[@"Cursor", @"cursor-agent"],
+                            @[@"Gemini", @"gemini"]];
+    BOOL any = NO;
+
+    for (NSArray *pair in candidates) {
+        NSString *path = resolveToolPath(pair[1]);
+        if (path == nil)
+            continue;
+        any = YES;
+        NSMenuItem *item = [sub addItemWithTitle:pair[0]
+                                          action:@selector(configureWithAgent:)
+                                   keyEquivalent:@""];
+        [item setRepresentedObject:path];
+        [item setTarget:self];
+    }
+
+    if (!any) {
+        NSMenuItem *empty = [sub addItemWithTitle:@"No coding agent found" action:NULL keyEquivalent:@""];
+        [empty setEnabled:NO];
+    }
+
+    return sub;
+}
+
 - (void)showIcon {
     theMenu = [[[NSMenu alloc] initWithTitle:@"MagicGestures"] autorelease];
 
     NSMenuItem *item = [theMenu addItemWithTitle:@"Turn MagicGestures Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
 
+    item = [theMenu addItemWithTitle:@"Accessibility" action:NULL keyEquivalent:@""];
+    [item setTag:kMenuTagAccessibility];
+    [item setTarget:self];
+
     [theMenu addItem:[NSMenuItem separatorItem]];
+
+    item = [theMenu addItemWithTitle:@"Bindings" action:NULL keyEquivalent:@""];
+    [item setTag:kMenuTagBindings];
+
+    item = [theMenu addItemWithTitle:@"Configure with Agent" action:NULL keyEquivalent:@""];
+    [item setTag:kMenuTagAgents];
+    [item setSubmenu:[self buildAgentSubmenu]];
+
     [theMenu addItemWithTitle:@"Reload Configuration" action:@selector(reloadConfiguration:) keyEquivalent:@""];
     [theMenu addItemWithTitle:@"Reveal Bindings File..." action:@selector(preferences:) keyEquivalent:@""];
 
@@ -138,9 +320,10 @@ enum {
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
     [theItem retain];
-    [self updateIconImage];
-    [theItem setHighlightMode:YES];
     [theItem setMenu:theMenu];
+    [self updateIconImage];
+    [self refreshAccessibilityItem];
+    [self refreshBindingsSubmenu];
 }
 
 - (void)hideIcon {
@@ -156,7 +339,9 @@ enum {
     NSImage *img = [NSImage imageWithSystemSymbolName:symbol
                              accessibilityDescription:@"MagicGestures"];
     [img setTemplate:YES];
-    [theItem setImage:img];
+    // The button, rather than the status item itself: setImage: and
+    // setHighlightMode: on NSStatusItem have been deprecated since 10.14.
+    [[theItem button] setImage:img];
 }
 
 - (void)preferences:(id)sender  {
@@ -210,6 +395,8 @@ enum {
         NSMenuItem *login = [theMenu itemWithTag:kMenuTagLoginItem];
         [login setState:[self isLoginItemInstalled] ? NSControlStateValueOn : NSControlStateValueOff];
 
+        [self refreshAccessibilityItem];
+        [self refreshBindingsSubmenu];
         [self updateIconImage];
     }
 }
