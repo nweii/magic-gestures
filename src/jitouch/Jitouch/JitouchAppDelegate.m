@@ -547,6 +547,14 @@ static NSString *describeBinding(NSDictionary *g) {
     // so it is owned here rather than left to the status item.
     theMenu = [[NSMenu alloc] initWithTitle:@"Magic Gestures"];
 
+    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    NSMenuItem *header = [theMenu addItemWithTitle:
+        [NSString stringWithFormat:@"Magic Gestures %@", version ?: @"?"]
+                                            action:NULL keyEquivalent:@""];
+    [header setEnabled:NO];
+
+    [theMenu addItem:[NSMenuItem separatorItem]];
+
     NSMenuItem *item = [theMenu addItemWithTitle:@"Turn Magic Gestures Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
 

@@ -47,6 +47,8 @@ that `scripts/build.sh` pins. Keep both stable and the grant survives every rebu
 
 ## Menu bar item
 
+A disabled header shows the name and version, read from the running bundle.
+
 `showIcon` in `JitouchAppDelegate.m` builds it. Top to bottom:
 
 - Turn Magic Gestures Off, which suspends recognition without quitting.
@@ -64,6 +66,41 @@ that `scripts/build.sh` pins. Keep both stable and the grant survives every rebu
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.
 - About Magic Gestures and Quit Magic Gestures.
+
+## Releasing
+
+The version lives in one place: `CFBundleShortVersionString` in
+`scripts/build.sh`. The menu bar header reads it from the running bundle, so it
+cannot drift from what is installed.
+
+Semantic versioning, read against the configuration file rather than the code,
+because the config is the only interface anyone depends on:
+
+- **Patch** — a fix that leaves every existing `config.txt` working.
+- **Minor** — new gestures, keys, actions, or settings. An existing config keeps
+  working, since unknown names are reported and skipped rather than failing.
+- **Major** — a rename or removal that makes an existing `config.txt` behave
+  differently. The positional gesture rename would have been one.
+
+To cut a release:
+
+```bash
+# bump CFBundleShortVersionString and CFBundleVersion in scripts/build.sh
+./scripts/build.sh && ./scripts/check.sh
+git commit -am "Release X.Y.Z"
+git tag -a vX.Y.Z -m "Magic Gestures X.Y.Z"
+git push origin main --tags
+gh release create vX.Y.Z --title "Magic Gestures X.Y.Z" --notes "..."
+```
+
+Releases carry source only. The app is ad-hoc signed rather than notarized, so a
+downloaded build fights Gatekeeper and building from source is the better path.
+Notarizing would need a paid Apple Developer account.
+
+A rename or removal of a configuration name is the one change that needs a
+migration note in the release, because an existing file will silently stop
+matching. `scripts/check.sh` catches a name that exists in code but not the
+docs; it cannot catch a name that used to exist.
 
 ## Configuration model
 
