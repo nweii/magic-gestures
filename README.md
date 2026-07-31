@@ -43,29 +43,22 @@ This builds the app in the project folder and launches it. Gatekeeper stays out
 of the way for a build you compiled yourself, so only the Accessibility grant is
 left to approve.
 
-### Uninstall a zip install
+### Or let an agent set it up
 
-Untick **Open at Login** if it is on, then Quit from the menu bar item. Drag
-`MagicGestures.app` to the Trash. Delete `~/.config/magic-gestures` if you do
-not want your settings back later, and remove Magic Gestures from System
-Settings > Privacy & Security > Accessibility.
-
-## Or let an agent set it up
-
-Paste this into Claude Code, or any coding agent, from the folder where you keep
-your projects:
+Paste this into Claude Code, or any coding agent:
 
 ```text
-Clone https://github.com/nweii/magic-gestures and set it up for me.
-Read AGENTS.md first. Ask me which gesture I want and which keyboard shortcut
-it should send. Build it, start it, then edit the settings file it creates
-at ~/.config/magic-gestures/config.txt.
-Read GESTURES.md and let me pick from the gestures listed there.
-Tell me what I have to approve in System Settings.
+Set up https://github.com/nweii/magic-gestures for me. Install it from the
+latest release zip, or clone and build from source if that suits my machine
+better. Ask me which gesture I want and which keyboard shortcut it should
+send, letting me pick from the project's GESTURES.md. Then edit the settings
+file the app creates at ~/.config/magic-gestures/config.txt, and tell me
+what I have to approve in System Settings.
 ```
 
-`AGENTS.md` covers the build and the configuration model. `GESTURES.md` lists
-every gesture you can bind.
+Either path works for an agent. The zip needs you to click through the
+Gatekeeper steps above yourself, since no agent can do that for you. Building
+from source skips Gatekeeper but needs the Xcode Command Line Tools.
 
 ## Default gestures
 
@@ -97,7 +90,7 @@ hold-left-tap-right = cmd+shift+a
 Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
 needed. **Current Gestures** shows what is bound right now.
 
-To have a coding agent make the change, pick one under **Change Gestures with
+To have a coding agent make the change, pick one under **Change Settings with
 Agent**. It opens in the settings folder with the notes already there.
 
 `GESTURES.md` is the full reference: every gesture name by device, every key
@@ -113,7 +106,16 @@ starts the app at login and restarts it if it stops. Unticking removes the file.
 From a source checkout you can do the same from the shell with
 `./scripts/install-login-agent.sh` and `./scripts/uninstall-login-agent.sh`.
 
-## Uninstall a source install
+## Uninstall
+
+### From a zip install
+
+Untick **Open at Login** if it is on, then Quit from the menu bar item. Drag
+`MagicGestures.app` to the Trash. Delete `~/.config/magic-gestures` if you do
+not want your settings back later, and remove Magic Gestures from System
+Settings > Privacy & Security > Accessibility.
+
+### From a source checkout
 
 ```bash
 ./scripts/uninstall.sh
@@ -146,7 +148,7 @@ anywhere.
 Outside its own folder, Magic Gestures writes to two places. It creates
 `~/.config/magic-gestures/` on first run and puts your `config.txt` and an
 `AGENTS.md` describing the format there. Picking a coding agent under **Change
-Gestures with Agent** adds a `configure-with-agent.command` script to that same
+Settings with Agent** adds a `configure-with-agent.command` script to that same
 folder and runs it. Turning on Open at Login writes one launchd plist to
 `~/Library/LaunchAgents`.
 
