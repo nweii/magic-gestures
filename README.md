@@ -46,7 +46,8 @@ left to approve.
 ### Or let an agent set it up
 
 Using an agent can make it easier to find the right gesture for what you want
-to trigger, or to steer clear of motions macOS already claims.
+to trigger, or to work out mappings that fit the apps and hotkeys you already
+use.
 
 Paste this into Claude Code, or any coding agent:
 
