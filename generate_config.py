@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-CONFIG_DIR = ROOT / "config"
+CONFIG_DIR = ROOT / "generated"
 CONFIG_PATH = CONFIG_DIR / "MagicGestures.plist"
 SUMMARY_PATH = CONFIG_DIR / "bindings.md"
 

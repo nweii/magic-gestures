@@ -122,4 +122,4 @@ in two places.
 
 ## License
 
-GPL-3.0, inherited from Jitouch. See `NOTICE` for attribution.
+GPL-3.0, inherited from Jitouch. See `NOTICE.txt` for attribution.

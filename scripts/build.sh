@@ -48,6 +48,7 @@ clang \
   -fobjc-exceptions \
   -fno-objc-arc \
   -I"$SRC_ROOT" \
+  -I"$ROOT/src" \
   -isysroot "$SDKROOT" \
   -F"$SDKROOT/System/Library/PrivateFrameworks" \
   -framework Cocoa \
@@ -57,6 +58,7 @@ clang \
   -framework ScriptingBridge \
   -framework MultitouchSupport \
   "$ROOT/src/main.m" \
+  "$ROOT/src/Config.m" \
   "$SRC_ROOT/JitouchAppDelegate.m" \
   "$SRC_ROOT/Settings.m" \
   "$SRC_ROOT/Gesture.m" \

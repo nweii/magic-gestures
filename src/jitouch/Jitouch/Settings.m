@@ -7,6 +7,7 @@
 //
 
 #import "Settings.h"
+#import "Config.h"
 #import <CoreFoundation/CFPreferences.h>
 #import <CoreFoundation/CoreFoundation.h>
 
@@ -281,6 +282,17 @@ static int notSynchronize;
 }
 
 + (void)loadSettings {
+    // The text configuration is the source of truth when one exists. The plist
+    // path below stays for checkouts that have not migrated yet.
+    NSString *configPath = [Config resolvedPath];
+    if (configPath != nil) {
+        NSDictionary *parsed = [Config settingsFromFile:configPath];
+        if (parsed != nil) {
+            [Settings loadSettings2:parsed];
+            return;
+        }
+    }
+
     NSString *plistPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"MAGIC_MOUSE_AGENT_SETTINGS"];
     if (plistPath == nil || [plistPath length] == 0) {
         plistPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"BTT_GESTURE_AGENT_SETTINGS"];
@@ -292,7 +304,7 @@ static int notSynchronize;
         if (bundlePath != nil && [bundlePath length] > 0) {
             NSString *buildRoot = [bundlePath stringByDeletingLastPathComponent];
             NSString *projectRoot = [buildRoot stringByDeletingLastPathComponent];
-            bundleConfigPath = [[projectRoot stringByAppendingPathComponent:@"config/MagicGestures.plist"] stringByStandardizingPath];
+            bundleConfigPath = [[projectRoot stringByAppendingPathComponent:@"generated/MagicGestures.plist"] stringByStandardizingPath];
         }
 
         if (bundleConfigPath != nil && [[NSFileManager defaultManager] fileExistsAtPath:bundleConfigPath]) {

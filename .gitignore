@@ -2,6 +2,7 @@ build/
 dist/
 run/
 config/
+generated/
 .DS_Store
 *.app
 *.dSYM
