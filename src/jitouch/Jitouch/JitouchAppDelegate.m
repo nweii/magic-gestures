@@ -57,7 +57,7 @@ enum {
 // This prompt tells the selected coding agent where to find the binding
 // vocabulary and how to apply configuration changes.
 static NSString *const kAgentPrompt =
-    @"Read AGENTS.md in this folder first. Help me change my MagicGestures "
+    @"Read AGENTS.md in this folder first. Help me change my Magic Gestures "
     @"gestures. Ask me what I want before editing config.txt, then tell me to "
     @"pick \"Reload Settings\" from the menu bar.";
 
@@ -389,7 +389,7 @@ static NSString *describeBinding(NSDictionary *g) {
     NSString *dir = [Config configDirectory];
     NSError *error = [self seedConfigDirectory];
     if (error != nil) {
-        [self reportFailure:@"Can't set up the MagicGestures settings folder."
+        [self reportFailure:@"Can't set up the Magic Gestures settings folder."
                      detail:[error localizedDescription]];
         return;
     }
@@ -489,9 +489,9 @@ static NSString *describeBinding(NSDictionary *g) {
 - (void)showIcon {
     // The menu outlives this method and is read back by tag on every refresh,
     // so it is owned here rather than left to the status item.
-    theMenu = [[NSMenu alloc] initWithTitle:@"MagicGestures"];
+    theMenu = [[NSMenu alloc] initWithTitle:@"Magic Gestures"];
 
-    NSMenuItem *item = [theMenu addItemWithTitle:@"Turn MagicGestures Off" action:@selector(switchChange:) keyEquivalent:@""];
+    NSMenuItem *item = [theMenu addItemWithTitle:@"Turn Magic Gestures Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
 
     item = [theMenu addItemWithTitle:@"Accessibility" action:NULL keyEquivalent:@""];
@@ -520,8 +520,8 @@ static NSString *describeBinding(NSDictionary *g) {
     [item setTag:kMenuTagLoginItem];
 
     [theMenu addItem:[NSMenuItem separatorItem]];
-    [theMenu addItemWithTitle:@"About MagicGestures" action:@selector(about:) keyEquivalent:@""];
-    [theMenu addItemWithTitle:@"Quit MagicGestures" action:@selector(quit:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"About Magic Gestures" action:@selector(about:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Quit Magic Gestures" action:@selector(quit:) keyEquivalent:@""];
 
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
@@ -545,7 +545,7 @@ static NSString *describeBinding(NSDictionary *g) {
 - (void)updateIconImage {
     NSString *symbol = enAll ? @"hand.tap.fill" : @"hand.tap";
     NSImage *img = [NSImage imageWithSystemSymbolName:symbol
-                             accessibilityDescription:@"MagicGestures"];
+                             accessibilityDescription:@"Magic Gestures"];
     [img setTemplate:YES];
     // NSStatusItem image methods have been deprecated since macOS 10.14, so the
     // image is set on its button.
@@ -555,27 +555,27 @@ static NSString *describeBinding(NSDictionary *g) {
 - (void)preferences:(id)sender  {
     NSError *error = [self seedConfigDirectory];
     if (error != nil) {
-        [self reportFailure:@"Can't set up the MagicGestures settings folder."
+        [self reportFailure:@"Can't set up the Magic Gestures settings folder."
                      detail:[error localizedDescription]];
         return;
     }
 
     NSString *path = [Config resolvedPath];
     if (path == nil) {
-        [self reportFailure:@"Can't find the MagicGestures configuration."
+        [self reportFailure:@"Can't find the Magic Gestures configuration."
                      detail:[NSString stringWithFormat:@"Expected it at %@/config.txt.", [Config configDirectory]]];
         return;
     }
 
     if (![[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]])
-        [self reportFailure:@"Can't open the MagicGestures configuration." detail:path];
+        [self reportFailure:@"Can't open the Magic Gestures configuration." detail:path];
 }
 
 - (void)quit:(id)sender {
     if (![self isLoginItemInstalled]) {
         NSString *root = [self projectRoot];
         NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-        [alert setMessageText:@"Quit MagicGestures?"];
+        [alert setMessageText:@"Quit Magic Gestures?"];
         [alert setInformativeText:@"Gestures stop until you start it again. Open at Login is off, so it will not come back by itself.\n\nStart it later by opening MagicGestures.app in the build folder, or by running scripts/start.sh."];
         [alert setAlertStyle:NSAlertStyleInformational];
         [alert addButtonWithTitle:@"Quit"];
@@ -607,7 +607,7 @@ static NSString *describeBinding(NSDictionary *g) {
     }
     if (theItem) {
         NSMenuItem *toggle = [theMenu itemWithTag:kMenuTagToggle];
-        [toggle setTitle:enAll ? @"Turn MagicGestures Off" : @"Turn MagicGestures On"];
+        [toggle setTitle:enAll ? @"Turn Magic Gestures Off" : @"Turn Magic Gestures On"];
 
         NSMenuItem *login = [theMenu itemWithTag:kMenuTagLoginItem];
         [login setState:[self isLoginItemInstalled] ? NSControlStateValueOn : NSControlStateValueOff];

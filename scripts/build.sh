@@ -27,6 +27,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <string>6.0</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleDisplayName</key>
+  <string>Magic Gestures</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

@@ -1,6 +1,6 @@
-# MagicGestures configuration
+# Magic Gestures configuration
 
-This folder holds the configuration for MagicGestures, a macOS background app
+This folder holds the configuration for Magic Gestures, a macOS background app
 that turns Magic Mouse and Magic Trackpad gestures into keystrokes.
 
 - `config.txt` is the only file it reads. Edit it here.

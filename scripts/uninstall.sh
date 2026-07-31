@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-# Removes MagicGestures from the system. Settings are kept unless --all is
+# Removes Magic Gestures from the system. Settings are kept unless --all is
 # passed, since they are the only part a reinstall cannot recreate.
 
 ROOT="${0:A:h:h}"
@@ -47,6 +47,6 @@ cat <<'NOTE'
 Two things are left, because no script can do them:
 
   1. Open System Settings > Privacy & Security > Accessibility and remove
-     MagicGestures from the list.
+     Magic Gestures from the list.
   2. Delete this project folder if you no longer want the source.
 NOTE

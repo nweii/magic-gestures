@@ -49,7 +49,7 @@ that `scripts/build.sh` pins. Keep both stable and the grant survives every rebu
 
 `showIcon` in `JitouchAppDelegate.m` builds it. Top to bottom:
 
-- Turn MagicGestures Off, which suspends recognition without quitting.
+- Turn Magic Gestures Off, which suspends recognition without quitting.
 - The Accessibility status, which opens the Privacy pane when access is missing.
 - Current Gestures, a submenu listing the live bindings by device, each phrased
   through `humanNameForGesture:`.
@@ -63,7 +63,7 @@ that `scripts/build.sh` pins. Keep both stable and the grant survives every rebu
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.
-- About MagicGestures and Quit MagicGestures.
+- About Magic Gestures and Quit Magic Gestures.
 
 ## Configuration model
 

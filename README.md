@@ -1,8 +1,8 @@
-# MagicGestures
+# Magic Gestures
 
 Press a key without taking your hand off the mouse.
 
-MagicGestures turns a finger gesture on a Magic Mouse or Magic Trackpad into a
+Magic Gestures turns a finger gesture on a Magic Mouse or Magic Trackpad into a
 keyboard shortcut. You hold one finger still on the touch surface and tap beside
 it with a second finger. The app sends the keystroke you picked.
 
@@ -25,11 +25,11 @@ Build the app and start it:
 ```
 
 macOS asks for Accessibility permission the first time. Open System Settings,
-then Privacy & Security, then Accessibility. Turn on MagicGestures in the list.
+then Privacy & Security, then Accessibility. Turn on Magic Gestures in the list.
 
 The app is ad-hoc signed and not notarized. If macOS blocks it, hold Control,
 click the app, and select Open. You might need to approve it in System Settings >
-Privacy & Security (scroll down) > "Open anyway" on MagicGestures.
+Privacy & Security (scroll down) > "Open anyway" on Magic Gestures.
 
 ## Or let an agent set it up
 
@@ -107,13 +107,13 @@ This stops the app, removes the login item, and deletes the built app. Your
 settings in `~/.config/magic-gestures/` are kept; pass `--all` to remove those
 too.
 
-Two steps are left over, because no script can do them: remove MagicGestures
+Two steps are left over, because no script can do them: remove Magic Gestures
 from System Settings > Privacy & Security > Accessibility, and delete the
 project folder.
 
 ## Privacy
 
-MagicGestures needs Accessibility permission to send keystrokes. That permission
+Magic Gestures needs Accessibility permission to send keystrokes. That permission
 is what lets any app post keyboard events to other apps.
 
 It sends no data anywhere. There is no telemetry, no analytics, no crash
@@ -127,7 +127,7 @@ not in the set it listens for.
 Touch data from the mouse and trackpad stays in memory and is never written
 anywhere.
 
-Outside its own folder, MagicGestures writes to two places. It creates
+Outside its own folder, Magic Gestures writes to two places. It creates
 `~/.config/magic-gestures/` on first run and puts your `config.txt` and an
 `AGENTS.md` describing the format there. Picking a coding agent under **Change
 Gestures with Agent** adds a `configure-with-agent.command` script to that same
@@ -137,7 +137,7 @@ folder and runs it. Turning on Open at Login writes one launchd plist to
 ## Limits
 
 Some apps read the keyboard through a CGEventTap and accept only the events that
-come from real hardware. These apps ignore the keystrokes that MagicGestures
+come from real hardware. These apps ignore the keystrokes that Magic Gestures
 sends (ex. Aqua Voice). Make sure that an app answers a synthesized keystroke
 before you bind a gesture to it.
 
@@ -149,7 +149,7 @@ Jitouch is a full gesture app with a catalog of actions built in. It switches
 browser tabs, snaps windows, opens Mission Control, and recognizes letters you
 draw on the trackpad. You pick from that catalog in a preference pane.
 
-MagicGestures keeps Jitouch's recognizers and drops the catalog, so a gesture
+Magic Gestures keeps Jitouch's recognizers and drops the catalog, so a gesture
 sends the keyboard shortcut you name instead of choosing from a fixed list. That
 covers any app with a hotkey. A menu bar item replaces the preference pane.
 
