@@ -5,24 +5,26 @@ Trigger a shortcut or open a URL without taking your hand off the mouse.
 Magic Gestures turns finger gestures on a Magic Mouse or Magic Trackpad into
 keyboard shortcuts, built-in actions, or custom URLs. Each device supports
 sixteen gestures, including taps, swipes, and motions where you hold one finger
-still while another taps or slides.
+still while another taps or slides. It requires macOS 13 or later.
 
 By default, holding your middle finger on the device and tapping to its left
 with your index finger sends Return. The app runs in the background with a menu
 bar item and does not affect normal clicks or existing gestures.
 
-## What gestures can trigger
+## Features
 
-- Keyboard shortcuts such as `cmd+shift+a`
-- Built-in actions such as middle click or Mission Control
-- URL bindings, including web URLs and app deep links for Raycast, Obsidian,
-  Things, and any other installed app with a URL scheme
-
-URL bindings can include clipboard and date/time substitutions.
-
-## Requirements
-
-- macOS 13 or later
+- **Flexible bindings.** Send keyboard shortcuts, run built-in actions such as
+  middle click or Mission Control, or open custom URLs.
+- **App deep links.** Target actions in Raycast, Obsidian, Things, and other
+  apps with URL schemes. Clipboard and date/time substitutions can fill in
+  parameters when the gesture fires.
+- **Sixteen gestures per device.** Bind taps, swipes, and deliberate motions on
+  a Magic Mouse and Magic Trackpad independently.
+- **Agent-native configuration.** Open a coding agent from the menu bar with
+  the configuration file and current instructions ready. The agent can help
+  choose a gesture, construct a deep link, or update the installation.
+- **Keeps existing gestures intact.** Magic Gestures adds bindings without
+  replacing the clicks, scrolling, and gestures configured in macOS.
 
 ## Install
 
