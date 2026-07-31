@@ -39,7 +39,8 @@ your projects:
 ```text
 Clone https://github.com/nweii/magic-gestures and set it up for me.
 Read AGENTS.md first. Ask me which gesture I want and which keyboard shortcut
-it should send. Then edit config.txt, build it, and start it.
+it should send. Build it, start it, then edit the settings file it creates
+at ~/.config/magic-gestures/config.txt.
 Read GESTURES.md and let me pick from the gestures listed there.
 Tell me what I have to approve in System Settings.
 ```

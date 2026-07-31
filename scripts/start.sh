@@ -9,7 +9,7 @@ CONFIG_DIR="$HOME/.config/magic-gestures"
 mkdir -p "$ROOT/run"
 
 if [[ ! -x "$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]]; then
-  "$ROOT/build.sh" >/dev/null
+  "$ROOT/scripts/build.sh" >/dev/null
 fi
 
 mkdir -p "$CONFIG_DIR"

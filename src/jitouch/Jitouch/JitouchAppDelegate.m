@@ -56,7 +56,7 @@ enum {
 static NSString *const kAgentPrompt =
     @"Read AGENTS.md in this folder first. Help me change my MagicGestures "
     @"gestures. Ask me what I want before editing config.txt, then tell me to "
-    @"pick Reload Gestures from the menu bar.";
+    @"pick \"Reload Settings\" from the menu bar.";
 
 static NSString *shellQuote(NSString *s) {
     NSString *escaped = [s stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"];

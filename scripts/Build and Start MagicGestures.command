@@ -8,7 +8,7 @@ cd "$ROOT"
 echo "Building and starting MagicGestures..."
 echo
 
-python3 ./generate_config.py && ./scripts/build.sh && ./scripts/start.sh || STATUS=$?
+./scripts/build.sh && ./scripts/start.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then

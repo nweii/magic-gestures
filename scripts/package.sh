@@ -11,8 +11,7 @@ ARCHIVE_PATH="$DIST_DIR/$APP_NAME-$VERSION-macos.zip"
 
 mkdir -p "$DIST_DIR"
 
-python3 "$ROOT/generate_config.py" >/dev/null
-"$ROOT/build.sh" >/dev/null
+"$ROOT/scripts/build.sh" >/dev/null
 
 mkdir -p "$PACKAGE_DIR"
 
