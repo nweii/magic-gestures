@@ -5,34 +5,36 @@ Trigger a shortcut or open a URL without taking your hand off the mouse.
 Magic Gestures turns finger gestures on a Magic Mouse or Magic Trackpad into
 keyboard shortcuts, built-in actions, or custom URLs. Each device supports
 sixteen gestures, including taps, swipes, and motions where you hold one finger
-still while another taps or slides. It requires macOS 13 or later.
+still while another taps or slides.
 
-By default, holding your middle finger on the device and tapping to its left
-with your index finger sends Return. The app runs in the background with a menu
-bar item and does not affect normal clicks or existing gestures.
+The default configuration gives a Magic Mouse a middle click and maps a
+hold-and-tap gesture on either device to Return. The app runs in the background
+with a menu bar item and does not affect normal clicks or existing gestures.
 
 ## Features
 
-- **Flexible bindings.** Send keyboard shortcuts, run built-in actions such as
-  middle click or Mission Control, or open custom URLs.
-- **App deep links.** Target actions in Raycast, Obsidian, Things, and other
-  apps with URL schemes. Clipboard and date/time substitutions can fill in
-  parameters when the gesture fires.
-- **Sixteen gestures per device.** Bind taps, swipes, and deliberate motions on
-  a Magic Mouse and Magic Trackpad independently.
-- **Agent-native configuration.** Open a coding agent from the menu bar with
-  the configuration file and current instructions ready. The agent can help
-  choose a gesture, construct a deep link, or update the installation.
-- **Keeps existing gestures intact.** Magic Gestures adds bindings without
-  replacing the clicks, scrolling, and gestures configured in macOS.
+- **Keyboard shortcuts, actions, and URLs.** Send a shortcut, run a built-in
+  action such as middle click or Mission Control, or open a web URL or deeplink.
+  URLs can include clipboard text or the current date and time.
+- **Flexible gestures for each device.** Configure taps, swipes, and hold
+  gestures independently for a Magic Mouse and Magic Trackpad.
+- **Simple text configuration.** All bindings and settings live in one readable
+  text file that is easy to inspect, edit, and back up.
+- **Agent-native configuration.** Detects installed coding agents such as Claude
+  Code and Codex and opens one with editing guidance and your configuration. The
+  agent can tailor bindings to your workflow, construct deeplinks, and manage
+  installation and updates.
+- **Works alongside macOS.** Existing clicks, scrolling, and system gestures
+  continue to behave as configured.
 
 ## Install
 
-Choose one of the three installation methods below. The first time you run the
-app, macOS asks for Accessibility permission so it can send keystrokes. Open
-System Settings > Privacy & Security > Accessibility and turn on Magic Gestures.
-The app starts automatically when you log in. Turn off **Open at Login** from
-the menu bar item if you do not want this.
+Magic Gestures requires macOS 13 or later. Choose one of the three installation
+methods below. The first time you run the app, macOS asks for Accessibility
+permission so it can send keystrokes. Open System Settings > Privacy & Security
+> Accessibility and turn on Magic Gestures. The app starts automatically when
+you log in. Turn off **Open at Login** from the menu bar item if you do not want
+this.
 
 ### From the release zip
 
@@ -89,6 +91,7 @@ from source requires the Xcode Command Line Tools but skips those steps.
 | Device | Gesture | Write this | Sends |
 |---|---|---|---|
 | Magic Mouse | Rest your middle finger, tap to its left with your index | `hold-right-tap-left` | Return |
+| Magic Mouse | Tap with two fingers | `two-finger-tap` | Middle click |
 | Magic Trackpad | Rest one finger, tap to its left with another | `hold-right-tap-left` | Return |
 
 ## Change the gestures

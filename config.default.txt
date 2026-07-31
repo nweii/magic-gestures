@@ -17,6 +17,7 @@
 
 [mouse]
 hold-right-tap-left = return
+two-finger-tap = middle-click
 
 [trackpad]
 hold-right-tap-left = return
