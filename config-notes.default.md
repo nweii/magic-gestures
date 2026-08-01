@@ -34,6 +34,16 @@ apply to. Use sections when editing related bindings by hand. An agent or script
 can append one binding as `mouse.two-finger-tap` or `trackpad.two-finger-tap`,
 which overrides the surrounding section. General settings belong in `[general]`.
 
+Add `.defer` to a tap binding when its first tap also begins a double-tap
+gesture in macOS or another application:
+
+    mouse.two-finger-tap.defer = ctrl+cmd+a
+
+The single-tap action waits through the Mac's double-click interval. A second
+matching tap on the same device cancels it, preserving the double-tap gesture at
+the cost of latency on the single tap. `.defer` is valid only on gesture names
+ending in `-tap`.
+
 ## Values
 
 A value is a keystroke, a built-in action, or a URL.

@@ -130,6 +130,27 @@ int main(void) {
         if (![[g objectForKey:@"Command"] isEqualToString:@"Middle Click"])
             fail(@"action name", @"Middle Click", [g objectForKey:@"Command"]);
 
+        s = parse(@"[mouse]\ntwo-finger-tap.defer = ctrl+cmd+a\n");
+        g = bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap");
+        if (![[g objectForKey:@"Defer"] boolValue])
+            fail(@"section binding enables deferred dispatch", @YES, [g objectForKey:@"Defer"]);
+        if ([[g objectForKey:@"KeyCode"] intValue] != 0)
+            fail(@"deferred binding preserves its action", @0, [g objectForKey:@"KeyCode"]);
+
+        s = parse(@"mouse.two-finger-tap.defer = escape\n");
+        g = bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap");
+        if (![[g objectForKey:@"Defer"] boolValue])
+            fail(@"append-safe binding enables deferred dispatch", @YES, [g objectForKey:@"Defer"]);
+
+        NSArray *deferProblems = nil;
+        s = parseWithProblems(@"[mouse]\ntwo-finger-swipe-left.defer = escape\n", &deferProblems);
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Swipe-Left") != nil)
+            fail(@"defer rejects a non-tap gesture", @"nothing", @"a binding");
+        NSString *deferProblem = [deferProblems count] > 0 ? [deferProblems objectAtIndex:0] : @"";
+        if ([deferProblem rangeOfString:@".defer is available only for tap gestures"].location == NSNotFound)
+            fail(@"invalid defer explains the supported gesture family",
+                 @".defer is available only for tap gestures", deferProblem);
+
         // URL bindings preserve their payload exactly and dispatch as actions.
         NSString *customURL = @"raycast://extensions/Raycast/raycast-ai/ai-chat?ref=A%20B&mode=Fast#Prompt";
         s = parse([NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = url:%@\n", customURL]);
@@ -408,6 +429,12 @@ int main(void) {
             if ([mouseTwoFingerTap rangeOfString:@"step = 0;"].location != NSNotFound)
                 fail(@"rejected mouse two-finger tap waits for every finger to lift",
                      @"named rejection state", @"returned to idle during the touch sequence");
+
+            if ([engine rangeOfString:@"objectForKey:@\"Defer\""] .location == NSNotFound ||
+                [engine rangeOfString:@"[NSEvent doubleClickInterval]"] .location == NSNotFound ||
+                [engine rangeOfString:@"handleGestureKey:"] .location == NSNotFound)
+                fail(@"deferred binding uses the Mac double-click interval",
+                     @"deferred dispatcher integration", @"missing");
         }
 
         if (failures == 0) {

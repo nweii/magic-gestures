@@ -56,6 +56,20 @@ slide name where the mouse has two.
 | `index-to-pinky` | Brush your fingers across in sequence, index first |
 | `pinky-to-index` | Brush your fingers across in sequence, pinky first |
 
+## Deferring a tap
+
+Add `.defer` to a tap gesture when its first tap also begins a double-tap
+gesture in macOS or another application:
+
+    two-finger-tap.defer = ctrl+cmd+a
+
+Magic Gestures waits through the Mac's double-click interval before sending the
+single-tap action. A second matching tap on the same device cancels it. This
+preserves the double-tap gesture at the cost of latency on the single tap.
+
+`.defer` works only with gesture names ending in `-tap`. A swipe, slide, or hold
+gesture using it is reported and skipped.
+
 ## What a gesture can send
 
 A keystroke, a built-in action, or a URL.

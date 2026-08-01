@@ -23,6 +23,8 @@
 #import "SizeHistory.h"
 #import "KeyUtility.h"
 #import "Config.h"
+#import "DeferredGestureDispatcher.h"
+#import "TrackpadInteraction.h"
 
 #define TRACKPAD 0
 #define MAGICMOUSE 1
@@ -129,6 +131,7 @@ static int quickTabSwitching;
 
 static int middleClickFlag, magicMouseThreeFingerFlag;
 static int trackpadNFingers, trackpadClicked;
+static MGTrackpadInteraction trackpadInteraction = {NO, NO, NO, 0, -1, -1};
 static int autoScrollFlag;
 static int moveResizeFlag, shouldExitMoveResize;
 
@@ -800,8 +803,7 @@ static BOOL isMouseOnEmptySpace() {
     return ret;
 }
 
-static NSString* commandForGesture(NSString *gesture, int device) {
-    NSString *ret = nil;
+static NSDictionary *bindingForGesture(NSString *gesture, int device) {
     NSArray *applications = applicationCandidatesForGestureLookup();
     NSDictionary *commandMap = (device == TRACKPAD) ? trackpadMap : magicMouseMap;
     NSDictionary *commandDict = nil;
@@ -818,21 +820,42 @@ static NSString* commandForGesture(NSString *gesture, int device) {
         commandDict = [[commandMap objectForKey:@"All Applications"] objectForKey:gesture];
     }
 
-    if (commandDict && [[commandDict objectForKey:@"Enable"] boolValue]) {
-        ret = [commandDict objectForKey:@"Command"];
-    }
-
-    return ret;
+    return commandDict && [[commandDict objectForKey:@"Enable"] boolValue] ? commandDict : nil;
 }
 
+static NSString* commandForGesture(NSString *gesture, int device) {
+    return [bindingForGesture(gesture, device) objectForKey:@"Command"];
+}
+
+static MGDeferredGestureDispatcher *deferredGestureDispatcher(void) {
+    static MGDeferredGestureDispatcher *dispatcher = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        dispatcher = [[MGDeferredGestureDispatcher alloc] initWithScheduler:
+            ^(NSTimeInterval delay, dispatch_block_t block) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)),
+                               dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), block);
+            }];
+    });
+    return dispatcher;
+}
 
 static void dispatchCommand(NSString *gesture, int device) {
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+    NSString *gestureKey = [NSString stringWithFormat:@"%d:%@", device, gesture];
+    dispatch_block_t action = ^{
         NSDate *start = [NSDate date];
         doCommand(gesture, device);
         NSTimeInterval timeInterval = -[start timeIntervalSinceNow];
         if (device >= 0 && device < sizeof(deviceTypeName) / sizeof(deviceTypeName[0]) && logLevel >= LOG_LEVEL_INFO) NSLog(@"Gesture \"%@\" for %@ took %f s", gesture, deviceTypeName[device], timeInterval);
-    });
+    };
+    if ([[bindingForGesture(gesture, device) objectForKey:@"Defer"] boolValue]) {
+        [deferredGestureDispatcher() handleGestureKey:gestureKey
+                                                delay:[NSEvent doubleClickInterval]
+                                               action:action];
+    } else {
+        [deferredGestureDispatcher() cancelGestureKey:gestureKey];
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), action);
+    }
 }
 
 
@@ -1770,6 +1793,7 @@ static void gestureTrackpadThreeFingerTap(const Finger *data, int nFingers, doub
     static double sttime = -1;
     static int step = 0;
     static double fing[3][2];
+    static double maxMovementSquared = 0;
     static int idf[3];
     if (nFingers > 3)
         step = 2;
@@ -1778,6 +1802,7 @@ static void gestureTrackpadThreeFingerTap(const Finger *data, int nFingers, doub
             sttime = timestamp;
             step = 1;
             trackpadClicked = 0;
+            maxMovementSquared = 0;
             for (int i = 0; i < 3; i++) {
                 fing[i][0] = data[i].px;
                 fing[i][1] = data[i].py;
@@ -1793,19 +1818,24 @@ static void gestureTrackpadThreeFingerTap(const Finger *data, int nFingers, doub
             idf[1] = 3 - idf[0] - idf[2];
             for (int i = 0; i < 3; i++)
                 idf[i] = data[idf[i]].identifier;
+            if (!MGTrackpadInteractionContactsArrivedWithin(&trackpadInteraction, 0.05))
+                step = 2;
         }
     } else if (step == 1) {
         if (nFingers <= 1) {
             if (sttime != -1 && timestamp-sttime <= clickSpeed) {
-                if (!trackpadClicked)
+                if (!trackpadClicked && MGTrackpadInteractionClaimTap(&trackpadInteraction))
                     dispatchCommand(@"Three-Finger Tap", TRACKPAD);
             }
             step = 0;
             sttime = -1;
         } else if (nFingers == 3) {
-            if (lenSqr(fing[0][0], fing[0][1], data[0].px, data[0].py) > 0.001 ||
-               lenSqr(fing[1][0], fing[1][1], data[1].px, data[1].py) > 0.001 ||
-               lenSqr(fing[2][0], fing[2][1], data[2].px, data[2].py) > 0.001) {
+            for (int i = 0; i < 3; i++) {
+                double movementSquared = lenSqr(fing[i][0], fing[i][1], data[i].px, data[i].py);
+                if (movementSquared > maxMovementSquared)
+                    maxMovementSquared = movementSquared;
+            }
+            if (maxMovementSquared > 0.001) {
                 step = 2;
             }
         }
@@ -1868,7 +1898,8 @@ static void gestureTrackpadTwoFingerTap(const Finger *data, int nFingers, double
             step = kTrackpadTwoFingerTapRejectedUntilLift;
             startTime = -1;
         } else if (nFingers == 0) {
-            dispatchCommand(@"Two-Finger Tap", TRACKPAD);
+            if (MGTrackpadInteractionClaimTap(&trackpadInteraction))
+                dispatchCommand(@"Two-Finger Tap", TRACKPAD);
             step = kTrackpadTwoFingerTapIdle;
             startTime = -1;
         } else if (nFingers < 2) {
@@ -1960,6 +1991,7 @@ static void gestureTrackpadOneFixOneTap(const Finger *data, int nFingers, double
     static double restTime = -1;
     static int fixId;
     static float avgx, avgy;
+    static BOOL isLeftTap;
 
     if (nFingers == 0) {
         restTime = -1;
@@ -1973,7 +2005,8 @@ static void gestureTrackpadOneFixOneTap(const Finger *data, int nFingers, double
             restTime = timestamp;
     } else if (step == 1) {
         if (nFingers == 2) {
-            if (timestamp - restTime >= 0.06 && (!enCharRegTP || fabs(data[0].px - data[1].px) <= charRegIndexRingDistance) &&
+            if (timestamp - restTime >= 0.06 &&
+                (!enCharRegTP || fabs(data[0].px - data[1].px) <= charRegIndexRingDistance) &&
                 lenSqr(data[0].px, data[0].py, data[1].px, data[1].py) < 0.15) {
                 if (sttime < 0)
                     sttime = timestamp;
@@ -1986,6 +2019,8 @@ static void gestureTrackpadOneFixOneTap(const Finger *data, int nFingers, double
                     fing[0][1] = data[0].py;
                     fing[1][0] = data[1].px;
                     fing[1][1] = data[1].py;
+                    int anchorIndex = data[0].identifier == fixId ? 0 : 1;
+                    isLeftTap = enHanded ^ (avgy - data[anchorIndex].py < data[anchorIndex].px - avgx);
                 }
             } else
                 step = 0;
@@ -1995,12 +2030,13 @@ static void gestureTrackpadOneFixOneTap(const Finger *data, int nFingers, double
         } else
             step = 0;
     } else if (step == 2) {
-        if (nFingers == 1) {
+        if (nFingers <= 1) {
             if (timestamp - sttime > clickSpeed) {
                 step = 0;
             } else {
-                if (data[0].identifier == fixId) {
-                    if (enHanded ^ (avgy - data[0].py < data[0].px - avgx))
+                BOOL anchorRemained = nFingers == 0 || data[0].identifier == fixId;
+                if (anchorRemained && MGTrackpadInteractionClaimTap(&trackpadInteraction)) {
+                    if (isLeftTap)
                         dispatchCommand(@"One-Fix Left-Tap", TRACKPAD);
                     else
                         dispatchCommand(@"One-Fix Right-Tap", TRACKPAD);
@@ -2503,6 +2539,13 @@ static int trackpadCallback(MTDeviceRef device, Finger *data, int nFingers, doub
             }
         }
 
+        float contactMajorAxes[16];
+        int interactionContactCount = MIN(nFingers, 16);
+        for (int i = 0; i < interactionContactCount; i++)
+            contactMajorAxes[i] = data[i].majorAxis;
+        MGTrackpadInteractionObserveContacts(&trackpadInteraction, contactMajorAxes,
+                                             interactionContactCount, timestamp);
+
         if (enHanded)
             for (int i = 0; i < nFingers; i++)
                 data[i].px = 1 - data[i].px;
@@ -2531,6 +2574,8 @@ static int trackpadCallback(MTDeviceRef device, Finger *data, int nFingers, doub
             gestureTrackpadTwoFixOneDoubleTap(data, nFingers, timestamp);
         }
     }
+
+    MGTrackpadInteractionFinishFrame(&trackpadInteraction, nFingers);
 
     free(dataUnnormalized);
     return 0;
@@ -3792,6 +3837,9 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
     }
 
     if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown) {
+
+        if (trackpadNFingers > 0)
+            MGTrackpadInteractionRecordPhysicalClick(&trackpadInteraction);
 
         if (isTrackpadRecognizing) {
             cancelRecognition = 1;

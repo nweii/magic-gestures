@@ -38,6 +38,31 @@ clang \
   -o "$KEY_OUT" 2>/dev/null
 "$KEY_OUT"
 
+DEFER_OUT="$(mktemp -d)/defercheck"
+clang \
+  -fblocks \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/DeferredGestureDispatcher.m" \
+  "$ROOT/src/DeferredGestureDispatcherCheck.m" \
+  -o "$DEFER_OUT" 2>/dev/null
+"$DEFER_OUT"
+
+TRACKPAD_INTERACTION_OUT="$(mktemp -d)/trackpadinteractioncheck"
+clang \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/TrackpadInteraction.m" \
+  "$ROOT/src/TrackpadInteractionCheck.m" \
+  -o "$TRACKPAD_INTERACTION_OUT" 2>/dev/null
+"$TRACKPAD_INTERACTION_OUT"
+
 # The login item plist is written by two independent pieces of code: the app's
 # Open at Login menu item (JitouchAppDelegate.m) and scripts/install-login-agent.sh.
 # They may differ in how they launch the app, but the job label and the keys
@@ -82,5 +107,8 @@ grep -q 'NSDataWritingAtomic' "$APP_SRC" || managed_fail "the app does not atomi
 grep -q 'AGENTS.local.md' "$ROOT/config-notes.default.md" || managed_fail "installed agent instructions do not route to AGENTS.local.md"
 grep -q 'config-version' "$ROOT/config.default.txt" || managed_fail "the default config has no format version"
 grep -q 'config-version' "$ROOT/GESTURES.md" || managed_fail "GESTURES.md does not document the format version"
+for f in "$ROOT/config.default.txt" "$ROOT/config-notes.default.md" "$ROOT/GESTURES.md"; do
+  grep -q '\.defer' "$f" || managed_fail "$f does not document deferred tap bindings"
+done
 
 echo "login item plist writers agree"

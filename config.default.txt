@@ -44,9 +44,12 @@ verbose-logging = false
 # {{clipboard|urlencode}} for clipboard text in a query parameter. Date and time
 # substitutions use Apple date formats and the Mac's local time.
 # An agent can help construct an app deep link and save it as a URL binding.
+# Add .defer when a tap overlaps with a double-tap gesture. The action waits
+# through the Mac's double-click interval and a second matching tap cancels it.
 #
 # mouse.hold-left-tap-right = cmd+shift+a
 # mouse.two-finger-tap = middle-click
+# mouse.two-finger-tap.defer = ctrl+cmd+a
 # mouse.front-right-tap = escape
 # mouse.hold-left-slide-right = url:raycast://extensions/raycast/raycast-ai/ai-chat
 # mouse.three-finger-tap = url:things:///add?title={{clipboard|urlencode}}

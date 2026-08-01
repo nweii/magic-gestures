@@ -568,8 +568,9 @@ static NSSet *knownSettingNames(void) {
         // appended binding independent of the section above it.
         NSString *device = section;
         NSRange dot = [key rangeOfString:@"."];
-        if (dot.location != NSNotFound) {
-            device = [key substringToIndex:dot.location];
+        NSString *prefix = dot.location == NSNotFound ? nil : [key substringToIndex:dot.location];
+        if ([@[@"mouse", @"trackpad", @"general"] containsObject:prefix]) {
+            device = prefix;
             key = [key substringFromIndex:dot.location + 1];
             if ([device isEqualToString:@"general"]) {
                 report(line, @"general settings belong under a [general] header");
@@ -578,11 +579,18 @@ static NSSet *knownSettingNames(void) {
         }
 
         if ([device isEqualToString:@"mouse"] || [device isEqualToString:@"trackpad"]) {
+            BOOL defer = [key hasSuffix:@".defer"];
+            if (defer)
+                key = [key substringToIndex:[key length] - [@".defer" length]];
             NSDictionary *slugs = [device isEqualToString:@"mouse"]
                 ? [Config mouseGestureSlugs] : [Config trackpadGestureSlugs];
             NSArray *engineNames = [slugs objectForKey:key];
             if (engineNames == nil) {
                 report(line, [NSString stringWithFormat:@"no %@ gesture named \"%@\"", device, key]);
+                continue;
+            }
+            if (defer && ![key hasSuffix:@"-tap"]) {
+                report(line, @".defer is available only for tap gestures");
                 continue;
             }
             NSDictionary *binding = parseBinding(value);
@@ -599,6 +607,8 @@ static NSSet *knownSettingNames(void) {
             for (NSString *name in engineNames) {
                 NSMutableDictionary *g = [[binding mutableCopy] autorelease];
                 [g setObject:name forKey:@"Gesture"];
+                if (defer)
+                    [g setObject:@YES forKey:@"Defer"];
                 [target addObject:g];
             }
         } else if ([device isEqualToString:@"general"]) {

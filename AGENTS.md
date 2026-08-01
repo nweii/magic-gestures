@@ -143,6 +143,12 @@ groups. A `mouse.` or `trackpad.` prefix overrides the section, making one
 appended binding safe for an agent or script. General settings belong in
 `[general]`; there is no `general.` prefix.
 
+A tap gesture may end in `.defer`, as in `two-finger-tap.defer` or
+`mouse.two-finger-tap.defer`. Its action waits through the Mac's double-click
+interval and is canceled by a second matching tap on the same device. Use it
+when preserving an overlapping double-tap gesture is worth adding latency to
+the single tap. The parser accepts it only on gesture names ending in `-tap`.
+
 `config-version` identifies the file format and is currently `1`. A missing
 version is format 1. An unsupported value rejects the entire reload so a newer
 file cannot be partially reinterpreted.
@@ -199,10 +205,10 @@ setting.
 `./scripts/check.sh` compiles `src/Config.m` with `src/ConfigCheck.m` and runs
 the result against the parser. No framework, no fixtures.
 
-It asserts keystroke parsing, action dispatch, URL substitution parsing and
-resolution, section and inline-prefix handling, skipped bad lines, boolean
-spellings, and comment stripping. It also asserts that every slug appears in
-both `GESTURES.md` and
+It asserts keystroke parsing, action and deferred dispatch, URL substitution
+parsing and resolution, section and inline-prefix handling, skipped bad lines,
+boolean spellings, and comment stripping. It also asserts that every slug
+appears in both `GESTURES.md` and
 `config-notes.default.md`, and that every engine name reachable from a slug has
 a menu phrase. Adding a gesture without documenting it fails the check.
 
@@ -275,3 +281,9 @@ bound to a one-finger swipe. The suppression below that point disables
 horizontal scrolling on any one-finger horizontal movement, and upstream runs it
 whether or not a swipe is bound, degrading ordinary scrolling in an unbound
 configuration.
+
+`TrackpadInteraction.m` classifies each trackpad contact sequence before the tap
+recognizers claim it. Broad palm contacts and physical clicks reject tap-only
+gestures, one recognizer may claim a sequence, and full lift resets the state.
+Keep gesture-specific geometry and timing in `Gesture.m`; shared eligibility and
+inter-gesture arbitration belong in this module.
