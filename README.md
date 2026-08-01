@@ -175,10 +175,12 @@ runs it. Turning on Open at Login writes one launchd plist to
 
 ## Limits
 
-Some apps read the keyboard through a CGEventTap and accept only events from
-physical hardware. These apps, including Aqua Voice, ignore keystrokes from
-Magic Gestures. Test the target app with a synthesized keystroke before binding
-a gesture to it.
+Modified shortcuts are sent as explicit modifier presses, followed by the key
+press and release, then modifier releases. The key events also carry the full
+modifier flags expected by conventional hotkey listeners. This works with Aqua
+Voice and Wispr Flow, which do not respond to simpler synthesized shortcuts.
+Test an actual gesture when configuring another app because its hotkey listener
+may interpret generated events differently.
 
 The Fn key cannot be sent at all.
 
@@ -190,8 +192,7 @@ draw on the trackpad. You pick from that catalog in a preference pane.
 
 Magic Gestures keeps Jitouch's recognizers but lets each gesture send a
 configurable keyboard shortcut or open a custom URL. Jitouch's built-in actions
-remain available. It works with apps that accept synthesized hotkeys, and a menu
-bar item replaces the preference pane.
+remain available, and a menu bar item replaces the preference pane.
 
 ## How it works
 

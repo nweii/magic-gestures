@@ -150,19 +150,13 @@ A copied release app currently updates by replacing the app with a newer release
 at the same path. Show the release notes and get approval before replacement.
 Keep `config.txt`; the updated app refreshes this file when it starts.
 
-## Applications that ignore synthesized keystrokes
+## Hotkey compatibility
 
-Some applications watch the keyboard through a `CGEventTap` and accept only
-events that came from real hardware. A gesture cannot drive those, and no
-configuration changes it.
-
-Test an application before binding a gesture to it. Set the hotkey in that
-application, then send the same keystroke from Terminal:
-
-    osascript -e 'tell application "System Events" to keystroke "a" using {command down, shift down}'
-
-If it responds when you type the keys but not when Terminal sends them, a
-gesture will not reach it either.
+Modified shortcuts use explicit modifier presses and releases around the key
+event, matching the sequence expected by apps such as Aqua Voice and Wispr
+Flow. A shortcut sent through System Events is not an equivalent compatibility
+test because it may use a different event sequence. Test the configured gesture
+in the target application instead.
 
 The Fn key cannot be sent at all. It is a HID usage rather than an ordinary key
 event.

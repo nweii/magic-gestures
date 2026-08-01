@@ -247,30 +247,28 @@ logging:
   another taps or slides is unreachable by a resting hand, and macOS uses that
   shape nowhere.
 
-## Hardware-only applications
+## Hotkey compatibility
 
-Some applications watch the keyboard through a CGEventTap and accept only events
-that originated from real hardware. No configuration reaches them. Confirm a
-target responds to a synthesized keystroke before building bindings around it.
-
-Aqua Voice behaves this way. Binding a gesture to `Ctrl+Shift+Cmd+4`, which both
-Aqua and the macOS screenshot service listen for, produced a screenshot and no
-dictation from a single event. The same holds for keystrokes sent by Apple's own
-System Events, so the rejection is not specific to this tool.
-
-`config-notes.default.md` repeats this next to a test the user can run.
+Some applications watch the keyboard through a CGEventTap and require explicit
+modifier transitions instead of reading only the flags on one key event. Magic
+Gestures sends modifier key-down events, the key down and up with complete
+modifier flags, then modifier key-up events. Aqua Voice and Wispr Flow accept
+this sequence. System Events may produce a different sequence, so its result
+does not predict whether a Magic Gestures binding will work. Test the actual
+gesture in the target application.
 
 ## Local modifications to the vendored engine
 
-Two, both deliberate, neither upstream. Reverting either regresses silently.
+These changes are deliberate and are not present upstream. Reverting them can
+silently regress the configuration contract.
 
-`KeyUtility.m`, `simulateKeyCode:` posts through `CGEventCreateKeyboardEvent`
-with modifiers set as flags on the keystroke itself, replacing the deprecated
-`CGPostKeyboardEvent` and its separate synthetic modifier keypresses. Hotkey
-APIs read `modifierFlags` off the key event, so the old path delivered a bare
-key that matched no combination. Each modifier also sets its device-dependent
-left-side bit (`NX_DEVICELSHIFTKEYMASK` and kin), since an application can
-register a side-specific hotkey that the generic masks cannot satisfy.
+`KeyUtility.m`, `simulateKeyCode:` posts a hardware-shaped sequence through
+`CGEventCreateKeyboardEvent`: modifier presses, the key press and release, then
+modifier releases. The key events retain the full modifier flags conventional
+hotkey APIs inspect. Each modifier also sets its device-dependent left-side bit
+(`NX_DEVICELSHIFTKEYMASK` and kin), since an application can register a
+side-specific hotkey that the generic masks cannot satisfy. Modifiers already
+held by the user are neither pressed nor released by the sequence.
 
 `Gesture.m`, `gestureMagicMouseOneFingerSwipe` returns early when nothing is
 bound to a one-finger swipe. The suppression below that point disables
