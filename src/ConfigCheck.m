@@ -402,6 +402,12 @@ int main(void) {
             if ([mouseHoldTap rangeOfString:@"customMagicMouseTapSuppressionUntil ="].location == NSNotFound)
                 fail(@"mouse hold-tap suppresses competing tap recognizers",
                      @"tap suppression", @"missing");
+
+            NSString *mouseTwoFingerTap = section(engine,
+                @"static void gestureMagicMouseTwoFingerTap", @"static void gestureMagicMouseThreeFingerTap");
+            if ([mouseTwoFingerTap rangeOfString:@"step = 0;"].location != NSNotFound)
+                fail(@"rejected mouse two-finger tap waits for every finger to lift",
+                     @"named rejection state", @"returned to idle during the touch sequence");
         }
 
         if (failures == 0) {

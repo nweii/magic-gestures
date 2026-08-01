@@ -2691,21 +2691,21 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
         kTwoFingerTapWaitingForLift = 2,
         kTwoFingerTapRejectedUntilLift = 3,
     };
-    static int step = 0;
+    static int step = kTwoFingerTapIdle;
     static double startTime = -1;
     static int fingerIds[2];
     static float startx[2];
     static float starty[2];
 
     if (customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent()) {
-        step = 0;
+        step = nFingers == 0 ? kTwoFingerTapIdle : kTwoFingerTapRejectedUntilLift;
         startTime = -1;
         return;
     }
 
     if (CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft) ||
         CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonRight)) {
-        step = 0;
+        step = nFingers == 0 ? kTwoFingerTapIdle : kTwoFingerTapRejectedUntilLift;
         startTime = -1;
         return;
     }
@@ -2731,40 +2731,39 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
             starty[i] = data[i].py;
         }
     } else if (step == kTwoFingerTapTracking && nFingers == 2) {
-        for (int i = 0; i < 2; i++) {
+        BOOL valid = timestamp - startTime <= kMagicMouseTwoFingerTapMaxDuration;
+        for (int i = 0; valid && i < 2; i++) {
             int matched = 0;
             for (int j = 0; j < 2; j++) {
                 if (data[j].identifier == fingerIds[i]) {
-                    if (lenSqr(data[j].px, data[j].py, startx[i], starty[i]) > kMagicMouseTwoFingerTapMaxMove) {
-                        step = 0;
-                    }
+                    if (lenSqr(data[j].px, data[j].py, startx[i], starty[i]) > kMagicMouseTwoFingerTapMaxMove)
+                        valid = NO;
                     matched = 1;
                     break;
                 }
             }
-            if (!matched) {
-                step = 0;
-            }
-            if (step == 0) {
-                break;
-            }
+            if (!matched)
+                valid = NO;
         }
-        if (step == kTwoFingerTapTracking && timestamp - startTime > kMagicMouseTwoFingerTapMaxDuration) {
-            step = 0;
+        if (!valid) {
+            step = kTwoFingerTapRejectedUntilLift;
+            startTime = -1;
         }
     } else if ((step == kTwoFingerTapTracking || step == kTwoFingerTapWaitingForLift) && nFingers == 1) {
+        BOOL valid = timestamp - startTime <=
+            kMagicMouseTwoFingerTapMaxDuration + kMagicMouseTwoFingerTapLiftGraceDuration;
         int matched = 0;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; valid && i < 2; i++) {
             if (data[0].identifier == fingerIds[i]) {
-                if (lenSqr(data[0].px, data[0].py, startx[i], starty[i]) > kMagicMouseTwoFingerTapMaxMove) {
-                    step = 0;
-                }
+                if (lenSqr(data[0].px, data[0].py, startx[i], starty[i]) > kMagicMouseTwoFingerTapMaxMove)
+                    valid = NO;
                 matched = 1;
                 break;
             }
         }
-        if (!matched || timestamp - startTime > kMagicMouseTwoFingerTapMaxDuration + kMagicMouseTwoFingerTapLiftGraceDuration) {
-            step = 0;
+        if (!matched || !valid) {
+            step = kTwoFingerTapRejectedUntilLift;
+            startTime = -1;
         } else {
             step = kTwoFingerTapWaitingForLift;
         }
@@ -2772,10 +2771,7 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
         if (timestamp - startTime <= kMagicMouseTwoFingerTapMaxDuration + kMagicMouseTwoFingerTapLiftGraceDuration) {
             dispatchCommand(@"Two-Finger Tap", MAGICMOUSE);
         }
-        step = 0;
-        startTime = -1;
-    } else if (nFingers != 2) {
-        step = 0;
+        step = kTwoFingerTapIdle;
         startTime = -1;
     }
 
