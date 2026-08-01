@@ -3536,6 +3536,9 @@ static int gestureMagicMouseOneFixOneTap(const Finger *data, int nFingers, doubl
                 step = 0;
             else {
                 if (data[0].identifier == fixId) {
+                    // A hold-tap passes through the same two-contact shape as
+                    // an ordinary tap. Once it wins, discard pending taps.
+                    customMagicMouseTapSuppressionUntil = CFAbsoluteTimeGetCurrent() + 0.18;
                     if (avgx < data[0].px) {
                         if (fabs(avgx - data[0].px) > 0.22)
                             dispatchCommand(@"Middle-Fix Index-Far-Tap", MAGICMOUSE);

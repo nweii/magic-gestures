@@ -396,6 +396,12 @@ int main(void) {
                 if ([engine rangeOfString:invocation].location == NSNotFound)
                     fail(@"device callback invokes exposed recognizer", invocation, @"missing");
             }
+
+            NSString *mouseHoldTap = section(engine,
+                @"static int gestureMagicMouseOneFixOneTap", @"static int magicMouseCallback");
+            if ([mouseHoldTap rangeOfString:@"customMagicMouseTapSuppressionUntil ="].location == NSNotFound)
+                fail(@"mouse hold-tap suppresses competing tap recognizers",
+                     @"tap suppression", @"missing");
         }
 
         if (failures == 0) {
