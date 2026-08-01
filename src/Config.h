@@ -43,6 +43,10 @@
 + (NSDictionary *)mouseGestureSlugs;
 + (NSDictionary *)trackpadGestureSlugs;
 
+// Returns the first engine name for the public slug containing raw, so aliases
+// can be presented as one configured gesture.
++ (NSString *)canonicalGestureName:(NSString *)raw inSlugs:(NSDictionary *)slugs;
+
 // Every action slug the configuration accepts, mapped to the engine command
 // string it dispatches.
 + (NSDictionary *)actionNames;

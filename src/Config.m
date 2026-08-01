@@ -69,6 +69,15 @@
     return m;
 }
 
++ (NSString *)canonicalGestureName:(NSString *)raw inSlugs:(NSDictionary *)slugs {
+    for (NSString *slug in slugs) {
+        NSArray *engineNames = [slugs objectForKey:slug];
+        if ([engineNames containsObject:raw])
+            return [engineNames firstObject];
+    }
+    return raw;
+}
+
 // Built-in engine commands, keyed by the slug the configuration uses. The value
 // is the exact string dispatchCommand compares against in Gesture.m.
 + (NSDictionary *)actionNames {

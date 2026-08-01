@@ -346,6 +346,12 @@ int main(void) {
             }
         }
 
+        NSString *canonicalMouseHold = [Config canonicalGestureName:@"Middle-Fix Index-Far-Tap"
+                                                            inSlugs:[Config mouseGestureSlugs]];
+        if (![canonicalMouseHold isEqualToString:@"Middle-Fix Index-Near-Tap"])
+            fail(@"menu collapses engine aliases for one public gesture",
+                 @"Middle-Fix Index-Near-Tap", canonicalMouseHold);
+
         // Every slug must appear in the notes installed beside the config, or
         // it exists without being documented anywhere the user will look.
         NSArray *args = [[NSProcessInfo processInfo] arguments];

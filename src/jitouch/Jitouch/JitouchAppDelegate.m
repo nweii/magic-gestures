@@ -490,21 +490,26 @@ static BOOL runLaunchctl(NSArray *arguments) {
         return;
 
     NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Current Gestures"] autorelease];
-    NSArray *sources = @[@[@"Mouse", magicMouseCommands ?: @[]],
-                         @[@"Trackpad", trackpadCommands ?: @[]]];
+    NSArray *sources = @[@[@"Mouse", magicMouseCommands ?: @[], [Config mouseGestureSlugs]],
+                         @[@"Trackpad", trackpadCommands ?: @[], [Config trackpadGestureSlugs]]];
     BOOL any = NO;
 
     for (NSArray *pair in sources) {
         NSMutableArray *lines = [NSMutableArray array];
         for (NSDictionary *app in pair[1]) {
+            NSMutableSet *seenGestures = [NSMutableSet set];
             for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
-                NSString *gesture = [g objectForKey:@"Gesture"];
-                if (gesture == nil)
+                NSString *gestureName = [g objectForKey:@"Gesture"];
+                if (gestureName == nil)
+                    continue;
+                gestureName = [Config canonicalGestureName:gestureName inSlugs:pair[2]];
+                if ([seenGestures containsObject:gestureName])
                     continue;
                 NSString *fires = describeBinding(g);
                 if ([fires length] == 0)
                     continue;
-                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", [Config humanNameForGesture:gesture], fires]];
+                [seenGestures addObject:gestureName];
+                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", [Config humanNameForGesture:gestureName], fires]];
             }
         }
         if ([lines count] == 0)
