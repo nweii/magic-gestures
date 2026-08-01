@@ -16,11 +16,13 @@
 # Project: https://github.com/nweii/magic-gestures
 
 [mouse]
-hold-right-tap-left = return
+hold-left-tap-right = return
+hold-right-tap-left = escape
 two-finger-tap = middle-click
 
 [trackpad]
-hold-right-tap-left = return
+hold-left-tap-right = return
+hold-right-tap-left = escape
 
 [general]
 config-version = 1

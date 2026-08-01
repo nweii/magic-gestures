@@ -158,6 +158,9 @@ static const float kMagicMouseTwoFingerTapRearMinY = 0.16f;
 static const double kMagicMouseTwoFingerTapMaxDuration = 0.36;
 static const double kMagicMouseTwoFingerTapMaxMove = 0.006;
 static const double kMagicMouseTwoFingerTapLiftGraceDuration = 0.10;
+static const double kMagicMouseThreeFingerTapMaxDuration = 0.36;
+static const double kMagicMouseThreeFingerTapMaxMove = 0.006;
+static const double kMagicMouseThreeFingerTapLiftGraceDuration = 0.10;
 static const float kMagicMouseRightFrontTapStartMinX = 0.74f;
 static const float kMagicMouseRightFrontTapStartMinY = 0.78f;
 static const float kMagicMouseRightFrontTapKeepMinX = 0.70f;
@@ -1812,6 +1815,143 @@ static void gestureTrackpadThreeFingerTap(const Finger *data, int nFingers, doub
     }
 }
 
+static void gestureTrackpadTwoFingerTap(const Finger *data, int nFingers, double timestamp) {
+    enum {
+        kTrackpadTwoFingerTapIdle = 0,
+        kTrackpadTwoFingerTapTracking = 1,
+        kTrackpadTwoFingerTapWaitingForLift = 2,
+        kTrackpadTwoFingerTapRejectedUntilLift = 3,
+    };
+    static int step = 0;
+    static double startTime = -1;
+    static int fingerIds[2];
+    static float startx[2];
+    static float starty[2];
+
+    if (CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft)) {
+        step = kTrackpadTwoFingerTapRejectedUntilLift;
+        startTime = -1;
+        return;
+    }
+
+    if (nFingers >= 3) {
+        step = kTrackpadTwoFingerTapRejectedUntilLift;
+        startTime = -1;
+    } else if (step == kTrackpadTwoFingerTapRejectedUntilLift) {
+        if (nFingers == 0)
+            step = kTrackpadTwoFingerTapIdle;
+    } else if (step == kTrackpadTwoFingerTapIdle && nFingers == 2) {
+        step = kTrackpadTwoFingerTapTracking;
+        startTime = timestamp;
+        for (int i = 0; i < 2; i++) {
+            fingerIds[i] = data[i].identifier;
+            startx[i] = data[i].px;
+            starty[i] = data[i].py;
+        }
+    } else if (step == kTrackpadTwoFingerTapTracking || step == kTrackpadTwoFingerTapWaitingForLift) {
+        BOOL valid = timestamp - startTime <= clickSpeed + 0.10;
+        for (int i = 0; valid && i < nFingers; i++) {
+            int matched = 0;
+            for (int j = 0; j < 2; j++) {
+                if (data[i].identifier == fingerIds[j]) {
+                    if (lenSqr(data[i].px, data[i].py, startx[j], starty[j]) > 0.001)
+                        valid = NO;
+                    matched = 1;
+                    break;
+                }
+            }
+            if (!matched)
+                valid = NO;
+        }
+
+        if (!valid) {
+            step = kTrackpadTwoFingerTapRejectedUntilLift;
+            startTime = -1;
+        } else if (nFingers == 0) {
+            dispatchCommand(@"Two-Finger Tap", TRACKPAD);
+            step = kTrackpadTwoFingerTapIdle;
+            startTime = -1;
+        } else if (nFingers < 2) {
+            step = kTrackpadTwoFingerTapWaitingForLift;
+        } else if (timestamp - startTime > clickSpeed) {
+            step = kTrackpadTwoFingerTapRejectedUntilLift;
+            startTime = -1;
+        }
+    }
+}
+
+static void gestureTrackpadHoldSlide(const Finger *data, int nFingers) {
+    enum {
+        kTrackpadHoldSlideIdle = 0,
+        kTrackpadHoldSlideHasAnchor = 1,
+        kTrackpadHoldSlideTracking = 2,
+        kTrackpadHoldSlideTriggeredUntilLift = 3,
+    };
+    static int step = 0;
+    static int anchorId = -1;
+    static int movingId = -1;
+    static float anchorStartX = 0;
+    static float anchorStartY = 0;
+    static float movingStartX = 0;
+    static float movingStartY = 0;
+
+    if (nFingers == 0) {
+        step = kTrackpadHoldSlideIdle;
+        anchorId = -1;
+        movingId = -1;
+        return;
+    }
+
+    if (step == kTrackpadHoldSlideIdle && nFingers == 1) {
+        step = kTrackpadHoldSlideHasAnchor;
+        anchorId = data[0].identifier;
+        anchorStartX = data[0].px;
+        anchorStartY = data[0].py;
+    } else if (step == kTrackpadHoldSlideHasAnchor && nFingers == 1) {
+        if (data[0].identifier != anchorId ||
+            lenSqr(data[0].px, data[0].py, anchorStartX, anchorStartY) > 0.001) {
+            anchorId = data[0].identifier;
+            anchorStartX = data[0].px;
+            anchorStartY = data[0].py;
+        }
+    } else if (step == kTrackpadHoldSlideHasAnchor && nFingers == 2) {
+        int anchorIndex = data[0].identifier == anchorId ? 0 :
+                          data[1].identifier == anchorId ? 1 : -1;
+        if (anchorIndex < 0) {
+            step = kTrackpadHoldSlideIdle;
+            return;
+        }
+        int movingIndex = 1 - anchorIndex;
+        step = kTrackpadHoldSlideTracking;
+        anchorStartX = data[anchorIndex].px;
+        anchorStartY = data[anchorIndex].py;
+        movingId = data[movingIndex].identifier;
+        movingStartX = data[movingIndex].px;
+        movingStartY = data[movingIndex].py;
+    } else if (step == kTrackpadHoldSlideTracking && nFingers == 2) {
+        int anchorIndex = data[0].identifier == anchorId ? 0 :
+                          data[1].identifier == anchorId ? 1 : -1;
+        int movingIndex = data[0].identifier == movingId ? 0 :
+                          data[1].identifier == movingId ? 1 : -1;
+        if (anchorIndex < 0 || movingIndex < 0 ||
+            lenSqr(data[anchorIndex].px, data[anchorIndex].py, anchorStartX, anchorStartY) > 0.001) {
+            step = kTrackpadHoldSlideTriggeredUntilLift;
+            return;
+        }
+        if (lenSqr(data[movingIndex].px, data[movingIndex].py, movingStartX, movingStartY) >= 0.012) {
+            dispatchCommand(@"One-Fix One-Slide", TRACKPAD);
+            step = kTrackpadHoldSlideTriggeredUntilLift;
+        }
+    } else if (step == kTrackpadHoldSlideTracking && nFingers == 1) {
+        step = kTrackpadHoldSlideHasAnchor;
+        anchorId = data[0].identifier;
+        anchorStartX = data[0].px;
+        anchorStartY = data[0].py;
+        movingId = -1;
+    } else if (step != kTrackpadHoldSlideTriggeredUntilLift) {
+        step = kTrackpadHoldSlideIdle;
+    }
+}
 
 static void gestureTrackpadOneFixOneTap(const Finger *data, int nFingers, double timestamp) {
     static double sttime = -1;
@@ -2373,6 +2513,8 @@ static int trackpadCallback(MTDeviceRef device, Finger *data, int nFingers, doub
 
                 gestureTrackpadOneFixOneTap(data, nFingers, timestamp);
 
+                gestureTrackpadTwoFingerTap(data, nFingers, timestamp);
+                gestureTrackpadHoldSlide(data, nFingers);
                 gestureTrackpadThreeFingerTap(data, nFingers, timestamp);
 
                 gestureTrackpadOneFixTwoSlide(data, nFingers, timestamp);
@@ -2467,11 +2609,87 @@ static void gestureMagicMouseOneFingerSwipe(const Finger *data, int nFingers, do
     }
 }
 
+static void gestureMagicMouseTwoFingerSwipe(const Finger *data, int nFingers, double timestamp, int thumbPresent) {
+    static int tracking = 0;
+    static int fingerIds[2];
+    static double startTime = -1;
+    static float startx[2];
+    static float starty[2];
+    static int triggered = 0;
+    Finger fingers[2];
+    int count = 0;
+
+    if (nFingers - (thumbPresent ? 1 : 0) != 2) {
+        tracking = 0;
+        startTime = -1;
+        triggered = 0;
+        return;
+    }
+
+    for (int i = 0; i < nFingers && count < 2; i++) {
+        if (thumbPresent && i == thumbPresent - 1)
+            continue;
+        fingers[count++] = data[i];
+    }
+
+    if (count != 2) {
+        tracking = 0;
+        startTime = -1;
+        triggered = 0;
+        return;
+    }
+
+    if (!tracking) {
+        tracking = 1;
+        startTime = timestamp;
+        for (int i = 0; i < 2; i++) {
+            fingerIds[i] = fingers[i].identifier;
+            startx[i] = fingers[i].px;
+            starty[i] = fingers[i].py;
+        }
+        return;
+    }
+
+    float dx[2] = {0, 0};
+    float dy[2] = {0, 0};
+    for (int i = 0; i < 2; i++) {
+        int matched = 0;
+        for (int j = 0; j < 2; j++) {
+            if (fingers[j].identifier == fingerIds[i]) {
+                dx[i] = fingers[j].px - startx[i];
+                dy[i] = fingers[j].py - starty[i];
+                matched = 1;
+                break;
+            }
+        }
+        if (!matched) {
+            tracking = 0;
+            triggered = 0;
+            return;
+        }
+    }
+
+    if (timestamp - startTime > 0.60 || fabs(dy[0]) > 0.08 || fabs(dy[1]) > 0.08) {
+        tracking = 0;
+        triggered = 0;
+        return;
+    }
+
+    if (!triggered && dx[0] <= -0.08 && dx[1] <= -0.08 && dx[0] + dx[1] <= -0.22) {
+        dispatchCommand(@"Two-Swipe-Left", MAGICMOUSE);
+        triggered = 1;
+    } else if (!triggered && dx[0] >= 0.08 && dx[1] >= 0.08 && dx[0] + dx[1] >= 0.22) {
+        dispatchCommand(@"Two-Swipe-Right", MAGICMOUSE);
+        triggered = 1;
+    }
+}
+
 static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double timestamp, int thumbPresent) {
     enum {
         kTwoFingerTapIdle = 0,
         kTwoFingerTapTracking = 1,
         kTwoFingerTapWaitingForLift = 2,
+        kTwoFingerTapRejectedUntilLift = 3,
     };
     static int step = 0;
     static double startTime = -1;
@@ -2498,7 +2716,13 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
         data[nFingers] = tmp;
     }
 
-    if (step == kTwoFingerTapIdle && nFingers == 2) {
+    if (nFingers >= 3) {
+        step = kTwoFingerTapRejectedUntilLift;
+        startTime = -1;
+    } else if (step == kTwoFingerTapRejectedUntilLift) {
+        if (nFingers == 0)
+            step = kTwoFingerTapIdle;
+    } else if (step == kTwoFingerTapIdle && nFingers == 2) {
         step = kTwoFingerTapTracking;
         startTime = timestamp;
         for (int i = 0; i < 2; i++) {
@@ -2553,6 +2777,86 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
     } else if (nFingers != 2) {
         step = 0;
         startTime = -1;
+    }
+
+    if (thumbPresent) {
+        Finger tmp = data[thumbPresent - 1];
+        data[thumbPresent - 1] = data[nFingers];
+        data[nFingers] = tmp;
+    }
+}
+
+static void gestureMagicMouseThreeFingerTap(Finger *data, int nFingers, double timestamp, int thumbPresent) {
+    enum {
+        kThreeFingerTapIdle = 0,
+        kThreeFingerTapTracking = 1,
+        kThreeFingerTapWaitingForLift = 2,
+        kThreeFingerTapRejectedUntilLift = 3,
+    };
+    static int step = 0;
+    static double startTime = -1;
+    static int fingerIds[3];
+    static float startx[3];
+    static float starty[3];
+
+    if (customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
+        CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft) ||
+        CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonRight)) {
+        step = kThreeFingerTapIdle;
+        startTime = -1;
+        return;
+    }
+
+    if (thumbPresent) {
+        Finger tmp = data[thumbPresent - 1];
+        data[thumbPresent - 1] = data[--nFingers];
+        data[nFingers] = tmp;
+    }
+
+    if (nFingers > 3) {
+        step = kThreeFingerTapRejectedUntilLift;
+        startTime = -1;
+    } else if (step == kThreeFingerTapRejectedUntilLift) {
+        if (nFingers == 0)
+            step = kThreeFingerTapIdle;
+    } else if (step == kThreeFingerTapIdle && nFingers == 3) {
+        step = kThreeFingerTapTracking;
+        startTime = timestamp;
+        for (int i = 0; i < 3; i++) {
+            fingerIds[i] = data[i].identifier;
+            startx[i] = data[i].px;
+            starty[i] = data[i].py;
+        }
+    } else if (step == kThreeFingerTapTracking || step == kThreeFingerTapWaitingForLift) {
+        BOOL valid = timestamp - startTime <=
+            kMagicMouseThreeFingerTapMaxDuration + kMagicMouseThreeFingerTapLiftGraceDuration;
+        for (int i = 0; valid && i < nFingers; i++) {
+            int matched = 0;
+            for (int j = 0; j < 3; j++) {
+                if (data[i].identifier == fingerIds[j]) {
+                    if (lenSqr(data[i].px, data[i].py, startx[j], starty[j]) > kMagicMouseThreeFingerTapMaxMove)
+                        valid = NO;
+                    matched = 1;
+                    break;
+                }
+            }
+            if (!matched)
+                valid = NO;
+        }
+
+        if (!valid) {
+            step = kThreeFingerTapRejectedUntilLift;
+            startTime = -1;
+        } else if (nFingers == 0) {
+            dispatchCommand(@"Three-Finger Tap", MAGICMOUSE);
+            step = kThreeFingerTapIdle;
+            startTime = -1;
+        } else if (nFingers < 3) {
+            step = kThreeFingerTapWaitingForLift;
+        } else if (timestamp - startTime > kMagicMouseThreeFingerTapMaxDuration) {
+            step = kThreeFingerTapRejectedUntilLift;
+            startTime = -1;
+        }
     }
 
     if (thumbPresent) {
@@ -3296,6 +3600,8 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
         magicMouseThreeFingerFlag = (nFingers - (thumbPresent > 0 ? 1 : 0) == 3);
 
         gestureMagicMouseOneFingerSwipe(data, nFingers, timestamp);
+        gestureMagicMouseTwoFingerSwipe(data, nFingers, timestamp, thumbPresent);
+        gestureMagicMouseThreeFingerTap(data, nFingers, timestamp, thumbPresent);
         gestureMagicMouseTwoFingerTap(data, nFingers, timestamp, thumbPresent);
         gestureMagicMouseRightFrontTap(data, nFingers, timestamp);
         gestureMagicMouseOneFingerTap(data, nFingers, timestamp);

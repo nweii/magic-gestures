@@ -54,8 +54,9 @@ Keystrokes are modifiers plus one key. These are equivalent:
 
 Key names: letters, digits, `return` `escape` `tab` `space` `delete`
 `forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down`
-`f1` through `f12`. Aliases: `enter` is `return`, `esc` is `escape`,
-`backspace` and `del` are `delete`.
+`f1` through `f12`, and punctuation `[` `]` `-` `=` `;` `'` `,` `.` `/` `\`
+and backtick (`` ` ``). Aliases: `enter` is `return`, `esc` is `escape`,
+`backspace` and `del` are `delete`, `spacebar` is `space`.
 
 Built-in actions: `middle-click` `mission-control` `next-tab` `previous-tab`
 `new-tab` `close-tab` `reopen-tab` `maximize` `minimize`.

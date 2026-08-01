@@ -7,6 +7,7 @@
 //
 
 #import "KeyUtility.h"
+#import "KeyEventSequence.h"
 #import <Carbon/Carbon.h>
 #import <IOKit/hidsystem/IOLLEvent.h>
 
@@ -69,9 +70,9 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
     [super dealloc];
 }
 
-// Modifier flags are set on the keystroke because hotkey APIs read
-// modifierFlags from the key event. Separate synthetic modifier events do not
-// mark the keystroke as a combination.
+// The key carries the complete modifier flags conventional hotkey APIs read,
+// while explicit modifier transitions support listeners that track hardware-
+// shaped keyboard state.
 - (void)simulateKeyCode:(CGKeyCode)code ShftDown:(BOOL)shft CtrlDown:(BOOL)ctrl AltDown:(BOOL)alt CmdDown:(BOOL)cmd {
     // Each modifier includes its generic mask and device-dependent left-side
     // bit. Side-specific hotkeys test the device bits, which generic masks omit.
@@ -83,22 +84,31 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
 
     CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
     CGKeyCode key = a[code];
+    CGEventFlags physicalFlags = CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState);
+    MGKeyEventStep steps[10];
+    size_t count = MGPlanKeyEventSequence(key, flags, physicalFlags, steps);
+    CGEventRef events[10] = {NULL};
 
-    CGEventRef keyDown = CGEventCreateKeyboardEvent(source, key, true);
-    CGEventRef keyUp = CGEventCreateKeyboardEvent(source, key, false);
-
-    // With no requested modifiers, the keystroke inherits the modifier keys
-    // the user is physically holding.
-    if (flags) {
-        CGEventSetFlags(keyDown, flags);
-        CGEventSetFlags(keyUp, flags);
+    // Build the full sequence before posting any part of it. A failed event
+    // allocation therefore cannot leave a synthetic modifier held down.
+    for (size_t i = 0; i < count; i++) {
+        events[i] = CGEventCreateKeyboardEvent(source, steps[i].keyCode, steps[i].keyDown);
+        if (events[i] == NULL) {
+            for (size_t j = 0; j < i; j++)
+                CFRelease(events[j]);
+            if (source) CFRelease(source);
+            return;
+        }
+        // A bare configured key keeps the old behavior of inheriting physical
+        // modifiers. A configured chord owns the flags on its whole sequence.
+        if (flags)
+            CGEventSetFlags(events[i], steps[i].flags);
     }
 
-    CGEventPost(kCGSessionEventTap, keyDown);
-    CGEventPost(kCGSessionEventTap, keyUp);
-
-    if (keyDown) CFRelease(keyDown);
-    if (keyUp) CFRelease(keyUp);
+    for (size_t i = 0; i < count; i++) {
+        CGEventPost(kCGSessionEventTap, events[i]);
+        CFRelease(events[i]);
+    }
     if (source) CFRelease(source);
 }
 

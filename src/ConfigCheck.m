@@ -44,6 +44,28 @@ static NSDictionary *parseWithProblems(NSString *text, NSArray **problems) {
     return [Config settingsFromFile:path problems:problems];
 }
 
+static NSString *section(NSString *text, NSString *start, NSString *end) {
+    NSRange startRange = [text rangeOfString:start];
+    if (startRange.location == NSNotFound)
+        return nil;
+    NSUInteger bodyStart = NSMaxRange(startRange);
+    NSRange searchRange = NSMakeRange(bodyStart, [text length] - bodyStart);
+    NSRange endRange = [text rangeOfString:end options:0 range:searchRange];
+    NSUInteger bodyEnd = endRange.location == NSNotFound ? [text length] : endRange.location;
+    return [text substringWithRange:NSMakeRange(bodyStart, bodyEnd - bodyStart)];
+}
+
+static void expectDeviceSlugs(NSString *label, NSString *text, NSDictionary *slugs) {
+    if (text == nil) {
+        fail(label, @"a device section", @"missing");
+        return;
+    }
+    for (NSString *slug in slugs) {
+        if ([text rangeOfString:slug].location == NSNotFound)
+            fail([NSString stringWithFormat:@"%@ documents %@", label, slug], @"present", @"missing");
+    }
+}
+
 static void expectKey(NSString *label, NSString *value, int keycode, NSUInteger flags) {
     NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", value];
     NSDictionary *g = bindingFor(parse(conf), @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
@@ -78,6 +100,14 @@ int main(void) {
         expectKey(@"mixed case", @"CMD+Shift+A", 0, CMD | SHIFT);
         expectKey(@"alt is option", @"ctrl+alt+right", 124, CTRL | kCGEventFlagMaskAlternate);
         expectKey(@"quoted value", @"\"cmd+shift+a\"", 0, CMD | SHIFT);
+
+        NSDictionary *punctuation = @{
+            @"[": @33, @"]": @30, @"-": @27, @"=": @24, @";": @41,
+            @"'": @39, @",": @43, @".": @47, @"/": @44, @"\\": @42, @"`": @50,
+        };
+        for (NSString *key in punctuation)
+            expectKey([@"punctuation " stringByAppendingString:key], key,
+                      [[punctuation objectForKey:key] intValue], 0);
 
         // An unknown token must reject the value instead of binding the last
         // token that happened to parse.
@@ -235,6 +265,21 @@ int main(void) {
                 fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"enMMAll"]);
         }
 
+        NSArray *invalidSettings = @[
+            @"[general]\nenable-mouse = maybe\n",
+            @"[general]\nenable-trackpad = enabled\n",
+            @"[general]\nverbose-logging = verbose\n",
+            @"[general]\ntap-speed = soon\n",
+            @"[general]\ntap-speed = 0\n",
+            @"[general]\ntap-speed = -0.2\n",
+        ];
+        for (NSString *text in invalidSettings) {
+            NSArray *problems = nil;
+            parseWithProblems(text, &problems);
+            if ([problems count] == 0)
+                fail(@"invalid general setting is reported", @"a problem", @"none");
+        }
+
         // Format 1 is explicit in new files and implicit in files written
         // before versioning. An unsupported format rejects the whole file.
         if (parse(@"[general]\nconfig-version = 1\n") == nil)
@@ -283,7 +328,8 @@ int main(void) {
         // Every slug must appear in the notes installed beside the config, or
         // it exists without being documented anywhere the user will look.
         NSArray *args = [[NSProcessInfo processInfo] arguments];
-        for (NSUInteger i = 2; i < [args count]; i++) {
+        NSUInteger documentationEnd = MIN([args count], 4);
+        for (NSUInteger i = 2; i < documentationEnd; i++) {
             NSString *doc = [NSString stringWithContentsOfFile:args[i] encoding:NSUTF8StringEncoding error:NULL];
             if (doc == nil)
                 continue;
@@ -293,6 +339,62 @@ int main(void) {
                     if ([doc rangeOfString:slug].location == NSNotFound)
                         fail([NSString stringWithFormat:@"%@ documents %@", name, slug], @"present", @"missing");
                 }
+            }
+        }
+
+        if ([args count] > 3) {
+            NSString *notes = [NSString stringWithContentsOfFile:args[2] encoding:NSUTF8StringEncoding error:NULL];
+            expectDeviceSlugs(@"installed notes mouse section",
+                              section(notes, @"Mouse: `", @"\n\nTrackpad:"),
+                              [Config mouseGestureSlugs]);
+            expectDeviceSlugs(@"installed notes trackpad section",
+                              section(notes, @"Trackpad: `", @"\n\nThe `hold-`"),
+                              [Config trackpadGestureSlugs]);
+
+            NSString *reference = [NSString stringWithContentsOfFile:args[3] encoding:NSUTF8StringEncoding error:NULL];
+            expectDeviceSlugs(@"gesture reference mouse section",
+                              section(reference, @"## Magic Mouse", @"## Magic Trackpad"),
+                              [Config mouseGestureSlugs]);
+            expectDeviceSlugs(@"gesture reference trackpad section",
+                              section(reference, @"## Magic Trackpad", @"## What a gesture can send"),
+                              [Config trackpadGestureSlugs]);
+        }
+
+        // Every exposed engine name needs a dispatch site for its own device.
+        // A matching name on the other device does not make a binding reachable.
+        if ([args count] > 4) {
+            NSString *engine = [NSString stringWithContentsOfFile:args[4] encoding:NSUTF8StringEncoding error:NULL];
+            NSArray *devices = @[
+                @[[Config mouseGestureSlugs], @"MAGICMOUSE"],
+                @[[Config trackpadGestureSlugs], @"TRACKPAD"],
+            ];
+            for (NSArray *device in devices) {
+                NSDictionary *slugs = device[0];
+                NSString *constant = device[1];
+                for (NSString *slug in slugs) {
+                    for (NSString *engineName in [slugs objectForKey:slug]) {
+                        NSString *dispatch = [NSString stringWithFormat:@"dispatchCommand(@\"%@\", %@)", engineName, constant];
+                        if ([engine rangeOfString:dispatch].location == NSNotFound)
+                            fail([NSString stringWithFormat:@"%@ %@ has a recognizer dispatch", constant, slug], dispatch, @"missing");
+                    }
+                }
+            }
+
+            for (NSString *command in [[Config actionNames] allValues]) {
+                NSString *branch = [NSString stringWithFormat:@"isEqualToString:@\"%@\"", command];
+                if ([engine rangeOfString:branch].location == NSNotFound)
+                    fail([@"action dispatch " stringByAppendingString:command], branch, @"missing");
+            }
+
+            NSArray *invocations = @[
+                @"gestureMagicMouseThreeFingerTap(data, nFingers, timestamp, thumbPresent)",
+                @"gestureMagicMouseTwoFingerSwipe(data, nFingers, timestamp, thumbPresent)",
+                @"gestureTrackpadTwoFingerTap(data, nFingers, timestamp)",
+                @"gestureTrackpadHoldSlide(data, nFingers)",
+            ];
+            for (NSString *invocation in invocations) {
+                if ([engine rangeOfString:invocation].location == NSNotFound)
+                    fail(@"device callback invokes exposed recognizer", invocation, @"missing");
             }
         }
 

@@ -20,7 +20,23 @@ clang \
   "$ROOT/src/ConfigCheck.m" \
   -o "$OUT" 2>/dev/null
 
-"$OUT" "$ROOT/config.default.txt" "$ROOT/config-notes.default.md" "$ROOT/GESTURES.md"
+"$OUT" \
+  "$ROOT/config.default.txt" \
+  "$ROOT/config-notes.default.md" \
+  "$ROOT/GESTURES.md" \
+  "$ROOT/src/jitouch/Jitouch/Gesture.m"
+
+KEY_OUT="$(mktemp -d)/keyeventcheck"
+clang \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework ApplicationServices \
+  "$ROOT/src/KeyEventSequence.m" \
+  "$ROOT/src/KeyEventSequenceCheck.m" \
+  -o "$KEY_OUT" 2>/dev/null
+"$KEY_OUT"
 
 # The login item plist is written by two independent pieces of code: the app's
 # Open at Login menu item (JitouchAppDelegate.m) and scripts/install-login-agent.sh.

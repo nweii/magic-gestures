@@ -78,7 +78,8 @@ Modifiers, then one key. These four are the same binding:
 
 Keys: any letter or digit, plus `return` `escape` `tab` `space` `delete`
 `forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down`
-and `f1` through `f12`.
+and `f1` through `f12`. Punctuation keys: `[` `]` `-` `=` `;` `'` `,` `.`
+`/` `\` and backtick (`` ` ``).
 
 Aliases: `enter` is `return`, `esc` is `escape`, `backspace` and `del` are
 `delete`, `spacebar` is `space`.

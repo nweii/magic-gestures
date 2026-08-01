@@ -43,6 +43,10 @@
 + (NSDictionary *)mouseGestureSlugs;
 + (NSDictionary *)trackpadGestureSlugs;
 
+// Every action slug the configuration accepts, mapped to the engine command
+// string it dispatches.
++ (NSDictionary *)actionNames;
+
 // An engine gesture name phrased as a motion, for display.
 + (NSString *)humanNameForGesture:(NSString *)raw;
 

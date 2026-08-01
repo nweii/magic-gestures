@@ -8,6 +8,7 @@
 #import "Config.h"
 #import <Carbon/Carbon.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <math.h>
 
 // The tables accept common alternative spellings because people and coding
 // agents may use different names for the same value.
@@ -70,7 +71,7 @@
 
 // Built-in engine commands, keyed by the slug the configuration uses. The value
 // is the exact string dispatchCommand compares against in Gesture.m.
-static NSDictionary *actionNames(void) {
++ (NSDictionary *)actionNames {
     static NSDictionary *m = nil;
     if (m == nil) {
         m = [@{
@@ -201,12 +202,35 @@ static NSString *stripQuotes(NSString *s) {
     return s;
 }
 
-static BOOL parseBoolean(NSString *v, BOOL fallback) {
+static BOOL parseBooleanValue(NSString *v, BOOL *result) {
     NSString *s = [[stripQuotes(v) lowercaseString] stringByTrimmingCharactersInSet:
                    [NSCharacterSet whitespaceCharacterSet]];
-    if ([@[@"true", @"yes", @"on", @"1"] containsObject:s]) return YES;
-    if ([@[@"false", @"no", @"off", @"0"] containsObject:s]) return NO;
-    return fallback;
+    if ([@[@"true", @"yes", @"on", @"1"] containsObject:s]) {
+        if (result) *result = YES;
+        return YES;
+    }
+    if ([@[@"false", @"no", @"off", @"0"] containsObject:s]) {
+        if (result) *result = NO;
+        return YES;
+    }
+    return NO;
+}
+
+static BOOL parseBoolean(NSString *v, BOOL fallback) {
+    BOOL result = fallback;
+    parseBooleanValue(v, &result);
+    return result;
+}
+
+static BOOL parsePositiveNumber(NSString *v, double *result) {
+    NSString *s = [stripQuotes(v) stringByTrimmingCharactersInSet:
+                   [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSScanner *scanner = [NSScanner scannerWithString:s];
+    double number = 0;
+    if (![scanner scanDouble:&number] || ![scanner isAtEnd] || !isfinite(number) || number <= 0)
+        return NO;
+    if (result) *result = number;
+    return YES;
 }
 
 // Returns why a custom URL cannot be opened, or nil when its structure is
@@ -391,7 +415,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
                   @"Enable": @YES };
     }
 
-    NSString *action = [actionNames() objectForKey:value];
+    NSString *action = [[Config actionNames] objectForKey:value];
     if (action != nil) {
         return @{@"Gesture": @"", @"Command": action, @"IsAction": @YES,
                  @"ModifierFlags": @0, @"KeyCode": @0, @"Enable": @YES};
@@ -578,13 +602,25 @@ static NSSet *knownSettingNames(void) {
                 [target addObject:g];
             }
         } else if ([device isEqualToString:@"general"]) {
-            if (![knownSettingNames() containsObject:key])
+            if (![knownSettingNames() containsObject:key]) {
                 report(line, [NSString stringWithFormat:@"no setting named \"%@\"", key]);
+                continue;
+            }
             if ([key isEqualToString:@"config-version"] && ![stripQuotes(value) isEqualToString:@"1"]) {
                 report(line, [NSString stringWithFormat:
                     @"configuration format \"%@\" is not supported; this version reads format 1",
                     value]);
                 unsupportedVersion = YES;
+            }
+            if ([@[@"enable-mouse", @"enable-trackpad", @"verbose-logging"] containsObject:key] &&
+                !parseBooleanValue(value, NULL)) {
+                report(line, [NSString stringWithFormat:
+                    @"%@ must be true, false, yes, no, on, off, 1, or 0", key]);
+                continue;
+            }
+            if ([key isEqualToString:@"tap-speed"] && !parsePositiveNumber(value, NULL)) {
+                report(line, @"tap-speed must be a positive number of seconds");
+                continue;
             }
             [general setObject:value forKey:key];
         } else {

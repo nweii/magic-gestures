@@ -61,6 +61,7 @@ clang \
   -framework MultitouchSupport \
   "$ROOT/src/main.m" \
   "$ROOT/src/Config.m" \
+  "$ROOT/src/KeyEventSequence.m" \
   "$SRC_ROOT/JitouchAppDelegate.m" \
   "$SRC_ROOT/Settings.m" \
   "$SRC_ROOT/Gesture.m" \
