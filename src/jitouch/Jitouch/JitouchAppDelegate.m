@@ -21,6 +21,7 @@
 #include <fcntl.h>
 
 static NSArray *lastConfigProblems = nil;
+static NSInteger lastConfigBindingCount = 0;
 static dispatch_source_t configWatcher = nil;
 static int configWatcherFD = -1;
 
@@ -63,6 +64,7 @@ enum {
     kMenuTagBindings = 4,
     kMenuTagAgents = 5,
     kMenuTagProblems = 6,
+    kMenuTagDiagnostics = 7,
 };
 
 static NSString *shellQuote(NSString *s) {
@@ -141,6 +143,11 @@ static NSString *resolveToolPath(NSString *tool) {
 // Describes a binding from its keycode and modifier flags. Labels describe an
 // app-dependent purpose and may not match the focused app.
 static NSString *describeBinding(NSDictionary *g) {
+    if (![[g objectForKey:@"Enable"] boolValue])
+        return @"Off";
+    NSString *script = [g objectForKey:@"ScriptPath"];
+    if ([script length] > 0)
+        return [@"Run " stringByAppendingString:[script lastPathComponent]];
     NSString *url = [g objectForKey:@"OpenURL"];
     if ([url length] > 0) {
         const NSUInteger maxLength = 52;
@@ -352,6 +359,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
     }
 
     [self setConfigProblems:problems];
+    lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
     [Settings loadSettings2:parsed];
     [self refreshMenu];
     if (!enAll)
@@ -372,6 +380,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
     if (parsed == nil)
         return;
     [self setConfigProblems:problems];
+    lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
     [Settings loadSettings2:parsed];
     [self refreshMenu];
     if (!enAll)
@@ -475,10 +484,14 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
     NSUInteger n = [lastConfigProblems count];
     if (n == 0) {
-        [item setTitle:@"Configuration loaded"];
+        [item setTitle:[NSString stringWithFormat:@"%ld binding%@ loaded",
+                        (long)lastConfigBindingCount,
+                        lastConfigBindingCount == 1 ? @"" : @"s"]];
         [item setAction:NULL];
     } else {
-        [item setTitle:[NSString stringWithFormat:@"%lu line%@ skipped in config.txt...",
+        [item setTitle:[NSString stringWithFormat:@"%ld binding%@ loaded, %lu line%@ skipped...",
+                        (long)lastConfigBindingCount,
+                        lastConfigBindingCount == 1 ? @"" : @"s",
                         (unsigned long)n, n == 1 ? @"" : @"s"]];
         [item setAction:@selector(showConfigProblems:)];
     }
@@ -497,6 +510,9 @@ static BOOL runLaunchctl(NSArray *arguments) {
     for (NSArray *pair in sources) {
         NSMutableArray *lines = [NSMutableArray array];
         for (NSDictionary *app in pair[1]) {
+            NSString *application = [app objectForKey:@"Application"];
+            NSString *scope = [application isEqualToString:@"All Applications"]
+                ? @"" : [NSString stringWithFormat:@"%@ · ", application];
             NSMutableSet *seenGestures = [NSMutableSet set];
             for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
                 NSString *gestureName = [g objectForKey:@"Gesture"];
@@ -509,7 +525,8 @@ static BOOL runLaunchctl(NSArray *arguments) {
                 if ([fires length] == 0)
                     continue;
                 [seenGestures addObject:gestureName];
-                [lines addObject:[NSString stringWithFormat:@"%@  →  %@", [Config humanNameForGesture:gestureName], fires]];
+                [lines addObject:[NSString stringWithFormat:@"%@%@  →  %@", scope,
+                                  [Config humanNameForGesture:gestureName], fires]];
             }
         }
         if ([lines count] == 0)
@@ -534,6 +551,94 @@ static BOOL runLaunchctl(NSArray *arguments) {
     }
 
     [parent setSubmenu:sub];
+}
+
+- (NSString *)debugInformation {
+    NSString *version = [[NSBundle mainBundle]
+        objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"unknown";
+    NSString *configPath = [Config resolvedPath] ?: @"missing";
+    return [NSString stringWithFormat:
+        @"Magic Gestures %@\nmacOS %@\nAccessibility: %@\nConfiguration: %@\n"
+         "%ld binding%@ loaded\n%lu line%@ skipped\nGestures: %@\n"
+         "Mouse: %@\nTrackpad: %@\nVerbose logging: %@\n",
+        version,
+        [[NSProcessInfo processInfo] operatingSystemVersionString],
+        AXIsProcessTrusted() ? @"granted" : @"needed",
+        configPath,
+        (long)lastConfigBindingCount, lastConfigBindingCount == 1 ? @"" : @"s",
+        (unsigned long)[lastConfigProblems count], [lastConfigProblems count] == 1 ? @"" : @"s",
+        enAll ? @"on" : @"off",
+        enMMAll ? @"on" : @"off",
+        enTPAll ? @"on" : @"off",
+        logLevel >= LOG_LEVEL_DEBUG ? @"on" : @"off"];
+}
+
+- (void)copyDebugInfo:(id)sender {
+    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+    [pasteboard clearContents];
+    [pasteboard setString:[self debugInformation] forType:NSPasteboardTypeString];
+}
+
+- (void)openRecentLogs:(id)sender {
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        @autoreleasepool {
+            NSTask *task = [[NSTask alloc] init];
+            NSPipe *output = [NSPipe pipe];
+            [task setLaunchPath:@"/usr/bin/log"];
+            [task setArguments:@[@"show", @"--style", @"compact", @"--last", @"15m",
+                                 @"--predicate", @"process == \"MagicGestures\""]];
+            [task setStandardOutput:output];
+            [task setStandardError:output];
+
+            NSData *data = nil;
+            NSString *failure = nil;
+            @try {
+                [task launch];
+                data = [[output fileHandleForReading] readDataToEndOfFile];
+                [task waitUntilExit];
+            } @catch (NSException *exception) {
+                failure = [exception reason];
+            }
+
+            NSString *path = [NSTemporaryDirectory()
+                stringByAppendingPathComponent:@"MagicGestures-Recent.log"];
+            NSError *error = nil;
+            BOOL wrote = failure == nil &&
+                [data writeToFile:path options:NSDataWritingAtomic error:&error];
+            [task release];
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (!wrote || ![[NSWorkspace sharedWorkspace]
+                        openURL:[NSURL fileURLWithPath:path]])
+                    [self reportFailure:@"Could not open recent logs."
+                                 detail:failure ?: [error localizedDescription] ?: path];
+            });
+        }
+    });
+}
+
+- (void)toggleVerboseLogging:(id)sender {
+    logLevel = logLevel >= LOG_LEVEL_DEBUG ? LOG_LEVEL_INFO : LOG_LEVEL_DEBUG;
+    [self refreshMenu];
+}
+
+- (void)refreshDiagnosticsSubmenu {
+    NSMenuItem *parent = [theMenu itemWithTag:kMenuTagDiagnostics];
+    if (parent == nil)
+        return;
+    NSMenu *menu = [[[NSMenu alloc] initWithTitle:@"Diagnostics"] autorelease];
+    NSMenuItem *copy = [menu addItemWithTitle:@"Copy Debug Info"
+                                       action:@selector(copyDebugInfo:) keyEquivalent:@""];
+    [copy setTarget:self];
+    NSMenuItem *logs = [menu addItemWithTitle:@"Open Recent Logs"
+                                       action:@selector(openRecentLogs:) keyEquivalent:@""];
+    [logs setTarget:self];
+    NSMenuItem *verbose = [menu addItemWithTitle:@"Verbose Logging This Session"
+                                          action:@selector(toggleVerboseLogging:) keyEquivalent:@""];
+    [verbose setTarget:self];
+    [verbose setState:logLevel >= LOG_LEVEL_DEBUG
+        ? NSControlStateValueOn : NSControlStateValueOff];
+    [parent setSubmenu:menu];
 }
 
 // Starts the selected coding agent in the settings folder with the running app
@@ -695,6 +800,9 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [theMenu addItemWithTitle:@"Edit Settings..." action:@selector(preferences:) keyEquivalent:@""];
     [theMenu addItemWithTitle:@"Reload Settings" action:@selector(reloadConfiguration:) keyEquivalent:@""];
 
+    item = [theMenu addItemWithTitle:@"Diagnostics" action:NULL keyEquivalent:@""];
+    [item setTag:kMenuTagDiagnostics];
+
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];
 
@@ -719,6 +827,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [self updateIconImage];
     [self refreshAccessibilityItem];
     [self refreshBindingsSubmenu];
+    [self refreshDiagnosticsSubmenu];
 }
 
 - (void)hideIcon {
@@ -804,6 +913,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
         [self refreshAccessibilityItem];
         [self refreshProblemsItem];
         [self refreshBindingsSubmenu];
+        [self refreshDiagnosticsSubmenu];
         [self updateIconImage];
     }
 }
@@ -879,9 +989,10 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
         NSArray *problems = nil;
         NSDictionary *parsed = [Config settingsFromFile:configPath problems:&problems];
         [self setConfigProblems:problems];
-        if (parsed != nil)
+        if (parsed != nil) {
+            lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
             [Settings loadSettings2:parsed];
-        else if ([problems count] > 0)
+        } else if ([problems count] > 0)
             [self reportFailure:@"Could not apply the configuration."
                          detail:[[problems componentsJoinedByString:@"\n\n"]
                                  stringByAppendingString:@"\n\nBuilt-in defaults are active."]];

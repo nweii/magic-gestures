@@ -21,6 +21,7 @@ extern NSMutableDictionary *recognitionMap;
 extern float clickSpeed;
 extern float stvt;
 extern int enAll;
+extern int hapticFeedback;
 extern int logLevel;
 typedef enum log_level_t : int {
     LOG_LEVEL_ERROR = -1,

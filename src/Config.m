@@ -30,6 +30,8 @@
             @"one-finger-tap": @[@"One-Finger Tap"],
             @"two-finger-tap": @[@"Two-Finger Tap"],
             @"three-finger-tap": @[@"Three-Finger Tap"],
+            @"two-finger-click": @[@"Two-Finger Click"],
+            @"three-finger-click": @[@"Three-Finger Click"],
             @"front-right-tap": @[@"Right-Front Tap"],
             @"one-finger-swipe-left": @[@"One-Swipe-Left"],
             @"one-finger-swipe-right": @[@"One-Swipe-Right"],
@@ -54,6 +56,9 @@
             @"two-finger-tap": @[@"Two-Finger Tap"],
             @"three-finger-tap": @[@"Three-Finger Tap"],
             @"four-finger-tap": @[@"Four-Finger Tap"],
+            @"five-finger-tap": @[@"Five-Finger Tap"],
+            @"three-finger-click": @[@"Three-Finger Click"],
+            @"four-finger-click": @[@"Four-Finger Click"],
             @"three-finger-swipe-left": @[@"Three-Swipe-Left"],
             @"three-finger-swipe-right": @[@"Three-Swipe-Right"],
             @"three-finger-swipe-up": @[@"Three-Swipe-Up"],
@@ -115,6 +120,10 @@
             @"Two-Finger Tap": @"Tap with two fingers",
             @"Three-Finger Tap": @"Tap with three fingers",
             @"Four-Finger Tap": @"Tap with four fingers",
+            @"Five-Finger Tap": @"Tap with five fingers",
+            @"Two-Finger Click": @"Click with two fingers",
+            @"Three-Finger Click": @"Click with three fingers",
+            @"Four-Finger Click": @"Click with four fingers",
             @"Right-Front Tap": @"Tap the front right of the mouse",
             @"One-Swipe-Left": @"Swipe left with one finger",
             @"One-Swipe-Right": @"Swipe right with one finger",
@@ -406,6 +415,31 @@ static NSString *urlBindingProblem(NSString *url) {
     return problem;
 }
 
+// Resolves one directly executable file. Scripts run through their shebang;
+// accepting shell source here would add a second configuration language.
+static NSString *resolvedScriptPath(NSString *rawPath, NSString **outProblem) {
+    NSString *path = [[rawPath stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceCharacterSet]] stringByExpandingTildeInPath];
+    path = [path stringByStandardizingPath];
+    NSString *problem = nil;
+    if ([path length] == 0)
+        problem = @"script path is empty";
+    else if (![path isAbsolutePath])
+        problem = @"script must use an absolute path or begin with ~";
+    else {
+        NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:NULL];
+        if (attributes == nil)
+            problem = @"script file does not exist";
+        else if (![[attributes objectForKey:NSFileType] isEqualToString:NSFileTypeRegular])
+            problem = @"script path is not a regular file";
+        else if (![[NSFileManager defaultManager] isExecutableFileAtPath:path])
+            problem = @"script file is not executable";
+    }
+    if (outProblem != NULL)
+        *outProblem = problem;
+    return problem == nil ? path : nil;
+}
+
 // Returns an engine gesture dictionary, or nil for an unrecognized value.
 // Keystrokes contain modifiers and one key. Actions are dispatched by name.
 static NSDictionary *parseBinding(NSString *rawValue) {
@@ -415,11 +449,24 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     if ([value length] == 0)
         return nil;
 
+    if ([value isEqualToString:@"off"])
+        return @{ @"Gesture": @"", @"Command": @"", @"IsAction": @YES,
+                  @"ModifierFlags": @0, @"KeyCode": @0, @"Enable": @NO };
+
     if ([value hasPrefix:@"url:"]) {
         NSString *url = [unquoted substringFromIndex:4];
         if (urlBindingProblem(url) != nil)
             return nil;
         return @{ @"Gesture": @"", @"Command": url, @"OpenURL": url,
+                  @"IsAction": @YES, @"ModifierFlags": @0, @"KeyCode": @0,
+                  @"Enable": @YES };
+    }
+
+    if ([value hasPrefix:@"script:"]) {
+        NSString *path = resolvedScriptPath([unquoted substringFromIndex:7], NULL);
+        if (path == nil)
+            return nil;
+        return @{ @"Gesture": @"", @"Command": path, @"ScriptPath": path,
                   @"IsAction": @YES, @"ModifierFlags": @0, @"KeyCode": @0,
                   @"Enable": @YES };
     }
@@ -506,10 +553,47 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 static NSSet *knownSettingNames(void) {
     static NSSet *s = nil;
     if (s == nil) {
-        s = [[NSSet setWithArray:@[@"config-version", @"enable-mouse", @"enable-trackpad", @"tap-speed",
-                                   @"verbose-logging"]] retain];
+        s = [[NSSet setWithArray:@[@"config-version", @"dominant-hand", @"enable-mouse", @"enable-trackpad", @"tap-speed",
+                                   @"haptic-feedback", @"verbose-logging"]] retain];
     }
     return s;
+}
+
+static NSArray *splitExpandedProperties(NSString *body) {
+    NSMutableArray *properties = [NSMutableArray array];
+    NSUInteger start = 0;
+    BOOL quoted = NO;
+    BOOL escaped = NO;
+    for (NSUInteger i = 0; i < [body length]; i++) {
+        unichar character = [body characterAtIndex:i];
+        if (character == '"' && !escaped)
+            quoted = !quoted;
+        if (character == ',' && !quoted) {
+            [properties addObject:[body substringWithRange:NSMakeRange(start, i - start)]];
+            start = i + 1;
+        }
+        escaped = character == '\\' && !escaped;
+        if (character != '\\')
+            escaped = NO;
+    }
+    [properties addObject:[body substringFromIndex:start]];
+    return properties;
+}
+
+static NSUInteger unquotedClosingBraceLocation(NSString *text) {
+    BOOL quoted = NO;
+    BOOL escaped = NO;
+    for (NSUInteger i = 0; i < [text length]; i++) {
+        unichar character = [text characterAtIndex:i];
+        if (character == '"' && !escaped)
+            quoted = !quoted;
+        if (character == '}' && !quoted)
+            return i;
+        escaped = character == '\\' && !escaped;
+        if (character != '\\')
+            escaped = NO;
+    }
+    return NSNotFound;
 }
 
 + (NSDictionary *)settingsFromFile:(NSString *)path {
@@ -527,9 +611,20 @@ static NSSet *knownSettingNames(void) {
 
     NSMutableArray *mouse = [NSMutableArray array];
     NSMutableArray *trackpad = [NSMutableArray array];
+    NSMutableDictionary *mouseScopes = [NSMutableDictionary dictionaryWithObject:mouse
+                                                                           forKey:@"All Applications"];
+    NSMutableDictionary *trackpadScopes = [NSMutableDictionary dictionaryWithObject:trackpad
+                                                                              forKey:@"All Applications"];
+    NSMutableArray *mouseScopeOrder = [NSMutableArray arrayWithObject:@"All Applications"];
+    NSMutableArray *trackpadScopeOrder = [NSMutableArray arrayWithObject:@"All Applications"];
     NSMutableDictionary *general = [NSMutableDictionary dictionary];
     NSString *section = @"general";
+    NSString *application = nil;
+    NSMutableSet *activeBindingKeys = [NSMutableSet set];
     __block NSInteger lineNumber = 0;
+    NSInteger physicalLineNumber = 0;
+    NSInteger pendingBlockLine = 0;
+    NSMutableString *pendingBlock = nil;
     __block BOOL unsupportedVersion = NO;
 
     void (^report)(NSString *, NSString *) = ^(NSString *text, NSString *reason) {
@@ -538,7 +633,7 @@ static NSSet *knownSettingNames(void) {
     };
 
     for (NSString *rawLine in [text componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]) {
-        lineNumber++;
+        physicalLineNumber++;
         NSString *line = rawLine;
         // A comment begins at the start of a line or after whitespace. This
         // leaves URL fragments such as #section intact.
@@ -555,42 +650,163 @@ static NSSet *knownSettingNames(void) {
         if ([line length] == 0)
             continue;
 
-        if ([line hasPrefix:@"["] && [line hasSuffix:@"]"]) {
-            section = [[line substringWithRange:NSMakeRange(1, [line length] - 2)]
-                       stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-            section = [section lowercaseString];
-            continue;
-        }
-
-        NSRange eq = [line rangeOfString:@"="];
-        if (eq.location == NSNotFound) {
-            report(line, @"not a setting: expected name = value");
-            continue;
-        }
-        NSString *key = [[line substringToIndex:eq.location]
-                         stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-        NSString *value = [[line substringFromIndex:eq.location + 1]
-                           stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-        key = [key lowercaseString];
-
-        // An inline device name overrides the current section. This keeps an
-        // appended binding independent of the section above it.
-        NSString *device = section;
-        NSRange dot = [key rangeOfString:@"."];
-        NSString *prefix = dot.location == NSNotFound ? nil : [key substringToIndex:dot.location];
-        if ([@[@"mouse", @"trackpad", @"general"] containsObject:prefix]) {
-            device = prefix;
-            key = [key substringFromIndex:dot.location + 1];
-            if ([device isEqualToString:@"general"]) {
-                report(line, @"general settings belong under a [general] header");
+        if (pendingBlock != nil) {
+            [pendingBlock appendFormat:@"\n%@", line];
+            if (unquotedClosingBraceLocation(pendingBlock) == NSNotFound)
+                continue;
+            line = pendingBlock;
+            lineNumber = pendingBlockLine;
+            pendingBlock = nil;
+        } else {
+            lineNumber = physicalLineNumber;
+            NSRange openingBrace = [line rangeOfString:@"{"];
+            NSRange equals = [line rangeOfString:@"="];
+            BOOL beginsBlock = openingBrace.location != NSNotFound &&
+                (equals.location == NSNotFound || openingBrace.location < equals.location);
+            if (beginsBlock && unquotedClosingBraceLocation(line) == NSNotFound) {
+                pendingBlock = [NSMutableString stringWithString:line];
+                pendingBlockLine = lineNumber;
                 continue;
             }
         }
 
+        if ([line hasPrefix:@"["] && [line hasSuffix:@"]"]) {
+            NSString *header = [[line substringWithRange:NSMakeRange(1, [line length] - 2)]
+                                stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSString *lowerHeader = [header lowercaseString];
+            application = nil;
+            if ([lowerHeader isEqualToString:@"general"] ||
+                [lowerHeader isEqualToString:@"mouse"] ||
+                [lowerHeader isEqualToString:@"trackpad"]) {
+                section = lowerHeader;
+            } else {
+                NSString *matchedDevice = nil;
+                for (NSString *candidate in @[@"mouse", @"trackpad"]) {
+                    if ([lowerHeader hasPrefix:[candidate stringByAppendingString:@" "]]) {
+                        matchedDevice = candidate;
+                        break;
+                    }
+                }
+                NSString *selector = matchedDevice == nil ? nil :
+                    [header substringFromIndex:[matchedDevice length]];
+                selector = [selector stringByTrimmingCharactersInSet:
+                            [NSCharacterSet whitespaceCharacterSet]];
+                if (matchedDevice == nil || [selector length] < 2 ||
+                    [selector characterAtIndex:0] != '"' ||
+                    [selector characterAtIndex:[selector length] - 1] != '"' ||
+                    [[selector substringWithRange:NSMakeRange(1, [selector length] - 2)] length] == 0) {
+                    report(line, @"section must be [general], [mouse], [trackpad], or a device followed by a quoted application");
+                    section = @"invalid";
+                    continue;
+                }
+                section = matchedDevice;
+                application = [selector substringWithRange:NSMakeRange(1, [selector length] - 2)];
+                NSMutableDictionary *scopes = [section isEqualToString:@"mouse"]
+                    ? mouseScopes : trackpadScopes;
+                NSMutableArray *order = [section isEqualToString:@"mouse"]
+                    ? mouseScopeOrder : trackpadScopeOrder;
+                if ([scopes objectForKey:application] == nil) {
+                    [scopes setObject:[NSMutableArray array] forKey:application];
+                    [order addObject:application];
+                }
+            }
+            continue;
+        }
+
+        NSString *expandedValue = nil;
+        NSNumber *expandedDefer = nil;
+        NSNumber *expandedHaptic = nil;
+        BOOL expandedInvalid = NO;
+        NSRange openingBrace = [line rangeOfString:@"{"];
+        NSUInteger closingBraceLocation = unquotedClosingBraceLocation(line);
+        NSRange closingBrace = NSMakeRange(closingBraceLocation, closingBraceLocation == NSNotFound ? 0 : 1);
+        NSRange firstEquals = [line rangeOfString:@"="];
+        BOOL expanded = openingBrace.location != NSNotFound &&
+            closingBrace.location != NSNotFound &&
+            closingBrace.location > openingBrace.location &&
+            (firstEquals.location == NSNotFound || openingBrace.location < firstEquals.location);
+        if (expanded) {
+            NSString *tail = [[line substringFromIndex:closingBrace.location + 1]
+                stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            if ([tail length] > 0) {
+                report(line, @"nothing may follow an expanded binding block");
+                continue;
+            }
+            NSString *body = [line substringWithRange:NSMakeRange(
+                openingBrace.location + 1, closingBrace.location - openingBrace.location - 1)];
+            NSArray *properties = splitExpandedProperties(body);
+            for (NSString *rawProperty in properties) {
+                NSString *property = [rawProperty stringByTrimmingCharactersInSet:
+                    [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                if ([property length] == 0)
+                    continue;
+                NSRange propertyEquals = [property rangeOfString:@"="];
+                if (propertyEquals.location == NSNotFound) {
+                    report(line, @"expanded properties use name = value and commas between properties");
+                    expandedInvalid = YES;
+                    break;
+                }
+                NSString *propertyName = [[[property substringToIndex:propertyEquals.location]
+                    stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] lowercaseString];
+                NSString *propertyValue = [[property substringFromIndex:propertyEquals.location + 1]
+                    stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                if ([propertyName isEqualToString:@"action"]) {
+                    if ([propertyValue length] < 2 ||
+                        [propertyValue characterAtIndex:0] != '"' ||
+                        [propertyValue characterAtIndex:[propertyValue length] - 1] != '"') {
+                        report(line, @"an expanded action value must be in double quotes");
+                        expandedInvalid = YES;
+                        break;
+                    }
+                    expandedValue = propertyValue;
+                } else if ([propertyName isEqualToString:@"defer"]) {
+                    BOOL deferValue = NO;
+                    if (!parseBooleanValue(propertyValue, &deferValue)) {
+                        report(line, @"defer must be true, false, yes, no, on, off, 1, or 0");
+                        expandedInvalid = YES;
+                        break;
+                    }
+                    expandedDefer = @(deferValue);
+                } else if ([propertyName isEqualToString:@"haptic"]) {
+                    BOOL hapticValue = NO;
+                    if (!parseBooleanValue(propertyValue, &hapticValue)) {
+                        report(line, @"haptic must be true, false, yes, no, on, off, 1, or 0");
+                        expandedInvalid = YES;
+                        break;
+                    }
+                    expandedHaptic = @(hapticValue);
+                } else {
+                    report(line, [NSString stringWithFormat:@"no binding property named \"%@\"", propertyName]);
+                    expandedInvalid = YES;
+                    break;
+                }
+            }
+            if (expandedInvalid)
+                continue;
+            if (expandedValue == nil && application == nil) {
+                report(line, @"a global expanded binding requires an action property");
+                continue;
+            }
+        }
+
+        NSRange eq = expanded ? NSMakeRange(NSNotFound, 0) : [line rangeOfString:@"="];
+        if (eq.location == NSNotFound) {
+            if (!expanded) {
+                report(line, @"not a setting: expected name = value");
+                continue;
+            }
+        }
+        NSString *key = [[line substringToIndex:expanded ? openingBrace.location : eq.location]
+                         stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        NSString *value = expanded ? expandedValue :
+            [[line substringFromIndex:eq.location + 1]
+             stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        key = [key lowercaseString];
+
+        NSString *device = section;
+
         if ([device isEqualToString:@"mouse"] || [device isEqualToString:@"trackpad"]) {
-            BOOL defer = [key hasSuffix:@".defer"];
-            if (defer)
-                key = [key substringToIndex:[key length] - [@".defer" length]];
+            BOOL defer = expandedDefer != nil && [expandedDefer boolValue];
             NSDictionary *slugs = [device isEqualToString:@"mouse"]
                 ? [Config mouseGestureSlugs] : [Config trackpadGestureSlugs];
             NSArray *engineNames = [slugs objectForKey:key];
@@ -599,25 +815,50 @@ static NSSet *knownSettingNames(void) {
                 continue;
             }
             if (defer && ![key hasSuffix:@"-tap"]) {
-                report(line, @".defer is available only for tap gestures");
+                report(line, @"defer is available only for tap gestures");
                 continue;
             }
-            NSDictionary *binding = parseBinding(value);
+            if (expandedHaptic != nil && [device isEqualToString:@"mouse"]) {
+                report(line, @"haptic is available only for trackpad bindings");
+                continue;
+            }
+            NSDictionary *binding = expanded && expandedValue == nil
+                ? @{ @"Gesture": @"", @"Enable": @YES, @"InheritAction": @YES,
+                     @"SourceLine": @(lineNumber), @"SourceText": line }
+                : parseBinding(value);
             if (binding == nil) {
                 NSString *unquoted = stripQuotes(value);
                 if ([[unquoted lowercaseString] hasPrefix:@"url:"])
                     report(line, urlBindingProblem([unquoted substringFromIndex:4]));
+                else if ([[unquoted lowercaseString] hasPrefix:@"script:"]) {
+                    NSString *problem = nil;
+                    resolvedScriptPath([unquoted substringFromIndex:7], &problem);
+                    report(line, problem);
+                }
                 else
-                    report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, action, or URL", value]);
+                    report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, action, URL, or script", value]);
                 continue;
             }
 
-            NSMutableArray *target = [device isEqualToString:@"mouse"] ? mouse : trackpad;
+            NSMutableDictionary *scopes = [device isEqualToString:@"mouse"]
+                ? mouseScopes : trackpadScopes;
+            NSString *scopeName = application ?: @"All Applications";
+            NSMutableArray *target = [scopes objectForKey:scopeName];
+            NSString *declarationKey = [NSString stringWithFormat:@"%@|%@|%@",
+                                         device, scopeName, key];
+            if ([[binding objectForKey:@"Enable"] boolValue])
+                [activeBindingKeys addObject:declarationKey];
+            else
+                [activeBindingKeys removeObject:declarationKey];
             for (NSString *name in engineNames) {
                 NSMutableDictionary *g = [[binding mutableCopy] autorelease];
                 [g setObject:name forKey:@"Gesture"];
+                if ([[binding objectForKey:@"InheritAction"] boolValue])
+                    [g setObject:declarationKey forKey:@"SourceBindingKey"];
                 if (defer)
                     [g setObject:@YES forKey:@"Defer"];
+                if (expandedHaptic != nil)
+                    [g setObject:expandedHaptic forKey:@"HapticFeedback"];
                 [target addObject:g];
             }
         } else if ([device isEqualToString:@"general"]) {
@@ -625,13 +866,13 @@ static NSSet *knownSettingNames(void) {
                 report(line, [NSString stringWithFormat:@"no setting named \"%@\"", key]);
                 continue;
             }
-            if ([key isEqualToString:@"config-version"] && ![stripQuotes(value) isEqualToString:@"1"]) {
+            if ([key isEqualToString:@"config-version"] && ![stripQuotes(value) isEqualToString:@"2"]) {
                 report(line, [NSString stringWithFormat:
-                    @"configuration format \"%@\" is not supported; this version reads format 1",
+                    @"configuration format \"%@\" is not supported; this version reads format 2",
                     value]);
                 unsupportedVersion = YES;
             }
-            if ([@[@"enable-mouse", @"enable-trackpad", @"verbose-logging"] containsObject:key] &&
+            if ([@[@"enable-mouse", @"enable-trackpad", @"haptic-feedback", @"verbose-logging"] containsObject:key] &&
                 !parseBooleanValue(value, NULL)) {
                 report(line, [NSString stringWithFormat:
                     @"%@ must be true, false, yes, no, on, off, 1, or 0", key]);
@@ -641,10 +882,22 @@ static NSSet *knownSettingNames(void) {
                 report(line, @"tap-speed must be a positive number of seconds");
                 continue;
             }
+            if ([key isEqualToString:@"dominant-hand"] &&
+                ![@[@"left", @"right"] containsObject:[[stripQuotes(value) lowercaseString]
+                                                         stringByTrimmingCharactersInSet:
+                                                             [NSCharacterSet whitespaceCharacterSet]]]) {
+                report(line, @"dominant-hand must be left or right");
+                continue;
+            }
             [general setObject:value forKey:key];
         } else {
             report(line, [NSString stringWithFormat:@"no section or device named \"%@\"", device]);
         }
+    }
+
+    if (pendingBlock != nil) {
+        lineNumber = pendingBlockLine;
+        report(pendingBlock, @"expanded binding is missing a closing }");
     }
 
     // A newer or malformed format may reinterpret otherwise valid lines. Keep
@@ -657,24 +910,73 @@ static NSSet *knownSettingNames(void) {
         return v ?: fallback;
     };
 
+    BOOL leftHanded = [[stripQuotes(str(@"dominant-hand", @"right")) lowercaseString]
+        isEqualToString:@"left"];
+
+    NSArray *(^commands)(NSMutableDictionary *, NSMutableArray *) =
+        ^NSArray *(NSMutableDictionary *scopes, NSMutableArray *order) {
+            NSMutableArray *result = [NSMutableArray array];
+            NSMutableSet *reportedMissingActions = [NSMutableSet set];
+            NSMutableDictionary *globalByGesture = [NSMutableDictionary dictionary];
+            for (NSDictionary *binding in [scopes objectForKey:@"All Applications"])
+                [globalByGesture setObject:binding forKey:[binding objectForKey:@"Gesture"]];
+            for (NSString *app in order) {
+                NSArray *configured = [scopes objectForKey:app];
+                NSMutableArray *resolved = [NSMutableArray array];
+                for (NSDictionary *binding in configured) {
+                    if (![[binding objectForKey:@"InheritAction"] boolValue]) {
+                        [resolved addObject:binding];
+                        continue;
+                    }
+                    NSDictionary *global = [globalByGesture objectForKey:[binding objectForKey:@"Gesture"]];
+                    if (global == nil) {
+                        NSString *sourceKey = [binding objectForKey:@"SourceBindingKey"];
+                        [activeBindingKeys removeObject:sourceKey];
+                        if (![reportedMissingActions containsObject:sourceKey]) {
+                            [reportedMissingActions addObject:sourceKey];
+                            [problems addObject:[NSString stringWithFormat:
+                                @"line %@:  %@\n          app property overrides require a global action for the same gesture",
+                                [binding objectForKey:@"SourceLine"], [binding objectForKey:@"SourceText"]]];
+                        }
+                        continue;
+                    }
+                    NSMutableDictionary *merged = [[global mutableCopy] autorelease];
+                    for (NSString *key in binding) {
+                        if (![@[@"InheritAction", @"SourceLine", @"SourceText", @"SourceBindingKey"] containsObject:key])
+                            [merged setObject:[binding objectForKey:key] forKey:key];
+                    }
+                    [resolved addObject:merged];
+                }
+                [result addObject:@{@"Application": app,
+                                    @"Path": @"",
+                                    @"Gestures": resolved}];
+            }
+            return result;
+        };
+
+    NSArray *resolvedTrackpadCommands = commands(trackpadScopes, trackpadScopeOrder);
+    NSArray *resolvedMouseCommands = commands(mouseScopes, mouseScopeOrder);
+
     return @{
         @"enAll": @1,
         @"ClickSpeed": @([str(@"tap-speed", @"0.25") floatValue]),
         @"Sensitivity": @4.6666,
         @"ShowIcon": @1,
+        @"BindingCount": @([activeBindingKeys count]),
+        @"HapticFeedback": @(parseBoolean(str(@"haptic-feedback", @"true"), YES) ? 1 : 0),
         @"LogLevel": @(parseBoolean(str(@"verbose-logging", @"false"), NO) ? 2 : 1),
         @"enTPAll": @(parseBoolean(str(@"enable-trackpad", @"true"), YES) ? 1 : 0),
         @"enMMAll": @(parseBoolean(str(@"enable-mouse", @"true"), YES) ? 1 : 0),
-        @"Handed": @0,
-        @"MMHanded": @0,
+        @"Handed": @(leftHanded ? 1 : 0),
+        @"MMHanded": @(leftHanded ? 1 : 0),
         @"enCharRegTP": @0,
         @"enCharRegMM": @0,
         @"charRegMouseButton": @0,
         @"charRegIndexRingDistance": @0.33,
         @"enOneDrawing": @0,
         @"enTwoDrawing": @1,
-        @"TrackpadCommands": @[@{@"Application": @"All Applications", @"Path": @"", @"Gestures": trackpad}],
-        @"MagicMouseCommands": @[@{@"Application": @"All Applications", @"Path": @"", @"Gestures": mouse}],
+        @"TrackpadCommands": resolvedTrackpadCommands,
+        @"MagicMouseCommands": resolvedMouseCommands,
         @"RecognitionCommands": @[@{@"Application": @"All Applications", @"Path": @"", @"Gestures": @[]}],
     };
 }

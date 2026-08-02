@@ -22,6 +22,8 @@ tapping. Either hand works, and either finger can play either part.
 | `one-finger-tap` | Tap with one finger |
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
+| `two-finger-click` | Physically click with two fingers touching |
+| `three-finger-click` | Physically click with three fingers touching |
 | `front-right-tap` | Tap the front right of the surface |
 | `one-finger-swipe-left` | Swipe left with one finger |
 | `one-finger-swipe-right` | Swipe right with one finger |
@@ -31,6 +33,10 @@ tapping. Either hand works, and either finger can play either part.
 | `three-finger-swipe-right` | Swipe right with three fingers |
 | `three-finger-swipe-up` | Swipe up with three fingers |
 | `three-finger-swipe-down` | Swipe down with three fingers |
+
+Physical clicks ignore narrow contacts at either side and palm contacts at the
+rear. Counted fingertips must form one connected cluster; a recognized thumb
+does not count toward the gesture.
 
 ## Magic Trackpad
 
@@ -45,6 +51,9 @@ slide name where the mouse has two.
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
 | `four-finger-tap` | Tap with four fingers |
+| `five-finger-tap` | Tap with five fingers together |
+| `three-finger-click` | Physically click with three fingers touching |
+| `four-finger-click` | Physically click with four fingers touching |
 | `three-finger-swipe-left` | Swipe left with three fingers |
 | `three-finger-swipe-right` | Swipe right with three fingers |
 | `three-finger-swipe-up` | Swipe up with three fingers |
@@ -56,23 +65,63 @@ slide name where the mouse has two.
 | `index-to-pinky` | Brush your fingers across in sequence, index first |
 | `pinky-to-index` | Brush your fingers across in sequence, pinky first |
 
-## Deferring a tap
+On a Magic Mouse, binding a physical multi-finger click consumes that click so
+only its configured action fires. On a trackpad, the native click continues and
+the configured action fires on release. A trackpad drag keeps its native events
+and does not fire the configured click action.
 
-Add `.defer` to a tap gesture when its first tap also begins a double-tap
-gesture in macOS or another application:
+One continuous touch sequence can run one kind of configured gesture. A swipe
+or hold gesture may repeat while it owns the sequence, but a physical click,
+tap, or different gesture will not also run until every finger lifts.
 
-    two-finger-tap.defer = ctrl+cmd+a
+## Application-specific bindings
+
+Put an application name or exact bundle identifier in a device heading:
+
+    [trackpad "Final Cut Pro"]
+    three-finger-click = escape
+    four-finger-tap = off
+
+The application section overrides global bindings for the same gesture. `off`
+excludes a global binding in that application. Sections may repeat, which lets
+related application bindings stay together without requiring device prefixes.
+
+## Binding options
+
+Use braces when a binding needs options. Separate properties with commas; line
+breaks are optional:
+
+    three-finger-tap {
+      action = "ctrl+cmd+a",
+      defer = true,
+      haptic = false
+    }
+
+An application-specific block may omit `action` to inherit the global action:
+
+    [trackpad "Final Cut Pro"]
+    three-finger-tap { haptic = false }
+
+`haptic` is valid only for trackpad bindings. It overrides the global
+`haptic-feedback` setting for that binding.
+
+### Deferring a tap
+
+Set `defer = true` when the first tap also begins a double-tap gesture in macOS
+or another application:
+
+    two-finger-tap { action = "ctrl+cmd+a", defer = true }
 
 Magic Gestures waits through the Mac's double-click interval before sending the
 single-tap action. A second matching tap on the same device cancels it. This
 preserves the double-tap gesture at the cost of latency on the single tap.
 
-`.defer` works only with gesture names ending in `-tap`. A swipe, slide, or hold
-gesture using it is reported and skipped.
+`defer` works only with tap gestures. A swipe, slide, or hold using it is
+reported and skipped.
 
 ## What a gesture can send
 
-A keystroke, a built-in action, or a URL.
+A keystroke, a built-in action, a URL, or an executable script.
 
 ### Keystrokes
 
@@ -155,14 +204,28 @@ quotes in date formats. The expanded URL is checked again when the gesture fires
 If it is invalid, nothing opens and Console records the problem without the
 expanded clipboard contents.
 
+### Scripts
+
+Prefix an executable path with `script:`:
+
+    hold-right-tap-left = script: ~/.config/magic-gestures/scripts/capture-selection
+
+The path may begin with `~` or be absolute. It must exist and be executable when
+the settings reload. Magic Gestures launches it directly through its shebang,
+uses the script's folder as its working directory, and does not wait for it to
+finish. It does not interpret shell commands, arguments, substitutions, or an
+interactive shell profile. Console records launch failures and nonzero exits.
+
 ## Settings
 
 | Setting | Value |
 |---|---|
-| `config-version` | Configuration format used by this file, currently `1` |
+| `config-version` | Configuration format used by this file, currently `2` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
+| `dominant-hand` | `left` or `right`; mirrors positional recognition for left-handed use, default `right` |
 | `tap-speed` | Seconds a tap may last, default `0.25` |
+| `haptic-feedback` | `true` requests confirmation for configured trackpad gestures, default `true` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
@@ -196,8 +259,8 @@ On the Magic Mouse, one-finger and two-finger horizontal motion drives scrolling
 and page navigation, which is why `one-finger-swipe-left` and
 `one-finger-swipe-right` fight the system.
 
-Free on a default setup: every `hold-` gesture, `three-finger-tap`,
-`four-finger-tap`, `index-to-pinky`, `pinky-to-index`, and the
+Free on a default setup: every `hold-` gesture, multi-finger tap or click,
+`index-to-pinky`, `pinky-to-index`, and the
 `three-finger-swipe` names.
 
 ## Choosing one

@@ -1,8 +1,8 @@
 # magic-gestures
 
 Maps Magic Mouse and Magic Trackpad multi-touch gestures to keystrokes, built-in
-actions, or custom URLs on macOS. Runs as a background agent with a menu bar item
-and no window.
+actions, custom URLs, or executable scripts on macOS. Runs as a background agent
+with a menu bar item and no window.
 
 `CLAUDE.md` is a symlink to this file. Edit this one.
 
@@ -44,6 +44,10 @@ Settings, or restart with `scripts/start.sh`. SIGHUP re-registers the
 multi-touch devices without rereading the file, so it does not apply a binding
 change on its own.
 
+The app observes `NSWorkspaceDidWakeNotification` and fully rebuilds its device
+list and callback registrations after wake. `scripts/check.sh` protects this
+recovery path from drifting out of the vendored engine.
+
 `update.sh` requires a clean checkout, fetches public `origin/main`, previews the
 incoming commits, and asks before a fast-forward update. After approval it runs
 the checks, rebuilds, and restarts. `--yes` skips only the prompt and is for an
@@ -61,8 +65,10 @@ a link to the repository.
 
 - Turn Magic Gestures Off, which suspends recognition without quitting.
 - The Accessibility status, which opens the Privacy pane when access is missing.
+- The configuration status, which reports active bindings and skipped lines.
 - Current Gestures, a submenu listing the live bindings by device, each phrased
-  through `humanNameForGesture:`.
+  through `humanNameForGesture:`. Application-specific rows name their scope and
+  exclusions appear as Off.
 - Manage with Agent, a submenu of the coding agents found through the
   user's login shell. Picking one writes
   `~/.config/magic-gestures/manage-with-agent.command` and opens it, starting
@@ -70,6 +76,8 @@ a link to the repository.
   pointing at the installed instructions.
 - Edit Settings, which opens `config.txt` in the user's editor.
 - Reload Settings, which rereads the file into the running engine.
+- Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
+  or enable verbose logging for the current session.
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.
@@ -82,7 +90,9 @@ The version lives in one place: `CFBundleShortVersionString` in
 cannot drift from what is installed.
 
 Semantic versioning, read against the configuration file rather than the code,
-because the config is the only interface anyone depends on:
+because the config is the only interface anyone depends on. Before 1.0, a minor
+release may intentionally change that alpha interface and must carry a migration
+note. After 1.0:
 
 - **Patch** — a fix that leaves every existing `config.txt` working.
 - **Minor** — new gestures, keys, actions, or settings. An existing config keeps
@@ -137,23 +147,29 @@ app-managed `AGENTS.md`. `start.sh`, `install-login-agent.sh`, and the app creat
 `config.txt` only when missing and atomically refresh `AGENTS.md` from the running
 version. An optional user-owned `AGENTS.local.md` survives updates.
 
-Lines are `key = value`. A `#` at the start of a line or after whitespace starts
-a comment. `[mouse]` and `[trackpad]` are the normal form for hand-edited binding
-groups. A `mouse.` or `trackpad.` prefix overrides the section, making one
-appended binding safe for an agent or script. General settings belong in
-`[general]`; there is no `general.` prefix.
+Compact bindings are `gesture = value`. A `#` at the start of a line or after
+whitespace starts a comment. `[mouse]` and `[trackpad]` group bindings. Sections
+may repeat; repeated scopes merge and the last declaration for the same gesture
+wins. General settings belong in `[general]`. Device prefixes are not part of
+the format.
 
-A tap gesture may end in `.defer`, as in `two-finger-tap.defer` or
-`mouse.two-finger-tap.defer`. Its action waits through the Mac's double-click
-interval and is canceled by a second matching tap on the same device. Use it
-when preserving an overlapping double-tap gesture is worth adding latency to
-the single tap. The parser accepts it only on gesture names ending in `-tap`.
+`[mouse "Application"]` and `[trackpad "Application"]` limit the bindings below
+them to one application. The quoted selector may be its display name or exact
+bundle identifier. Application bindings override the device-global binding for
+the same gesture. `off` excludes a global binding in that application.
 
-`config-version` identifies the file format and is currently `1`. A missing
-version is format 1. An unsupported value rejects the entire reload so a newer
-file cannot be partially reinterpreted.
+An expanded binding uses braces around `action`, `defer`, and `haptic`
+properties. Commas separate properties and line breaks are optional. `action` is
+required globally and may be omitted in an application scope to inherit the
+global action. `defer` is valid only for tap gestures. `haptic` is valid only for
+trackpad bindings and overrides `haptic-feedback` for that binding.
 
-Three value forms:
+`config-version` identifies the file format and is currently `2`. A missing
+version means the current format while the project is in alpha. An unsupported
+value rejects the entire reload so another format cannot be partially
+reinterpreted.
+
+Four value forms:
 
 - A keystroke: any modifiers plus one key. Separators may be `+`, `-`, or a
   space, and modifier symbols may run together with no separator at all.
@@ -162,6 +178,12 @@ Three value forms:
 - A custom URL prefixed with `url:`. The parser validates its scheme, whitespace,
   and percent escapes while preserving the payload's case. `NSWorkspace` resolves
   the installed handler when the gesture fires.
+- An executable path prefixed with `script:`. Reload expands `~`, requires an
+  absolute regular executable file, and records the resolved path. `ScriptRunner`
+  launches it directly through its shebang, uses its parent folder as the working
+  directory, discards output, retains it through asynchronous termination, and
+  logs launch failures or nonzero exits. There is no shell parsing, argument
+  syntax, substitution, or interactive shell environment.
 
 A **substitution** is a named expression in a URL binding that resolves when its
 gesture fires. Use this term in code and documentation; avoid snippet, variable,
@@ -191,6 +213,17 @@ binding on one does not reach the other.
 Every engine name a slug reaches needs a phrase in `humanNameForGesture:`, or
 Current Gestures falls back to the engine's internal name.
 
+`haptic-feedback = true` is the default and requests the public AppKit generic
+haptic pattern for configured trackpad gestures. The request is best effort:
+AppKit chooses the actuator and may suppress feedback after the fingers lift.
+Magic Mouse gestures never request haptics. Deferred taps request feedback only
+if their delayed action survives cancellation. Set it to `false` to opt out
+globally, or set `haptic` in an expanded trackpad binding for one override.
+
+`dominant-hand = right` preserves the engine's original coordinate axis.
+`dominant-hand = left` mirrors positional recognition on both devices, including
+hold-tap direction and thumb-side filtering.
+
 Shift, Control, Option, and Command are the available modifiers. Fn is a HID
 usage rather than a key event and cannot be synthesized.
 
@@ -205,10 +238,10 @@ setting.
 `./scripts/check.sh` compiles `src/Config.m` with `src/ConfigCheck.m` and runs
 the result against the parser. No framework, no fixtures.
 
-It asserts keystroke parsing, action and deferred dispatch, URL substitution
-parsing and resolution, section and inline-prefix handling, skipped bad lines,
-boolean spellings, and comment stripping. It also asserts that every slug
-appears in both `GESTURES.md` and
+It asserts keystroke parsing, app scopes, exclusions, expanded options, action
+and deferred dispatch, URL substitution parsing and resolution, script
+validation and execution, skipped bad lines, boolean spellings, and comment
+stripping. It also asserts that every slug appears in both `GESTURES.md` and
 `config-notes.default.md`, and that every engine name reachable from a slug has
 a menu phrase. Adding a gesture without documenting it fails the check.
 
@@ -284,6 +317,23 @@ configuration.
 
 `TrackpadInteraction.m` classifies each trackpad contact sequence before the tap
 recognizers claim it. Broad palm contacts and physical clicks reject tap-only
-gestures, one recognizer may claim a sequence, and full lift resets the state.
-Keep gesture-specific geometry and timing in `Gesture.m`; shared eligibility and
-inter-gesture arbitration belong in this module.
+gestures, one recognizer may claim a sequence, and raw full lift resets the
+state. Physical clicks use the filtered contact count already observed by the
+module, retain its peak through a brief missing-contact frame, and reject the
+configured action when the CG event stream becomes a drag. Physical mouse-up
+clears the peak so the next click cannot inherit it. Keep gesture-specific
+geometry and timing in `Gesture.m`; shared eligibility and inter-gesture
+arbitration belong in this module.
+
+`GestureSequence.m` gives each device one gesture owner until every raw contact
+lifts. `dispatchExclusiveCommand` checks that a binding exists before claiming,
+allows the owning recognizer to repeat, and blocks a click, tap, swipe, or hold
+recognizer from dispatching over a different owner. Tap dispatch adds the shared
+trackpad contact-eligibility check. New recognizers that can share a contact
+sequence with an existing gesture must use one of these paths.
+
+`MouseContactFilter.m` rejects measured rear-palm and narrow side-edge contacts
+before physical click counting. Counted fingertips must form a connected
+cluster; `gestureMagicMouseThumb` identifies and excludes a thumb from that
+cluster. Apply these rules to physical clicks, not holds or swipes whose contact
+geometry has different meaning.

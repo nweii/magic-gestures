@@ -1,11 +1,11 @@
 # Magic Gestures
 
-Trigger a shortcut or open a URL without taking your hand off the mouse.
+Trigger an action without taking your hand off the mouse.
 
 Magic Gestures turns finger gestures on a Magic Mouse or Magic Trackpad into
-keyboard shortcuts, built-in actions, or custom URLs. Each device supports
-sixteen gestures, including taps, swipes, and motions where you hold one finger
-still while another taps or slides.
+keyboard shortcuts, built-in actions, custom URLs, or executable scripts. Its
+gestures include taps, swipes, physical multi-finger clicks, and motions where
+you hold one finger still while another taps or slides.
 
 The default configuration gives a Magic Mouse a middle click and maps a
 hold-and-tap gesture on either device to Return. The app runs in the background
@@ -13,19 +13,25 @@ with a menu bar item and does not affect normal clicks or existing gestures.
 
 ## Features
 
-- **Keyboard shortcuts, actions, and URLs.** Send a shortcut, run a built-in
-  action such as middle click or Mission Control, or open a web URL or deeplink.
-  URLs can include clipboard text or the current date and time.
+- **Keyboard shortcuts, actions, URLs, and scripts.** Send a shortcut, run a
+  built-in action such as middle click or Mission Control, open a web URL or
+  deeplink, or launch one executable script. URLs can include clipboard text or
+  the current date and time.
 - **Flexible gestures for each device.** Configure taps, swipes, and hold
-  gestures independently for a Magic Mouse and Magic Trackpad.
+  gestures independently for a Magic Mouse and Magic Trackpad. A binding can
+  apply everywhere, only in named applications, or everywhere except them.
 - **Simple text configuration.** All bindings and settings live in one readable
   text file that is easy to inspect, edit, and back up.
 - **Agent-native configuration.** Detects installed coding agents such as Claude
   Code and Codex and opens one with editing guidance and your configuration. The
   agent can tailor bindings to your workflow, construct deeplinks, and manage
   installation and updates.
-- **Works alongside macOS.** Existing clicks, scrolling, and system gestures
-  continue to behave as configured.
+- **Works alongside macOS.** Unbound clicks, scrolling, and system gestures
+  continue to behave as configured. Trackpad gestures request haptic
+  confirmation by default, with per-binding overrides for quieter gestures.
+- **Useful feedback without a settings window.** The menu reports loaded and
+  skipped bindings, lists application scopes, and includes recent logs and a
+  copyable diagnostic summary.
 
 ## Install
 
@@ -78,7 +84,7 @@ and encode their parameters.
 Paste this into Claude Code, or any coding agent:
 
 ```text
-Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, or open a URL. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/magic-gestures/config.txt, and tell me what I have to approve in System Settings.
+Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/magic-gestures/config.txt, and tell me what I have to approve in System Settings.
 ```
 
 For a zip install, you need to complete the Gatekeeper steps yourself. Building
@@ -113,18 +119,24 @@ two-finger-tap = middle-click
 hold-left-tap-right = cmd+shift+a
 three-finger-tap = url:obsidian://daily
 four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
+
+[trackpad "Final Cut Pro"]
+three-finger-tap { haptic = false }
+four-finger-tap = off
 ```
 
 Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
-needed. **Current Gestures** shows what is bound right now.
+needed. The status row reports how many bindings loaded and whether any lines
+were skipped. **Current Gestures** shows global and application-specific
+bindings. **Diagnostics** opens recent logs or copies a concise state summary.
 
 To have a coding agent make the change, pick one under **Manage with Agent**. It
 opens in the settings folder with editing guidance and access to your
 configuration.
 
 See `GESTURES.md` for the gesture names available on each device, supported keys
-and modifiers, built-in actions, custom URLs, URL substitutions, and motions
-already used by macOS.
+and modifiers, built-in actions, custom URLs, URL substitutions, executable
+scripts, behavior settings, and motions already used by macOS.
 
 ## Uninstall
 
@@ -191,8 +203,9 @@ browser tabs, snaps windows, opens Mission Control, and recognizes letters you
 draw on the trackpad. You pick from that catalog in a preference pane.
 
 Magic Gestures keeps Jitouch's recognizers but lets each gesture send a
-configurable keyboard shortcut or open a custom URL. Jitouch's built-in actions
-remain available, and a menu bar item replaces the preference pane.
+configurable keyboard shortcut, open a custom URL, or launch an executable
+script. Jitouch's built-in actions remain available, and a menu bar item
+replaces the preference pane.
 
 ## How it works
 

@@ -32,9 +32,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.3.0</string>
+  <string>0.4.0</string>
   <key>CFBundleVersion</key>
-  <string>5</string>
+  <string>6</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>LSUIElement</key>
@@ -61,8 +61,12 @@ clang \
   -framework MultitouchSupport \
   "$ROOT/src/main.m" \
   "$ROOT/src/Config.m" \
+  "$ROOT/src/ContactTapRecognizer.m" \
   "$ROOT/src/DeferredGestureDispatcher.m" \
+  "$ROOT/src/GestureSequence.m" \
   "$ROOT/src/KeyEventSequence.m" \
+  "$ROOT/src/MouseContactFilter.m" \
+  "$ROOT/src/ScriptRunner.m" \
   "$ROOT/src/TrackpadInteraction.m" \
   "$SRC_ROOT/JitouchAppDelegate.m" \
   "$SRC_ROOT/Settings.m" \

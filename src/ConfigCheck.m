@@ -32,6 +32,19 @@ static NSDictionary *bindingFor(NSDictionary *settings, NSString *deviceKey, NSS
     return nil;
 }
 
+static NSDictionary *bindingForApplication(NSDictionary *settings, NSString *deviceKey,
+                                           NSString *application, NSString *gesture) {
+    for (NSDictionary *app in [settings objectForKey:deviceKey]) {
+        if (![[app objectForKey:@"Application"] isEqualToString:application])
+            continue;
+        for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
+            if ([[g objectForKey:@"Gesture"] isEqualToString:gesture])
+                return g;
+        }
+    }
+    return nil;
+}
+
 static NSDictionary *parse(NSString *text) {
     NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.conf"];
     [text writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL];
@@ -130,26 +143,129 @@ int main(void) {
         if (![[g objectForKey:@"Command"] isEqualToString:@"Middle Click"])
             fail(@"action name", @"Middle Click", [g objectForKey:@"Command"]);
 
-        s = parse(@"[mouse]\ntwo-finger-tap.defer = ctrl+cmd+a\n");
-        g = bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap");
-        if (![[g objectForKey:@"Defer"] boolValue])
-            fail(@"section binding enables deferred dispatch", @YES, [g objectForKey:@"Defer"]);
-        if ([[g objectForKey:@"KeyCode"] intValue] != 0)
-            fail(@"deferred binding preserves its action", @0, [g objectForKey:@"KeyCode"]);
+        s = parse(@"[mouse]\ntwo-finger-click = return\nthree-finger-click = escape\n");
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") == nil)
+            fail(@"mouse two-finger physical click is configurable",
+                 @"a binding", @"missing");
+        if (bindingFor(s, @"MagicMouseCommands", @"Three-Finger Click") == nil)
+            fail(@"mouse three-finger physical click is configurable",
+                 @"a binding", @"missing");
+        s = parse(@"[trackpad]\nthree-finger-click = escape\nfour-finger-click = return\n");
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Click") == nil)
+            fail(@"trackpad three-finger physical click is configurable",
+                 @"a binding", @"missing");
+        if (bindingFor(s, @"TrackpadCommands", @"Four-Finger Click") == nil)
+            fail(@"trackpad four-finger physical click is configurable",
+                 @"a binding", @"missing");
+        s = parse(@"[trackpad]\nfive-finger-tap = escape\n");
+        if (bindingFor(s, @"TrackpadCommands", @"Five-Finger Tap") == nil)
+            fail(@"trackpad five-finger tap is configurable",
+                 @"a binding", @"missing");
 
-        s = parse(@"mouse.two-finger-tap.defer = escape\n");
-        g = bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap");
-        if (![[g objectForKey:@"Defer"] boolValue])
-            fail(@"append-safe binding enables deferred dispatch", @YES, [g objectForKey:@"Defer"]);
+        s = parse(@"[mouse]\n"
+                  @"two-finger-click = return\n"
+                  @"[mouse \"Safari\"]\n"
+                  @"two-finger-click = escape\n"
+                  @"three-finger-click = cmd+a\n");
+        NSDictionary *globalClick = bindingForApplication(
+            s, @"MagicMouseCommands", @"All Applications", @"Two-Finger Click");
+        NSDictionary *safariClick = bindingForApplication(
+            s, @"MagicMouseCommands", @"Safari", @"Two-Finger Click");
+        if ([[globalClick objectForKey:@"KeyCode"] intValue] != 36)
+            fail(@"global binding remains available beside app scope", @36,
+                 [globalClick objectForKey:@"KeyCode"] ?: @"missing");
+        if ([[safariClick objectForKey:@"KeyCode"] intValue] != 53)
+            fail(@"app section overrides its gesture", @53,
+                 [safariClick objectForKey:@"KeyCode"] ?: @"missing");
+        if (bindingForApplication(s, @"MagicMouseCommands", @"Safari",
+                                  @"Three-Finger Click") == nil)
+            fail(@"app section groups several bindings", @"a binding", @"missing");
 
-        NSArray *deferProblems = nil;
-        s = parseWithProblems(@"[mouse]\ntwo-finger-swipe-left.defer = escape\n", &deferProblems);
-        if (bindingFor(s, @"MagicMouseCommands", @"Two-Swipe-Left") != nil)
-            fail(@"defer rejects a non-tap gesture", @"nothing", @"a binding");
-        NSString *deferProblem = [deferProblems count] > 0 ? [deferProblems objectAtIndex:0] : @"";
-        if ([deferProblem rangeOfString:@".defer is available only for tap gestures"].location == NSNotFound)
-            fail(@"invalid defer explains the supported gesture family",
-                 @".defer is available only for tap gestures", deferProblem);
+        s = parse(@"[trackpad]\nthree-finger-tap { action = \"escape\" }\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if ([[g objectForKey:@"KeyCode"] intValue] != 53)
+            fail(@"expanded binding accepts an action property", @53,
+                 [g objectForKey:@"KeyCode"] ?: @"missing");
+
+        s = parse(@"[trackpad]\nthree-finger-tap { action = \"escape\", defer = true }\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"Defer"] boolValue])
+            fail(@"expanded tap binding can defer its action", @YES,
+                 [g objectForKey:@"Defer"] ?: @"missing");
+
+        s = parse(@"[trackpad]\nthree-finger-click { action = \"escape\", haptic = false }\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Click");
+        if ([g objectForKey:@"HapticFeedback"] == nil ||
+            [[g objectForKey:@"HapticFeedback"] boolValue])
+            fail(@"expanded trackpad binding can disable haptics", @NO,
+                 [g objectForKey:@"HapticFeedback"] ?: @"missing");
+
+        s = parse(@"[trackpad]\nthree-finger-tap { action = \"url:https://example.com/a,b\", haptic = false }\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"OpenURL"] isEqualToString:@"https://example.com/a,b"])
+            fail(@"commas inside a quoted expanded action remain part of the action",
+                 @"https://example.com/a,b", [g objectForKey:@"OpenURL"] ?: @"missing");
+
+        s = parse(@"[trackpad]\nthree-finger-tap {\n"
+                  @"  action = \"url:things:///add?title={{clipboard|urlencode}}\",\n"
+                  @"  haptic = false\n}\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"OpenURL"]
+                isEqualToString:@"things:///add?title={{clipboard|urlencode}}"])
+            fail(@"substitution braces do not close a multiline binding block",
+                 @"configured substitution", [g objectForKey:@"OpenURL"] ?: @"missing");
+
+        NSArray *expandedProblems = nil;
+        s = parseWithProblems(@"[trackpad]\nthree-finger-tap { action = escape }\n",
+                              &expandedProblems);
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap") != nil)
+            fail(@"expanded action values are quoted", @"nothing", @"a binding");
+
+        s = parse(@"[trackpad]\n"
+                  @"three-finger-click = escape\n"
+                  @"[trackpad \"Safari\"]\n"
+                  @"three-finger-click { haptic = false }\n");
+        g = bindingForApplication(s, @"TrackpadCommands", @"Safari", @"Three-Finger Click");
+        if ([[g objectForKey:@"KeyCode"] intValue] != 53 ||
+            [g objectForKey:@"HapticFeedback"] == nil ||
+            [[g objectForKey:@"HapticFeedback"] boolValue])
+            fail(@"app binding inherits its global action and overrides one property",
+                 @"escape with haptics off", g ?: @"missing");
+
+        NSArray *inheritanceProblems = nil;
+        s = parseWithProblems(@"[trackpad \"Safari\"]\n"
+                              @"three-finger-click { haptic = false }\n",
+                              &inheritanceProblems);
+        if ([[s objectForKey:@"BindingCount"] integerValue] != 0 ||
+            [inheritanceProblems count] != 1)
+            fail(@"property-only app binding requires a loaded global action",
+                 @"zero bindings and one problem",
+                 [NSString stringWithFormat:@"%@ bindings, %lu problems",
+                  [s objectForKey:@"BindingCount"],
+                  (unsigned long)[inheritanceProblems count]]);
+
+        s = parse(@"[mouse]\ntwo-finger-click = return\n"
+                  @"[mouse \"Safari\"]\ntwo-finger-click = off\n");
+        g = bindingForApplication(s, @"MagicMouseCommands", @"Safari", @"Two-Finger Click");
+        if (g == nil || [[g objectForKey:@"Enable"] boolValue])
+            fail(@"app section can exclude a global gesture", @"disabled binding", g ?: @"missing");
+        if ([[s objectForKey:@"BindingCount"] integerValue] != 1)
+            fail(@"binding count includes active declarations and excludes off rules",
+                 @1, [s objectForKey:@"BindingCount"] ?: @"missing");
+
+        s = parse(@"[mouse]\ntwo-finger-click = return\n"
+                  @"[mouse]\ntwo-finger-click = escape\n");
+        if ([[s objectForKey:@"BindingCount"] integerValue] != 1)
+            fail(@"binding count reports the effective repeated-scope result",
+                 @1, [s objectForKey:@"BindingCount"] ?: @"missing");
+
+        NSArray *legacyProblems = nil;
+        s = parseWithProblems(@"mouse.two-finger-tap = escape\n", &legacyProblems);
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap") != nil)
+            fail(@"device prefixes are not part of format 2", @"nothing", @"a binding");
+        s = parseWithProblems(@"[mouse]\ntwo-finger-tap.defer = escape\n", &legacyProblems);
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap") != nil)
+            fail(@"defer is a binding property rather than a gesture suffix", @"nothing", @"a binding");
 
         // URL bindings preserve their payload exactly and dispatch as actions.
         NSString *customURL = @"raycast://extensions/Raycast/raycast-ai/ai-chat?ref=A%20B&mode=Fast#Prompt";
@@ -164,6 +280,28 @@ int main(void) {
         g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
         if (![[g objectForKey:@"OpenURL"] isEqualToString:@"obsidian://daily"])
             fail(@"URL permits a trailing comment", @"obsidian://daily", [g objectForKey:@"OpenURL"]);
+
+        // Script bindings resolve a direct executable path at reload. The
+        // process launcher receives the path without shell interpretation.
+        NSString *scriptPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check-script"];
+        [@"#!/bin/sh\nexit 0\n" writeToFile:scriptPath atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+        [[NSFileManager defaultManager] setAttributes:@{NSFilePosixPermissions: @0700}
+                                        ofItemAtPath:scriptPath
+                                               error:NULL];
+        s = parse([NSString stringWithFormat:@"[trackpad]\nthree-finger-tap = script: %@\n", scriptPath]);
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"ScriptPath"] isEqualToString:scriptPath])
+            fail(@"script binding preserves its executable path", scriptPath, [g objectForKey:@"ScriptPath"]);
+        if (![[g objectForKey:@"IsAction"] boolValue])
+            fail(@"script binding is an action", @YES, [g objectForKey:@"IsAction"]);
+
+        NSArray *scriptProblems = nil;
+        s = parseWithProblems(@"[trackpad]\nthree-finger-tap = script: relative-script\n", &scriptProblems);
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap") != nil)
+            fail(@"relative script path rejected", @"nothing", @"a binding");
+        NSString *scriptProblem = [scriptProblems count] > 0 ? [scriptProblems objectAtIndex:0] : @"";
+        if ([scriptProblem rangeOfString:@"absolute path"].location == NSNotFound)
+            fail(@"relative script path explains the requirement", @"absolute path", scriptProblem);
 
         NSDictionary *badURLs = @{
             @"url:raycast//extensions": @"URL is missing a valid scheme followed by \":\"",
@@ -249,22 +387,6 @@ int main(void) {
         if (![[g objectForKey:@"OpenURL"] isEqualToString:@"https://example.com?q={{clipboard|urlencode}}"])
             fail(@"configured substitution remains unresolved", @"configured expression", [g objectForKey:@"OpenURL"]);
 
-        // An inline device prefix must override the current section.
-        s = parse(@"[mouse]\ntrackpad.hold-right-tap-left = escape\n");
-        if (bindingFor(s, @"TrackpadCommands", @"One-Fix Left-Tap") == nil)
-            fail(@"inline prefix overrides section", @"trackpad binding", @"missing");
-        if (bindingFor(s, @"MagicMouseCommands", @"One-Fix Left-Tap") != nil)
-            fail(@"inline prefix does not also bind the section device", @"nothing", @"a binding");
-
-        NSArray *generalPrefixProblems = nil;
-        s = parseWithProblems(@"general.enable-mouse = false\n", &generalPrefixProblems);
-        if ([[s objectForKey:@"enMMAll"] intValue] != 1)
-            fail(@"general prefix is rejected", @1, [s objectForKey:@"enMMAll"]);
-        NSString *generalPrefixProblem = [generalPrefixProblems count] > 0
-            ? [generalPrefixProblems objectAtIndex:0] : @"";
-        if ([generalPrefixProblem rangeOfString:@"belong under a [general] header"].location == NSNotFound)
-            fail(@"general prefix explains section form", @"[general] guidance", generalPrefixProblem);
-
         // Unrecognized names must be skipped without affecting valid lines.
         s = parse(@"[mouse]\nnot-a-gesture = return\nhold-right-tap-left = return\n");
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") == nil)
@@ -286,10 +408,32 @@ int main(void) {
                 fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"enMMAll"]);
         }
 
+        s = parse(@"[general]\nhaptic-feedback = true\n");
+        if ([[s objectForKey:@"HapticFeedback"] intValue] != 1)
+            fail(@"haptic feedback setting enables trackpad confirmation",
+                 @1, [s objectForKey:@"HapticFeedback"]);
+        s = parse(@"[general]\n");
+        if ([[s objectForKey:@"HapticFeedback"] intValue] != 1)
+            fail(@"haptic feedback defaults on", @1, [s objectForKey:@"HapticFeedback"]);
+        s = parse(@"[general]\nhaptic-feedback = false\n");
+        if ([[s objectForKey:@"HapticFeedback"] intValue] != 0)
+            fail(@"haptic feedback can be disabled", @0, [s objectForKey:@"HapticFeedback"]);
+
+        s = parse(@"[general]\ndominant-hand = left\n");
+        if ([[s objectForKey:@"Handed"] intValue] != 1 ||
+            [[s objectForKey:@"MMHanded"] intValue] != 1)
+            fail(@"left dominant hand mirrors both devices", @1, [s objectForKey:@"Handed"]);
+        s = parse(@"[general]\ndominant-hand = right\n");
+        if ([[s objectForKey:@"Handed"] intValue] != 0 ||
+            [[s objectForKey:@"MMHanded"] intValue] != 0)
+            fail(@"right dominant hand keeps the default axis", @0, [s objectForKey:@"Handed"]);
+
         NSArray *invalidSettings = @[
             @"[general]\nenable-mouse = maybe\n",
             @"[general]\nenable-trackpad = enabled\n",
             @"[general]\nverbose-logging = verbose\n",
+            @"[general]\nhaptic-feedback = sometimes\n",
+            @"[general]\ndominant-hand = center\n",
             @"[general]\ntap-speed = soon\n",
             @"[general]\ntap-speed = 0\n",
             @"[general]\ntap-speed = -0.2\n",
@@ -301,20 +445,20 @@ int main(void) {
                 fail(@"invalid general setting is reported", @"a problem", @"none");
         }
 
-        // Format 1 is explicit in new files and implicit in files written
-        // before versioning. An unsupported format rejects the whole file.
-        if (parse(@"[general]\nconfig-version = 1\n") == nil)
-            fail(@"configuration format 1", @"settings", @"nothing");
+        // Format 2 is explicit in new files and implicit while the app is in alpha.
+        // An older or newer format rejects the whole file.
+        if (parse(@"[general]\nconfig-version = 2\n") == nil)
+            fail(@"configuration format 2", @"settings", @"nothing");
         if (parse(@"[general]\nenable-mouse = true\n") == nil)
-            fail(@"missing configuration version means format 1", @"settings", @"nothing");
+            fail(@"missing configuration version means current format", @"settings", @"nothing");
         NSArray *versionProblems = nil;
-        s = parseWithProblems(@"[general]\nconfig-version = 2\n", &versionProblems);
+        s = parseWithProblems(@"[general]\nconfig-version = 1\n", &versionProblems);
         if (s != nil)
             fail(@"unsupported configuration format rejects file", @"nothing", @"settings");
         NSString *versionProblem = [versionProblems count] > 0 ? [versionProblems objectAtIndex:0] : @"";
-        if ([versionProblem rangeOfString:@"this version reads format 1"].location == NSNotFound)
+        if ([versionProblem rangeOfString:@"this version reads format 2"].location == NSNotFound)
             fail(@"unsupported configuration format explains rejection",
-                 @"format 1 explanation", versionProblem);
+                 @"format 2 explanation", versionProblem);
 
         // Comments and blank lines must not produce bindings. A # without
         // preceding whitespace is ordinary value content, as URL fragments need.
@@ -400,12 +544,42 @@ int main(void) {
                 NSString *constant = device[1];
                 for (NSString *slug in slugs) {
                     for (NSString *engineName in [slugs objectForKey:slug]) {
-                        NSString *dispatch = [NSString stringWithFormat:@"dispatchCommand(@\"%@\", %@)", engineName, constant];
-                        if ([engine rangeOfString:dispatch].location == NSNotFound)
-                            fail([NSString stringWithFormat:@"%@ %@ has a recognizer dispatch", constant, slug], dispatch, @"missing");
+                        NSString *exclusiveDispatch = [NSString stringWithFormat:
+                            @"dispatchExclusiveCommand(@\"%@\", %@", engineName, constant];
+                        NSString *exclusiveTapDispatch = [NSString stringWithFormat:
+                            @"dispatchExclusiveTapCommand(@\"%@\", %@", engineName, constant];
+                        BOOL physicalClick = [engineName hasSuffix:@"-Finger Click"] &&
+                            [engine rangeOfString:[NSString stringWithFormat:@"gesture = @\"%@\"", engineName]].location != NSNotFound &&
+                            [engine rangeOfString:@"dispatchCommand(gesture, device)"].location != NSNotFound;
+                        BOOL dispatched = [engine rangeOfString:exclusiveDispatch].location != NSNotFound ||
+                            [engine rangeOfString:exclusiveTapDispatch].location != NSNotFound;
+                        if (!dispatched && !physicalClick)
+                            fail([NSString stringWithFormat:@"%@ %@ has an exclusive recognizer dispatch", constant, slug],
+                                 [NSString stringWithFormat:@"%@ or %@", exclusiveDispatch, exclusiveTapDispatch], @"missing");
                     }
                 }
             }
+
+            NSString *clickCallback = section(engine, @"static CGEventRef CGEventCallback", @"static int gestureMagicMouseMiddleClick");
+            for (NSString *required in @[@"MGTrackpadInteractionBeginPhysicalClick",
+                                         @"MGTrackpadInteractionRecordPhysicalDrag",
+                                         @"MGTrackpadInteractionFinishPhysicalClick",
+                                         @"MGTrackpadInteractionShouldPreservePrimaryClick",
+                                         @"trackpadRewritingSecondaryClick",
+                                         @"trackpadClickFingerCount == 3", @"trackpadClickFingerCount == 4",
+                                         @"magicMouseThreeFingerFlag", @"device = TRACKPAD",
+                                         @"device = MAGICMOUSE", @"dispatchCommand(gesture, device)"]) {
+                if ([clickCallback rangeOfString:required].location == NSNotFound)
+                    fail(@"physical click callback retains its device dispatch",
+                         required, @"missing");
+            }
+
+            if ([engine rangeOfString:@"trackpadHasTwoFingers"].location != NSNotFound)
+                fail(@"native trackpad dragging is not suppressed by legacy contact flags",
+                     @"no trackpadHasTwoFingers gate", @"legacy gate remains");
+            if ([engine rangeOfString:@"MGGestureSequenceFinishFrame"].location == NSNotFound)
+                fail(@"gesture ownership ends through the raw-contact lifecycle",
+                     @"MGGestureSequenceFinishFrame", @"missing");
 
             for (NSString *command in [[Config actionNames] allValues]) {
                 NSString *branch = [NSString stringWithFormat:@"isEqualToString:@\"%@\"", command];
@@ -441,6 +615,22 @@ int main(void) {
                 [engine rangeOfString:@"handleGestureKey:"] .location == NSNotFound)
                 fail(@"deferred binding uses the Mac double-click interval",
                      @"deferred dispatcher integration", @"missing");
+
+            if ([engine rangeOfString:@"objectForKey:@\"ScriptPath\""] .location == NSNotFound ||
+                [engine rangeOfString:@"[ScriptRunner launchScriptAtPath:"] .location == NSNotFound)
+                fail(@"script binding launches through ScriptRunner",
+                     @"script runner integration", @"missing");
+
+            if ([engine rangeOfString:@"bindingPreference != nil"] .location == NSNotFound ||
+                [engine rangeOfString:@"enabled && device == TRACKPAD"] .location == NSNotFound ||
+                [engine rangeOfString:@"NSHapticFeedbackPatternGeneric"] .location == NSNotFound)
+                fail(@"enabled trackpad gestures request generic haptic feedback",
+                     @"trackpad-only haptic integration", @"missing");
+
+            if ([engine rangeOfString:@"copyBundleIdentifierOfAxui"] .location == NSNotFound ||
+                [engine rangeOfString:@"resolvedBindingForGesture"] .location == NSNotFound)
+                fail(@"app scopes resolve by display name or bundle identifier",
+                     @"shared application binding resolver", @"missing");
         }
 
         if (failures == 0) {
