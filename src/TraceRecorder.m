@@ -21,6 +21,7 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
     NSString *step;
     NSString *requested;
     NSUInteger expectedDispatchCount;
+    NSUInteger observedDispatchCount;
     NSString *bundlePath;
     NSFileHandle *eventsHandle;
     dispatch_queue_t writer;
@@ -305,6 +306,8 @@ NSDictionary *MGTraceStatus(void) {
     NSDictionary *status = [@{@"active": @(state->active), @"capturing": @(state->capturing),
                               @"awaiting_label": @(state->awaitingLabel),
                               @"saw_contacts": @(state->sawContactsInSegment),
+                              @"expected_dispatch_count": @(state->expectedDispatchCount),
+                              @"observed_dispatch_count": @(state->observedDispatchCount),
                               @"step": state->step ?: @"idle",
                               @"segment": @(state->segment), @"pending": @(state->pendingEvents),
                               @"dropped": @(state->droppedEvents), @"bytes": @(state->writtenBytes)} retain];
@@ -320,6 +323,7 @@ void MGTraceBeginStep(NSString *step, NSString *requested,
     [state->step release]; state->step = [step copy];
     [state->requested release]; state->requested = [requested copy];
     state->expectedDispatchCount = expectedDispatchCount;
+    state->observedDispatchCount = 0;
     state->capturing = NO;
     state->awaitingLabel = NO;
     state->sawContactsInSegment = NO;
@@ -337,7 +341,7 @@ void MGTraceBeginStep(NSString *step, NSString *requested,
 }
 
 void MGTraceMarkStep(NSString *label) {
-    if (![@[@"success", @"miss", @"unsure", @"skip"] containsObject:label]) return;
+    if (![@[@"clean", @"botched", @"unsure", @"skip"] containsObject:label]) return;
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
     if (!state->active || !state->awaitingLabel) {
@@ -460,6 +464,11 @@ void MGTraceRecordOwnership(NSString *requested, NSString *previous,
 
 void MGTraceRecordDispatch(NSString *gesture, NSString *scope,
                            NSString *actionKind, NSString *outcome) {
+    MGTraceState *state = traceState();
+    os_unfair_lock_lock(&state->lock);
+    if (state->active && state->capturing)
+        state->observedDispatchCount++;
+    os_unfair_lock_unlock(&state->lock);
     enqueue(@"dispatch", @"result", nil,
             @{@"gesture": gesture ?: @"unknown", @"scope": scope ?: @"none",
               @"action_kind": actionKind ?: @"unknown", @"outcome": outcome ?: @"observed",

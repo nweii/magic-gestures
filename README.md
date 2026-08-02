@@ -138,8 +138,10 @@ motion, progress, state, controls, and a large inert test surface. Keep the
 pointer in that surface, press **Space** to start each neutral countdown, and
 perform the motion after the tone. The window advances through preparing,
 countdown, recording, full lift, and labeling without reopening the menu.
-**Return**, **M**, **U**, and **K** mark Success, Miss, Unsure, and Skip once the
-scored window closes. **Escape** stops at any time. Configured gesture actions
+The window reports how many recognitions it detected against the expected count.
+**Return**, **M**, **U**, and **K** mark Clean attempt, Botched attempt, Unsure,
+and Skip once the scored window closes. These labels describe only your physical
+execution. **Escape** stops at any time. Configured gesture actions
 are suppressed while native clicks remain native. The 16-step protocol covers three
 ordinary clicks, three two-finger clicks, three three-finger clicks, quick lift,
 drag, rear and edge contacts, scrolling, tapping, and rapid repetition.

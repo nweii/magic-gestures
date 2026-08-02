@@ -729,7 +729,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     if (phase == MGTraceSessionOverview) {
         [traceHeading setStringValue:@"Magic Mouse trace session"];
         [traceDetail setStringValue:
-            @"This takes about 5 minutes: 3 ordinary clicks, 3 two-finger clicks, 3 three-finger clicks, then 7 focused controls. Success means you performed the requested motion cleanly. Miss means your attempt was wrong. Unsure means you cannot judge it. Skip omits the case.\n\nKeep the pointer inside the gray test surface below. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
+            @"This takes about 5 minutes: 3 ordinary clicks, 3 two-finger clicks, 3 three-finger clicks, then 7 focused controls. Magic Gestures reports detection automatically. You only label whether your physical attempt was clean, botched, uncertain, or skipped.\n\nKeep the pointer inside the gray test surface below. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
     } else if (phase == MGTraceSessionComplete) {
         [traceHeading setStringValue:@"Trace complete"];
         [traceDetail setStringValue:[NSString stringWithFormat:
@@ -737,6 +737,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
             completedTracePath ?: @"Analysis is finishing…"]];
     } else {
         [traceHeading setStringValue:[step objectForKey:@"requested"] ?: @"Trace step"];
+        NSDictionary *status = MGTraceStatus();
         NSString *stateInstruction = phase == MGTraceSessionPreparing
             ? @"Place the pointer in the gray test surface, lift fully, then press Start countdown."
             : phase == MGTraceSessionCountdown
@@ -744,7 +745,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
                     (long)[traceSession countdown]]
                 : phase == MGTraceSessionRecording ? @"Perform the motion now."
                 : phase == MGTraceSessionWaitingForLift ? @"Lift every contact and wait."
-                : @"Score the attempt with a button or shortcut.";
+                : [NSString stringWithFormat:
+                    @"Detected %@ of %@ expected. Now label only the quality of your physical attempt.",
+                    [status objectForKey:@"observed_dispatch_count"],
+                    [status objectForKey:@"expected_dispatch_count"]];
         [traceDetail setStringValue:[NSString stringWithFormat:@"%@\n\n%@",
             [step objectForKey:@"instruction"], stateInstruction]];
     }
@@ -819,7 +823,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     tracePrimaryButton = [[NSButton alloc] initWithFrame:NSMakeRect(28, 92, 190, 32)];
     [tracePrimaryButton setBezelStyle:NSBezelStyleRounded]; [tracePrimaryButton setTarget:self];
     [tracePrimaryButton setAction:@selector(tracePrimary:)];
-    NSArray *labels = @[@[@"Success ↩", @"success", @"\r"], @[@"Miss M", @"miss", @"m"],
+    NSArray *labels = @[@[@"Clean attempt ↩", @"clean", @"\r"], @[@"Botched attempt M", @"botched", @"m"],
         @[@"Unsure U", @"unsure", @"u"], @[@"Skip K", @"skip", @"k"]];
     NSMutableArray *buttons = [NSMutableArray array];
     CGFloat x = 228;
@@ -871,7 +875,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)markTraceStep:(id)sender {
     NSDictionary *status = MGTraceStatus();
     if (![[status objectForKey:@"awaiting_label"] boolValue]) return;
-    NSArray *labels = @[@"success", @"miss", @"unsure", @"skip"];
+    NSArray *labels = @[@"clean", @"botched", @"unsure", @"skip"];
     NSInteger labelIndex = [sender tag];
     if (labelIndex < 0 || labelIndex >= (NSInteger)[labels count]) return;
     NSString *label = [labels objectAtIndex:labelIndex];

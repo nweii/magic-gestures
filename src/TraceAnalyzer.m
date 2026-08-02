@@ -130,7 +130,7 @@ int main(int argc, const char *argv[]) {
             NSUInteger observed = [dispatchBySegment[segment] unsignedIntegerValue];
             NSString *human = [label objectForKey:@"human"] ?: @"unlabeled";
             humanCounts[human] = @([humanCounts[human] unsignedIntegerValue] + 1);
-            BOOL excludedByHuman = [human isEqualToString:@"skip"] || [human isEqualToString:@"miss"];
+            BOOL excludedByHuman = [human isEqualToString:@"skip"] || [human isEqualToString:@"botched"];
             NSString *inference = excludedByHuman ? @"excluded-by-human-label" :
                 observed == expected ? @"matches-request" :
                 observed < expected ? @"under-dispatch" : @"over-dispatch";

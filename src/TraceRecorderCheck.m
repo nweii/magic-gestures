@@ -71,7 +71,10 @@ int main(void) {
         usleep(900000);
         require([[MGTraceStatus() objectForKey:@"awaiting_label"] boolValue],
                 @"full lift did not close the capture window before labeling");
-        MGTraceMarkStep(@"success");
+        require([[MGTraceStatus() objectForKey:@"observed_dispatch_count"] unsignedIntegerValue] == 1 &&
+                [[MGTraceStatus() objectForKey:@"expected_dispatch_count"] unsignedIntegerValue] == 1,
+                @"trace status did not separate observed and expected dispatch counts");
+        MGTraceMarkStep(@"clean");
         MGTraceStop();
 
         NSDictionary *labels = [NSJSONSerialization JSONObjectWithData:

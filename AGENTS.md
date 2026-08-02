@@ -300,7 +300,9 @@ clicks have no UI effect. It remains visible throughout the session; the
 Diagnostics menu only reports status and brings it forward. Configured actions
 are suppressed while the recorder captures raw contact frames, filter decisions,
 mouse/drag/scroll events, recognizer outcomes, ownership, safe dispatch kinds,
-and human Success/Miss/Unsure/Skip labels. Each step starts capture with a tone
+and human Clean/Botched/Unsure/Skip execution-quality labels. Recognition is
+reported automatically as the observed dispatch count against the expected
+count; the human label never stands in for recognizer success. Each step starts capture with a tone
 after a two-second neutral countdown. A full lift closes the scored window before
 the window enables labels. Window-local shortcuts avoid global keyboard capture.
 Stopping offers Discard, Export Partial, or Continue. The protocol includes
