@@ -41,6 +41,8 @@ static NSButton *traceStopButton = nil;
 static NSButton *traceExportButton = nil;
 static NSTimer *tracePollTimer = nil;
 static NSString *completedTracePath = nil;
+static BOOL traceHeldLiftCueScheduled = NO;
+static BOOL traceHeldLiftCuePlayed = NO;
 
 static NSArray *magicMouseTraceProtocol(void) {
     static NSArray *steps = nil;
@@ -48,25 +50,28 @@ static NSArray *magicMouseTraceProtocol(void) {
     dispatch_once(&onceToken, ^{
         steps = [@[
             @{@"id": @"control-one-r1", @"requested": @"ordinary-click", @"expected": @0,
-              @"instruction": @"Ordinary one-finger click. Lift completely afterward."},
+              @"instruction": @"Click naturally with one finger and lift at your usual speed."},
             @{@"id": @"control-one-r2", @"requested": @"ordinary-click", @"expected": @0,
-              @"instruction": @"Repeat one ordinary one-finger click."},
-            @{@"id": @"control-one-r3", @"requested": @"ordinary-click", @"expected": @0,
-              @"instruction": @"One final ordinary one-finger click."},
+              @"instruction": @"Repeat one natural one-finger click at your usual speed."},
             @{@"id": @"two-click-r1", @"requested": @"two-finger-click", @"expected": @1,
-              @"instruction": @"Normal two-finger physical click, then lift completely."},
+              @"instruction": @"Click naturally with two fingers and lift at your usual speed."},
             @{@"id": @"two-click-r2", @"requested": @"two-finger-click", @"expected": @1,
-              @"instruction": @"Repeat a normal two-finger physical click."},
+              @"instruction": @"Repeat one natural two-finger click at your usual speed."},
             @{@"id": @"two-click-r3", @"requested": @"two-finger-click", @"expected": @1,
-              @"instruction": @"One final normal two-finger physical click."},
+              @"instruction": @"One final natural two-finger click at your usual speed."},
+            @{@"id": @"two-click-held", @"requested": @"two-finger-click-held", @"expected": @1,
+              @"lift_mode": @"held",
+              @"instruction": @"Click with two fingers. Release the physical click but keep both fingers touching until the second tone, then lift."},
+            @{@"id": @"quick-lift", @"requested": @"two-finger-click-immediate-lift", @"expected": @1,
+              @"instruction": @"Release the click and remove both fingers together as quickly as comfortably possible."},
+            @{@"id": @"two-click-upper", @"requested": @"two-finger-click-upper-surface", @"expected": @1,
+              @"instruction": @"Place both fingertips naturally in the upper half of the touch surface. Click once and lift at your usual speed."},
+            @{@"id": @"two-click-lower", @"requested": @"two-finger-click-lower-surface", @"expected": @1,
+              @"instruction": @"Place both fingertips naturally in the lower half of the touch surface. Click once and lift at your usual speed."},
             @{@"id": @"three-click-r1", @"requested": @"three-finger-click", @"expected": @1,
-              @"instruction": @"Normal three-finger physical click, then lift completely."},
+              @"instruction": @"Click naturally with three fingers and lift at your usual speed."},
             @{@"id": @"three-click-r2", @"requested": @"three-finger-click", @"expected": @1,
-              @"instruction": @"Repeat a normal three-finger physical click."},
-            @{@"id": @"three-click-r3", @"requested": @"three-finger-click", @"expected": @1,
-              @"instruction": @"One final normal three-finger physical click."},
-            @{@"id": @"quick-lift", @"requested": @"two-finger-click", @"expected": @1,
-              @"instruction": @"Two-finger physical click and lift immediately."},
+              @"instruction": @"Repeat one natural three-finger click at your usual speed."},
             @{@"id": @"drag-control", @"requested": @"two-finger-drag", @"expected": @0,
               @"instruction": @"Press with two fingers, drag right a short distance, then release."},
             @{@"id": @"rear-contact", @"requested": @"ordinary-click-with-rear-contact", @"expected": @0,
@@ -78,7 +83,7 @@ static NSArray *magicMouseTraceProtocol(void) {
             @{@"id": @"tap-control", @"requested": @"two-finger-tap", @"expected": @0,
               @"instruction": @"Perform one two-finger tap without physically clicking."},
             @{@"id": @"rapid-pair", @"requested": @"two-finger-click-pair", @"expected": @2,
-              @"instruction": @"Perform two two-finger clicks in quick succession, then lift for one second."},
+              @"instruction": @"Perform two natural two-finger clicks in quick succession. Lift normally after each click."},
         ] retain];
     });
     return steps;
@@ -720,8 +725,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSArray *phaseNames = @[@"Overview", @"Preparing", @"Neutral countdown",
         @"Recording", @"Waiting for full lift", @"Ready for label", @"Complete"];
     [traceProgress setStringValue:phase == MGTraceSessionOverview
-        ? @"16 steps · about 5 minutes"
-        : phase == MGTraceSessionComplete ? @"16 of 16 complete"
+        ? [NSString stringWithFormat:@"%lu steps · about 4 minutes", (unsigned long)count]
+        : phase == MGTraceSessionComplete
+            ? [NSString stringWithFormat:@"%lu of %lu complete", (unsigned long)count, (unsigned long)count]
         : [NSString stringWithFormat:@"Step %ld of %lu · %@", (long)index + 1,
             (unsigned long)count, phaseNames[phase]]];
     [traceProgressBar setDoubleValue:phase == MGTraceSessionComplete ? count : MAX(index, 0)];
@@ -729,11 +735,12 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     if (phase == MGTraceSessionOverview) {
         [traceHeading setStringValue:@"Magic Mouse trace session"];
         [traceDetail setStringValue:
-            @"This takes about 5 minutes: 3 ordinary clicks, 3 two-finger clicks, 3 three-finger clicks, then 7 focused controls. Magic Gestures reports detection automatically. You only label whether your physical attempt was clean, botched, uncertain, or skipped.\n\nKeep the pointer inside the gray test surface below. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
+            @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
     } else if (phase == MGTraceSessionComplete) {
         [traceHeading setStringValue:@"Trace complete"];
         [traceDetail setStringValue:[NSString stringWithFormat:
-            @"All 16 steps are labeled. The redacted bundle is ready to export.\n\nTemporary bundle: %@",
+            @"All %lu steps are labeled. The redacted bundle is ready to export.\n\nTemporary bundle: %@",
+            (unsigned long)count,
             completedTracePath ?: @"Analysis is finishing…"]];
     } else {
         [traceHeading setStringValue:[step objectForKey:@"requested"] ?: @"Trace step"];
@@ -743,8 +750,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
             : phase == MGTraceSessionCountdown
                 ? [NSString stringWithFormat:@"Keep fully lifted and still. Recording begins in %ld…",
                     (long)[traceSession countdown]]
-                : phase == MGTraceSessionRecording ? @"Perform the motion now."
-                : phase == MGTraceSessionWaitingForLift ? @"Lift every contact and wait."
+                : phase == MGTraceSessionRecording
+                    ? ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] && traceHeldLiftCuePlayed
+                        ? @"The second tone sounded. Lift both fingers now."
+                        : @"Perform the motion now.")
+                : phase == MGTraceSessionWaitingForLift
+                    ? ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] && !traceHeldLiftCuePlayed
+                        ? @"Keep both fingers touching. Lift only after the second tone."
+                        : @"Lift every contact and wait.")
                 : [NSString stringWithFormat:
                     @"Detected %@ of %@ expected. Now label only the quality of your physical attempt.",
                     [status objectForKey:@"observed_dispatch_count"],
@@ -770,6 +783,25 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [traceSession observeCapturing:[[status objectForKey:@"capturing"] boolValue]
                      awaitingLabel:[[status objectForKey:@"awaiting_label"] boolValue]
                        sawContacts:[[status objectForKey:@"saw_contacts"] boolValue]];
+    NSInteger index = [traceSession stepIndex];
+    NSArray *steps = [traceSession steps];
+    NSDictionary *step = index >= 0 && index < (NSInteger)[steps count]
+        ? [steps objectAtIndex:index] : nil;
+    if ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] &&
+        [[status objectForKey:@"capturing"] boolValue] &&
+        [[status objectForKey:@"saw_mouse_up"] boolValue] && !traceHeldLiftCueScheduled) {
+        traceHeldLiftCueScheduled = YES;
+        NSInteger cueStep = index;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            if (MGTraceIsActive() && [traceSession stepIndex] == cueStep &&
+                [[MGTraceStatus() objectForKey:@"capturing"] boolValue]) {
+                traceHeldLiftCuePlayed = YES;
+                NSBeep();
+                [self updateTraceWindow];
+            }
+        });
+    }
     [self updateTraceWindow];
 }
 
@@ -780,6 +812,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         MGTraceBeginStep([step objectForKey:@"id"], [step objectForKey:@"requested"],
                          [[step objectForKey:@"expected"] unsignedIntegerValue],
                          [step objectForKey:@"instruction"]);
+        traceHeldLiftCueScheduled = NO;
+        traceHeldLiftCuePlayed = NO;
         NSBeep();
     } else {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
@@ -808,7 +842,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSView *content = [tracePanel contentView];
     traceProgress = [traceText(NSMakeRect(28, 565, 664, 22), 13, NO) retain];
     traceProgressBar = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(28, 545, 664, 8)];
-    [traceProgressBar setIndeterminate:NO]; [traceProgressBar setMaxValue:16];
+    [traceProgressBar setIndeterminate:NO];
+    [traceProgressBar setMaxValue:[magicMouseTraceProtocol() count]];
     traceHeading = [traceText(NSMakeRect(28, 490, 664, 38), 24, YES) retain];
     traceDetail = [traceText(NSMakeRect(28, 375, 664, 105), 15, NO) retain];
     traceSurface = [[NSView alloc] initWithFrame:NSMakeRect(28, 145, 664, 210)];
@@ -886,6 +921,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         [tracePollTimer invalidate]; tracePollTimer = nil;
         [completedTracePath release]; completedTracePath = [MGTraceBundlePath() copy];
         MGTraceStop();
+    } else {
+        [traceSession beginCountdown];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
+                       dispatch_get_main_queue(), ^{ [self traceCountdownTick]; });
     }
     [self updateTraceWindow]; [self refreshMenu];
 }

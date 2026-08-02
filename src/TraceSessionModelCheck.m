@@ -17,10 +17,12 @@ int main(void) {
         require(model.phase == MGTraceSessionPreparing && model.stepIndex == 0,
                 @"protocol did not prepare its first step");
         [model beginCountdown];
-        require(model.phase == MGTraceSessionCountdown && model.countdown == 2,
-                @"neutral countdown did not begin at two seconds");
-        require(![model tickCountdown] && model.countdown == 1,
+        require(model.phase == MGTraceSessionCountdown && model.countdown == 3,
+                @"neutral countdown did not begin at three seconds");
+        require(![model tickCountdown] && model.countdown == 2,
                 @"countdown ended one tick early");
+        require(![model tickCountdown] && model.countdown == 1,
+                @"countdown ended two ticks early");
         require([model tickCountdown] && model.phase == MGTraceSessionRecording,
                 @"countdown did not enter recording");
         [model observeCapturing:YES awaitingLabel:NO sawContacts:YES];
@@ -31,7 +33,7 @@ int main(void) {
         [model markCurrentStep];
         require(model.phase == MGTraceSessionPreparing && model.stepIndex == 1,
                 @"label did not advance exactly one step");
-        [model beginCountdown]; [model tickCountdown]; [model tickCountdown];
+        [model beginCountdown]; [model tickCountdown]; [model tickCountdown]; [model tickCountdown];
         [model observeCapturing:NO awaitingLabel:YES sawContacts:YES];
         [model markCurrentStep];
         require(model.phase == MGTraceSessionComplete && !model.labelsEnabled,

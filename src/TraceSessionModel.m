@@ -35,7 +35,7 @@
 
 - (void)beginCountdown {
     if (_phase != MGTraceSessionPreparing) return;
-    _countdown = 2;
+    _countdown = 3;
     _phase = MGTraceSessionCountdown;
 }
 

@@ -135,16 +135,19 @@ bindings. **Diagnostics** opens recent logs or copies a concise state summary.
 **Diagnostics > Start Trace Session…** runs a short Magic Mouse hardware check.
 It opens a persistent diagnostic window with the full protocol overview, current
 motion, progress, state, controls, and a large inert test surface. Keep the
-pointer in that surface, press **Space** to start each neutral countdown, and
-perform the motion after the tone. The window advances through preparing,
+pointer in that surface, press **Space** to start the first neutral countdown, and
+perform the motion after the tone. After each label, the next three-second
+countdown starts automatically. The window advances through preparing,
 countdown, recording, full lift, and labeling without reopening the menu.
 The window reports how many recognitions it detected against the expected count.
 **Return**, **M**, **U**, and **K** mark Clean attempt, Botched attempt, Unsure,
 and Skip once the scored window closes. These labels describe only your physical
 execution. **Escape** stops at any time. Configured gesture actions
-are suppressed while native clicks remain native. The 16-step protocol covers three
-ordinary clicks, three two-finger clicks, three three-finger clicks, quick lift,
-drag, rear and edge contacts, scrolling, tapping, and rapid repetition.
+are suppressed while native clicks remain native. The 17-step protocol focuses
+on three natural two-finger clicks and compares natural lifting with a controlled
+500 ms hold and an immediate lift. It compares upper and lower touch-surface
+positions, then checks ordinary and three-finger clicks, drag, rear and edge
+contacts, scrolling, tapping, and rapid repetition.
 
 Stopping early offers **Discard**, **Export Partial**, or **Continue**. Completion
 shows a summary and the temporary bundle location before **Export bundle (E)**

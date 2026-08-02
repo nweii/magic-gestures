@@ -42,6 +42,8 @@ int main(void) {
             [NSString stringWithFormat:@"MGTraceCheck-%@", [[NSUUID UUID] UUIDString]]];
         require(MGTraceStart(root, &problem), @"trace session did not start");
         MGTraceBeginStep(@"normal-r1", @"two-finger-click", 1, @"Click once");
+        require(![[MGTraceStatus() objectForKey:@"saw_mouse_up"] boolValue],
+                @"new segment inherited a mouse-up marker");
         dispatch_group_t producers = dispatch_group_create();
         dispatch_semaphore_t startGate = dispatch_semaphore_create(0);
         const int producerCount = 32;
@@ -65,6 +67,9 @@ int main(void) {
         for (int i = 0; i < 12000; i++)
             MGTraceRecordMouseFrame((void *)0x1, 1.0 + i, i, contacts, 1);
         MGTraceRecordDispatch(@"Two-Finger Click", @"global", @"built-in", @"suppressed-for-trace");
+        MGTraceRecordCGEvent(@"mouse-up", 0.0, 0, 0, @"observed");
+        require([[MGTraceStatus() objectForKey:@"saw_mouse_up"] boolValue],
+                @"mouse-up was not exposed to guided timing cues");
         while ([[MGTraceStatus() objectForKey:@"pending"] unsignedIntegerValue] > 0)
             usleep(1000);
         MGTraceRecordMouseFrame((void *)0x1, 14000.0, 14000, NULL, 0);

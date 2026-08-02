@@ -81,7 +81,9 @@ a link to the repository.
   launchd terminating the running process.
 - Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
   enable verbose logging for the current session, or run a guided Magic Mouse
-  trace session with configured actions suppressed.
+  trace session with configured actions suppressed. The controller automatically
+  advances after each human label and compares natural, held, and immediate lift
+  timing without asking the user to estimate the interval.
 - About Magic Gestures and Quit Magic Gestures.
 
 ## Releasing

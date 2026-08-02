@@ -15,6 +15,7 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
     BOOL capturing;
     BOOL awaitingLabel;
     BOOL sawContactsInSegment;
+    BOOL sawMouseUpInSegment;
     BOOL liftScheduled;
     BOOL stopping;
     NSString *session;
@@ -306,6 +307,7 @@ NSDictionary *MGTraceStatus(void) {
     NSDictionary *status = [@{@"active": @(state->active), @"capturing": @(state->capturing),
                               @"awaiting_label": @(state->awaitingLabel),
                               @"saw_contacts": @(state->sawContactsInSegment),
+                              @"saw_mouse_up": @(state->sawMouseUpInSegment),
                               @"expected_dispatch_count": @(state->expectedDispatchCount),
                               @"observed_dispatch_count": @(state->observedDispatchCount),
                               @"step": state->step ?: @"idle",
@@ -327,6 +329,7 @@ void MGTraceBeginStep(NSString *step, NSString *requested,
     state->capturing = NO;
     state->awaitingLabel = NO;
     state->sawContactsInSegment = NO;
+    state->sawMouseUpInSegment = NO;
     state->liftScheduled = NO;
     state->liftGeneration++;
     NSUInteger segment = ++state->segment;
@@ -445,6 +448,13 @@ void MGTraceRecordFilterDecision(int identifier, NSString *reason, BOOL kept,
 
 void MGTraceRecordCGEvent(NSString *event, double pressure,
                           int64_t axis1, int64_t axis2, NSString *disposition) {
+    MGTraceState *state = traceState();
+    if ([event isEqualToString:@"mouse-up"]) {
+        os_unfair_lock_lock(&state->lock);
+        if (state->active && state->capturing)
+            state->sawMouseUpInSegment = YES;
+        os_unfair_lock_unlock(&state->lock);
+    }
     enqueue(@"cg", event, nil, @{@"pressure": @(pressure), @"axis1": @(axis1),
                                   @"axis2": @(axis2), @"disposition": disposition ?: @"observed"});
 }
