@@ -34,7 +34,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key>
   <string>0.5.0</string>
   <key>CFBundleVersion</key>
-  <string>8</string>
+  <string>9</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>LSUIElement</key>
@@ -65,6 +65,8 @@ clang \
   "$ROOT/src/DeferredGestureDispatcher.m" \
   "$ROOT/src/GestureSequence.m" \
   "$ROOT/src/KeyEventSequence.m" \
+  "$ROOT/src/MouseContactFilter.m" \
+  "$ROOT/src/MouseClickInteraction.m" \
   "$ROOT/src/ScriptRunner.m" \
   "$ROOT/src/TrackpadInteraction.m" \
   "$SRC_ROOT/JitouchAppDelegate.m" \

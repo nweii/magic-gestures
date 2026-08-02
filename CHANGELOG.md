@@ -10,17 +10,19 @@ Released 2026-08-02.
 
 - Added optional `left-` and `right-` prefixes for Shift, Control, Option, and
   Command. Unspecified modifiers continue to use the left-side key.
-
-### Removed
-
-- Removed Magic Mouse two- and three-finger physical-click bindings after
-  hardware testing found posture-dependent contact classification. Magic
-  Trackpad physical-click bindings remain available.
+- Added diagnostics for Magic Mouse physical-click correlation to verbose logs.
+- Added experimental Magic Mouse two- and three-finger physical-click bindings.
+  They are disabled by default and require
+  `experimental-mouse-click-gestures = true` under `[general]`.
 
 ### Fixed
 
-- Prevented brief contact dropouts, trackpad drags, and palms from changing or
-  triggering a trackpad physical-click binding.
+- Correlated physical clicks with touch frames that arrive before mouse-down,
+  after mouse-down, or just after mouse-up.
+- Prevented brief contact dropouts, trackpad drags, palms, thumbs, and isolated
+  edge contacts from changing or triggering a physical-click binding.
+- Allowed substantial fingertips near the rear of a Magic Mouse while retaining
+  rejection for measured rear-palm and narrow side-edge contacts.
 - Gave each contact sequence one gesture owner so taps, clicks, holds, and swipes
   cannot dispatch over one another.
 - Preserved native scrolling for unbound swipe families and suppressed it only
@@ -33,6 +35,7 @@ Released 2026-08-02.
 - Reported rejected configuration reloads in the menu instead of presenting an
   empty configuration as successful.
 
-This alpha release removes `two-finger-click` and `three-finger-click` from
-`[mouse]`. Remove those bindings or replace them with a tap or hold gesture.
-Version 2 configuration files otherwise require no migration.
+This is a backward-compatible minor release. Existing version 2 configuration
+files keep working. Magic Mouse physical-click bindings require an explicit
+experimental opt-in because their recognition remains sensitive to contact
+timing and hand posture.

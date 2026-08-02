@@ -22,6 +22,8 @@ tapping. Either hand works, and either finger can play either part.
 | `one-finger-tap` | Tap with one finger |
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
+| `two-finger-click` | Experimental: physically click with two fingers touching |
+| `three-finger-click` | Experimental: physically click with three fingers touching |
 | `front-right-tap` | Tap the front right of the surface |
 | `one-finger-swipe-left` | Swipe left with one finger |
 | `one-finger-swipe-right` | Swipe right with one finger |
@@ -31,6 +33,12 @@ tapping. Either hand works, and either finger can play either part.
 | `three-finger-swipe-right` | Swipe right with three fingers |
 | `three-finger-swipe-up` | Swipe up with three fingers |
 | `three-finger-swipe-down` | Swipe down with three fingers |
+
+Physical clicks ignore narrow contacts at either side and palm contacts at the
+rear. Counted fingertips must form one connected cluster; a recognized thumb
+does not count toward the gesture. They are disabled by default because contact
+timing and hand posture can still cause missed recognition. Set
+`experimental-mouse-click-gestures = true` under `[general]` to opt in.
 
 ## Magic Trackpad
 
@@ -59,8 +67,9 @@ slide name where the mouse has two.
 | `index-to-pinky` | Brush your fingers across in sequence, index first |
 | `pinky-to-index` | Brush your fingers across in sequence, pinky first |
 
-On a trackpad, the native click continues and the configured action fires on
-release. A trackpad drag keeps its native events
+On a Magic Mouse, binding a physical multi-finger click consumes that click so
+only its configured action fires. On a trackpad, the native click continues and
+the configured action fires on release. A trackpad drag keeps its native events
 and does not fire the configured click action.
 
 One continuous touch sequence can run one kind of configured gesture. A swipe
@@ -225,6 +234,7 @@ interactive shell profile. Console records launch failures and nonzero exits.
 | `dominant-hand` | `left` or `right`; mirrors positional recognition for left-handed use, default `right` |
 | `tap-speed` | Seconds a tap may last, default `0.25` |
 | `haptic-feedback` | `true` requests confirmation for configured trackpad gestures, default `true` |
+| `experimental-mouse-click-gestures` | `true` enables posture-sensitive Magic Mouse physical-click bindings, default `false` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.

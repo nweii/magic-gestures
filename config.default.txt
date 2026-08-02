@@ -31,6 +31,7 @@ enable-trackpad = true
 dominant-hand = right
 tap-speed = 0.25
 haptic-feedback = true
+experimental-mouse-click-gestures = false
 verbose-logging = false
 
 
@@ -54,7 +55,10 @@ verbose-logging = false
 # front-right-tap = escape
 # hold-left-slide-right = url:raycast://extensions/raycast/raycast-ai/ai-chat
 # three-finger-tap = url:things:///add?title={{clipboard|urlencode}}
-# one-finger-swipe-left = script:~/.config/magic-gestures/scripts/capture-selection
+# Physical mouse clicks also require experimental-mouse-click-gestures = true.
+# They may miss depending on hand placement and how quickly contacts lift.
+# two-finger-click = ctrl+cmd+a
+# three-finger-click = script:~/.config/magic-gestures/scripts/capture-selection
 
 [trackpad]
 # hold-left-tap-right = mission-control

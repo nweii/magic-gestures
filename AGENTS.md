@@ -220,6 +220,12 @@ Magic Mouse gestures never request haptics. Deferred taps request feedback only
 if their delayed action survives cancellation. Set it to `false` to opt out
 globally, or set `haptic` in an expanded trackpad binding for one override.
 
+`experimental-mouse-click-gestures = false` keeps Magic Mouse two- and
+three-finger physical clicks unavailable by default. Set it to `true` to load
+those bindings. Their contact timing and classification remain sensitive to
+hand posture, so do not describe them as supported or reliable without a fresh
+hardware calibration pass.
+
 `dominant-hand = right` preserves the engine's original coordinate axis.
 `dominant-hand = left` mirrors positional recognition on both devices, including
 hold-tap direction and thumb-side filtering.
@@ -325,7 +331,7 @@ recognizers claim it. Broad palm contacts and physical clicks reject tap-only
 gestures, one recognizer may claim a sequence, and raw full lift resets the
 state. Physical clicks use the filtered contact count already observed by the
 module, retain its peak through a brief missing-contact frame, and reject the
-configured action when the CG event stream becomes a drag. Physical button-up
+configured action when the CG event stream becomes a drag. Physical mouse-up
 clears the peak so the next click cannot inherit it. Keep gesture-specific
 geometry and timing in `Gesture.m`; shared eligibility and inter-gesture
 arbitration belong in this module.
@@ -338,3 +344,19 @@ trackpad contact-eligibility check. A bound swipe family suppresses native scrol
 events from the moment its required contacts arrive until raw full lift; an
 unbound family never suppresses scrolling. New recognizers that can share a
 contact sequence with an existing gesture must use one of these paths.
+
+`MouseContactFilter.m` rejects measured rear-palm and narrow side-edge contacts
+before physical click counting while retaining substantial fingertips in those
+regions. Counted fingertips must form a connected cluster;
+`gestureMagicMouseThumb` identifies and excludes a thumb from that cluster.
+Apply these rules to physical clicks, not holds or swipes whose contact geometry
+has different meaning. This path runs only when
+`experimental-mouse-click-gestures` enables a configured Magic Mouse
+physical-click binding.
+
+`MouseClickInteraction.m` serializes the CG physical-click stream with Magic
+Mouse touch frames, which arrive on separate callback threads and in either
+order. It retains eligible two- or three-finger contact counts through a bounded
+mouse-up grace period, cancels on drag, and prevents immediate recognition from
+dispatching again on release. Keep this cross-stream lifetime separate from
+contact filtering and recognizer ownership.

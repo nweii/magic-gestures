@@ -151,9 +151,14 @@ A name from one device does nothing on the other.
 
 Mouse: `hold-left-tap-right` `hold-right-tap-left` `hold-left-slide-right`
 `hold-right-slide-left` `one-finger-tap` `two-finger-tap` `three-finger-tap`
+`two-finger-click` `three-finger-click`
 `front-right-tap` `one-finger-swipe-left` `one-finger-swipe-right`
 `two-finger-swipe-left` `two-finger-swipe-right` `three-finger-swipe-left`
 `three-finger-swipe-right` `three-finger-swipe-up` `three-finger-swipe-down`
+
+Magic Mouse physical clicks are experimental and disabled by default. Set
+`experimental-mouse-click-gestures = true` under `[general]` to test them. They
+may miss depending on hand placement and how quickly contacts lift.
 
 Trackpad: `hold-left-tap-right` `hold-right-tap-left` `hold-slide`
 `two-finger-tap` `three-finger-tap` `four-finger-tap` `five-finger-tap` `three-finger-click`
@@ -186,6 +191,7 @@ assuming a motion is free.
 | `dominant-hand` | `left` or `right`; mirrors positional recognition for left-handed use, default `right` |
 | `tap-speed` | seconds a tap may last, default `0.25` |
 | `haptic-feedback` | `true` requests confirmation for configured trackpad gestures, default `true` |
+| `experimental-mouse-click-gestures` | `true` enables posture-sensitive Magic Mouse physical-click bindings, default `false` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.

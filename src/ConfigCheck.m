@@ -231,16 +231,25 @@ int main(void) {
             fail(@"action name", @"Middle Click", [g objectForKey:@"Command"]);
 
         NSArray *mouseClickProblems = nil;
-        s = parseWithProblems(
-            @"[mouse]\ntwo-finger-click = return\nthree-finger-click = escape\n",
-            &mouseClickProblems);
-        if ([[s objectForKey:@"BindingCount"] integerValue] != 0 ||
-            [mouseClickProblems count] != 2)
-            fail(@"unsupported Magic Mouse physical clicks are skipped",
-                 @"zero bindings and two problems",
-                 [NSString stringWithFormat:@"%@ bindings, %lu problems",
-                  [s objectForKey:@"BindingCount"],
-                  (unsigned long)[mouseClickProblems count]]);
+        s = parseWithProblems(@"[mouse]\ntwo-finger-click = return\nthree-finger-click = escape\n",
+                              &mouseClickProblems);
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") != nil ||
+            bindingFor(s, @"MagicMouseCommands", @"Three-Finger Click") != nil)
+            fail(@"mouse physical clicks default off", @"no bindings", @"bindings loaded");
+        if ([mouseClickProblems count] != 2)
+            fail(@"disabled mouse physical clicks are reported", @2,
+                 @([mouseClickProblems count]));
+
+        // The opt-in applies after the whole file parses, so [general] may
+        // appear after the bindings without making the setting order-sensitive.
+        s = parse(@"[mouse]\ntwo-finger-click = return\nthree-finger-click = escape\n"
+                  @"[general]\nexperimental-mouse-click-gestures = true\n");
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") == nil)
+            fail(@"mouse two-finger physical click is configurable",
+                 @"a binding", @"missing");
+        if (bindingFor(s, @"MagicMouseCommands", @"Three-Finger Click") == nil)
+            fail(@"mouse three-finger physical click is configurable",
+                 @"a binding", @"missing");
         s = parse(@"[trackpad]\nthree-finger-click = escape\nfour-finger-click = return\n");
         if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Click") == nil)
             fail(@"trackpad three-finger physical click is configurable",
@@ -254,22 +263,23 @@ int main(void) {
                  @"a binding", @"missing");
 
         s = parse(@"[mouse]\n"
-                  @"two-finger-tap = return\n"
+                  @"two-finger-click = return\n"
                   @"[mouse \"Safari\"]\n"
-                  @"two-finger-tap = escape\n"
-                  @"three-finger-tap = cmd+a\n");
-        NSDictionary *globalTap = bindingForApplication(
-            s, @"MagicMouseCommands", @"All Applications", @"Two-Finger Tap");
-        NSDictionary *safariTap = bindingForApplication(
-            s, @"MagicMouseCommands", @"Safari", @"Two-Finger Tap");
-        if ([[globalTap objectForKey:@"KeyCode"] intValue] != 36)
+                  @"two-finger-click = escape\n"
+                  @"three-finger-click = cmd+a\n"
+                  @"[general]\nexperimental-mouse-click-gestures = true\n");
+        NSDictionary *globalClick = bindingForApplication(
+            s, @"MagicMouseCommands", @"All Applications", @"Two-Finger Click");
+        NSDictionary *safariClick = bindingForApplication(
+            s, @"MagicMouseCommands", @"Safari", @"Two-Finger Click");
+        if ([[globalClick objectForKey:@"KeyCode"] intValue] != 36)
             fail(@"global binding remains available beside app scope", @36,
-                 [globalTap objectForKey:@"KeyCode"] ?: @"missing");
-        if ([[safariTap objectForKey:@"KeyCode"] intValue] != 53)
+                 [globalClick objectForKey:@"KeyCode"] ?: @"missing");
+        if ([[safariClick objectForKey:@"KeyCode"] intValue] != 53)
             fail(@"app section overrides its gesture", @53,
-                 [safariTap objectForKey:@"KeyCode"] ?: @"missing");
+                 [safariClick objectForKey:@"KeyCode"] ?: @"missing");
         if (bindingForApplication(s, @"MagicMouseCommands", @"Safari",
-                                  @"Three-Finger Tap") == nil)
+                                  @"Three-Finger Click") == nil)
             fail(@"app section groups several bindings", @"a binding", @"missing");
 
         s = parse(@"[trackpad]\nthree-finger-tap { action = \"escape\" }\n");
@@ -310,14 +320,15 @@ int main(void) {
         s = parseWithProblems(@"[trackpad]\n"
                               @"three-finger-tap { action = \"escape\"\n"
                               @"[mouse]\n"
-                              @"two-finger-tap = return\n",
+                              @"two-finger-click = return\n"
+                              @"[general]\nexperimental-mouse-click-gestures = true\n",
                               &unterminatedProblems);
-        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap") == nil ||
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") == nil ||
             [unterminatedProblems count] != 1)
             fail(@"unterminated expanded binding stops at the next section",
                  @"mouse binding loaded and one problem",
                  [NSString stringWithFormat:@"%@; %lu problems",
-                  bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap") ?: @"missing",
+                  bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") ?: @"missing",
                   (unsigned long)[unterminatedProblems count]]);
 
         NSArray *expandedProblems = nil;
@@ -349,9 +360,10 @@ int main(void) {
                   [s objectForKey:@"BindingCount"],
                   (unsigned long)[inheritanceProblems count]]);
 
-        s = parse(@"[mouse]\ntwo-finger-tap = return\n"
-                  @"[mouse \"Safari\"]\ntwo-finger-tap = off\n");
-        g = bindingForApplication(s, @"MagicMouseCommands", @"Safari", @"Two-Finger Tap");
+        s = parse(@"[mouse]\ntwo-finger-click = return\n"
+                  @"[mouse \"Safari\"]\ntwo-finger-click = off\n"
+                  @"[general]\nexperimental-mouse-click-gestures = true\n");
+        g = bindingForApplication(s, @"MagicMouseCommands", @"Safari", @"Two-Finger Click");
         if (g == nil || [[g objectForKey:@"Enable"] boolValue])
             fail(@"app section can exclude a global gesture", @"disabled binding", g ?: @"missing");
         if ([[s objectForKey:@"BindingCount"] integerValue] != 1)
@@ -372,8 +384,9 @@ int main(void) {
             fail(@"app property override can disable global deferral",
                  @"immediate binding", g ?: @"missing");
 
-        s = parse(@"[mouse]\ntwo-finger-tap = return\n"
-                  @"[mouse]\ntwo-finger-tap = escape\n");
+        s = parse(@"[mouse]\ntwo-finger-click = return\n"
+                  @"[mouse]\ntwo-finger-click = escape\n"
+                  @"[general]\nexperimental-mouse-click-gestures = true\n");
         if ([[s objectForKey:@"BindingCount"] integerValue] != 1)
             fail(@"binding count reports the effective repeated-scope result",
                  @1, [s objectForKey:@"BindingCount"] ?: @"missing");
@@ -564,6 +577,7 @@ int main(void) {
             @"[general]\nenable-trackpad = enabled\n",
             @"[general]\nverbose-logging = verbose\n",
             @"[general]\nhaptic-feedback = sometimes\n",
+            @"[general]\nexperimental-mouse-click-gestures = maybe\n",
             @"[general]\ndominant-hand = center\n",
             @"[general]\ntap-speed = soon\n",
             @"[general]\ntap-speed = 0\n",
@@ -712,8 +726,9 @@ int main(void) {
                                          @"MGTrackpadInteractionShouldPreservePrimaryClick",
                                          @"trackpadRewritingSecondaryClick",
                                          @"trackpadClickFingerCount == 3", @"trackpadClickFingerCount == 4",
-                                         @"device = TRACKPAD",
-                                         @"dispatchCommand(gesture, device)"]) {
+                                         @"magicMouseThreeFingerFlag", @"device = TRACKPAD",
+                                         @"device = MAGICMOUSE", @"dispatchCommand(gesture, device)",
+                                         @"dispatchMagicMousePhysicalClickForContactCount"]) {
                 if ([clickCallback rangeOfString:required].location == NSNotFound)
                     fail(@"physical click callback retains its device dispatch",
                          required, @"missing");
