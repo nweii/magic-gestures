@@ -75,30 +75,6 @@ clang \
   -o "$GESTURE_SEQUENCE_OUT" 2>/dev/null
 "$GESTURE_SEQUENCE_OUT"
 
-MOUSE_CONTACT_FILTER_OUT="$(mktemp -d)/mousecontactfiltercheck"
-clang \
-  -fobjc-exceptions \
-  -fno-objc-arc \
-  -I"$ROOT/src" \
-  -isysroot "$SDKROOT" \
-  -framework Foundation \
-  "$ROOT/src/MouseContactFilter.m" \
-  "$ROOT/src/MouseContactFilterCheck.m" \
-  -o "$MOUSE_CONTACT_FILTER_OUT" 2>/dev/null
-"$MOUSE_CONTACT_FILTER_OUT"
-
-MOUSE_CLICK_INTERACTION_OUT="$(mktemp -d)/mouseclickinteractioncheck"
-clang \
-  -fobjc-exceptions \
-  -fno-objc-arc \
-  -I"$ROOT/src" \
-  -isysroot "$SDKROOT" \
-  -framework Foundation \
-  "$ROOT/src/MouseClickInteraction.m" \
-  "$ROOT/src/MouseClickInteractionCheck.m" \
-  -o "$MOUSE_CLICK_INTERACTION_OUT" 2>/dev/null
-"$MOUSE_CLICK_INTERACTION_OUT"
-
 TRACKPAD_INTERACTION_OUT="$(mktemp -d)/trackpadinteractioncheck"
 clang \
   -fobjc-exceptions \
@@ -201,11 +177,6 @@ grep -q 'BOOL anchorRemained = nFingers == 1 && data\[0\]\.identifier == fixId;'
   gesture_fail "trackpad hold-tap treats full lift as a held anchor"
 grep -q 'major=%f minor=%f size=%f' "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
   gesture_fail "verbose logging cannot capture trackpad contact geometry"
-for gesture in 'Two-Finger Click' 'Three-Finger Click'; do
-  grep -q "bindingForGesture(@\"$gesture\", MAGICMOUSE) != nil" \
-    "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
-    gesture_fail "an unbound $gesture can claim the Magic Mouse sequence"
-done
 for gesture in \
   'One-Fix-Press Two-Slide-Up' 'One-Fix-Press Two-Slide-Down' \
   'One-Fix Two-Slide-Up' 'One-Fix Two-Slide-Down' \

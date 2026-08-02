@@ -54,8 +54,7 @@ verbose-logging = false
 # front-right-tap = escape
 # hold-left-slide-right = url:raycast://extensions/raycast/raycast-ai/ai-chat
 # three-finger-tap = url:things:///add?title={{clipboard|urlencode}}
-# two-finger-click = ctrl+cmd+a
-# three-finger-click = script:~/.config/magic-gestures/scripts/capture-selection
+# one-finger-swipe-left = script:~/.config/magic-gestures/scripts/capture-selection
 
 [trackpad]
 # hold-left-tap-right = mission-control

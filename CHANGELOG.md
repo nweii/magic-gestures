@@ -10,16 +10,17 @@ Released 2026-08-02.
 
 - Added optional `left-` and `right-` prefixes for Shift, Control, Option, and
   Command. Unspecified modifiers continue to use the left-side key.
-- Added diagnostics for Magic Mouse physical-click correlation to verbose logs.
+
+### Removed
+
+- Removed Magic Mouse two- and three-finger physical-click bindings after
+  hardware testing found posture-dependent contact classification. Magic
+  Trackpad physical-click bindings remain available.
 
 ### Fixed
 
-- Made multi-finger physical clicks reliable across touch frames that arrive
-  before mouse-down, after mouse-down, or just after mouse-up.
-- Prevented brief contact dropouts, trackpad drags, palms, thumbs, and isolated
-  edge contacts from changing or triggering a physical-click binding.
-- Allowed substantial fingertips near the rear of a Magic Mouse while retaining
-  rejection for measured rear-palm and narrow side-edge contacts.
+- Prevented brief contact dropouts, trackpad drags, and palms from changing or
+  triggering a trackpad physical-click binding.
 - Gave each contact sequence one gesture owner so taps, clicks, holds, and swipes
   cannot dispatch over one another.
 - Preserved native scrolling for unbound swipe families and suppressed it only
@@ -32,5 +33,6 @@ Released 2026-08-02.
 - Reported rejected configuration reloads in the menu instead of presenting an
   empty configuration as successful.
 
-This is a backward-compatible minor release. Existing version 2 configuration
-files require no migration.
+This alpha release removes `two-finger-click` and `three-finger-click` from
+`[mouse]`. Remove those bindings or replace them with a tap or hold gesture.
+Version 2 configuration files otherwise require no migration.

@@ -151,7 +151,6 @@ A name from one device does nothing on the other.
 
 Mouse: `hold-left-tap-right` `hold-right-tap-left` `hold-left-slide-right`
 `hold-right-slide-left` `one-finger-tap` `two-finger-tap` `three-finger-tap`
-`two-finger-click` `three-finger-click`
 `front-right-tap` `one-finger-swipe-left` `one-finger-swipe-right`
 `two-finger-swipe-left` `two-finger-swipe-right` `three-finger-swipe-left`
 `three-finger-swipe-right` `three-finger-swipe-up` `three-finger-swipe-down`
