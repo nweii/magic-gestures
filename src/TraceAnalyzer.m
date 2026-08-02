@@ -117,6 +117,7 @@ int main(int argc, const char *argv[]) {
         }
 
         NSUInteger tp = 0, tn = 0, fp = 0, fn = 0;
+        NSUInteger exactCount = 0, underCount = 0, overCount = 0;
         NSMutableArray *falsePositive = [NSMutableArray array];
         NSMutableArray *falseNegative = [NSMutableArray array];
         NSMutableArray *downToTouch = [NSMutableArray array];
@@ -125,22 +126,26 @@ int main(int argc, const char *argv[]) {
         NSMutableArray *caseResults = [NSMutableArray array];
         for (NSDictionary *label in labels) {
             NSNumber *segment = [label objectForKey:@"segment"];
-            BOOL expected = [[label objectForKey:@"expects_dispatch"] boolValue];
-            BOOL observed = [dispatchBySegment[segment] unsignedIntegerValue] > 0;
+            NSUInteger expected = [[label objectForKey:@"expected_dispatch_count"] unsignedIntegerValue];
+            NSUInteger observed = [dispatchBySegment[segment] unsignedIntegerValue];
             NSString *human = [label objectForKey:@"human"] ?: @"unlabeled";
             humanCounts[human] = @([humanCounts[human] unsignedIntegerValue] + 1);
             BOOL excludedByHuman = [human isEqualToString:@"skip"] || [human isEqualToString:@"miss"];
+            NSString *inference = excludedByHuman ? @"excluded-by-human-label" :
+                observed == expected ? @"matches-request" :
+                observed < expected ? @"under-dispatch" : @"over-dispatch";
             [caseResults addObject:@{@"segment": segment,
                 @"requested": [label objectForKey:@"requested"] ?: @"none",
-                @"human": human, @"dispatch_observed": @(observed),
-                @"inference": excludedByHuman ? @"excluded-by-human-label" :
-                    (expected == observed ? @"matches-request" :
-                    (observed ? @"likely-false-positive" : @"likely-false-negative"))}];
+                @"human": human, @"expected_dispatch_count": @(expected),
+                @"observed_dispatch_count": @(observed), @"inference": inference}];
             if (excludedByHuman) continue;
-            if (expected && observed) tp++;
-            else if (!expected && !observed) tn++;
-            else if (!expected && observed) { fp++; [falsePositive addObject:segment]; }
-            else { fn++; [falseNegative addObject:segment]; }
+            if (observed == expected) exactCount++;
+            else if (observed < expected) underCount++;
+            else overCount++;
+            if (expected == 0 && observed == 0) tn++;
+            else if (expected > 0 && observed == expected) tp++;
+            else if (observed < expected) { fn++; [falseNegative addObject:segment]; }
+            else { fp++; [falsePositive addObject:segment]; }
             if (firstDown[segment] && firstTouch[segment])
                 [downToTouch addObject:@(([firstTouch[segment] longLongValue] - [firstDown[segment] longLongValue]) / 1000000.0)];
             if (lastTouch[segment] && lastUp[segment])
@@ -157,6 +162,8 @@ int main(int argc, const char *argv[]) {
             @"cases": caseResults,
             @"confusion_matrix": @{@"true_positive": @(tp), @"true_negative": @(tn),
                                     @"false_positive": @(fp), @"false_negative": @(fn)},
+            @"dispatch_count_matrix": @{@"exact": @(exactCount), @"under": @(underCount),
+                                          @"over": @(overCount)},
             @"timing_ms": @{@"mouse_down_to_first_touch": distribution(downToTouch),
                              @"last_touch_to_mouse_up": distribution(touchToUp)},
             @"contacts": @{@"segment_contact_frames": contactFramesForJSON,
@@ -182,13 +189,12 @@ int main(int argc, const char *argv[]) {
         NSString *report = [NSString stringWithFormat:
             @"# Magic Gestures trace analysis\n\n"
              "Analyzed %lu labeled cases and %lu events.\n\n"
-             "## Confusion matrix\n\n"
-             "| | Dispatch observed | No dispatch |\n|---|---:|---:|\n"
-             "| Dispatch expected | %lu | %lu |\n| No dispatch expected | %lu | %lu |\n\n"
+             "## Dispatch count results\n\n"
+             "| Exact | Under | Over |\n|---:|---:|---:|\n| %lu | %lu | %lu |\n\n"
              "## Review candidates\n\nLikely false positives: %@\n\nLikely false negatives: %@\n\n"
              "## Interpretation\n\nRequested intent, human label, recorded observation, and analyzer inference are separate. Review candidate segments against the raw redacted events before changing recognition.\n",
             (unsigned long)[labels count], (unsigned long)[events count],
-            (unsigned long)tp, (unsigned long)fn, (unsigned long)fp, (unsigned long)tn,
+            (unsigned long)exactCount, (unsigned long)underCount, (unsigned long)overCount,
             falsePositive, falseNegative];
         if (![report writeToFile:[root stringByAppendingPathComponent:@"report.md"] atomically:YES
                          encoding:NSUTF8StringEncoding error:&error])

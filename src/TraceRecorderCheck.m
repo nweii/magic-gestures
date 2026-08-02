@@ -2,6 +2,7 @@
 
 #import <Foundation/Foundation.h>
 #import "TraceRecorder.h"
+#import <unistd.h>
 
 static int failures = 0;
 
@@ -40,11 +41,36 @@ int main(void) {
         NSString *root = [NSTemporaryDirectory() stringByAppendingPathComponent:
             [NSString stringWithFormat:@"MGTraceCheck-%@", [[NSUUID UUID] UUIDString]]];
         require(MGTraceStart(root, &problem), @"trace session did not start");
-        MGTraceBeginStep(@"normal-r1", @"two-finger-click", YES, @"Click once");
+        MGTraceBeginStep(@"normal-r1", @"two-finger-click", 1, @"Click once");
+        dispatch_group_t producers = dispatch_group_create();
+        dispatch_semaphore_t startGate = dispatch_semaphore_create(0);
+        const int producerCount = 32;
+        for (int producer = 0; producer < producerCount; producer++) {
+            dispatch_group_async(producers,
+                dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                    dispatch_semaphore_wait(startGate, DISPATCH_TIME_FOREVER);
+                    for (int eventIndex = 0; eventIndex < 250; eventIndex++)
+                        MGTraceRecordCGEvent(@"mouse-down", 1.0, producer,
+                                             eventIndex, @"observed");
+                });
+        }
+        for (int producer = 0; producer < producerCount; producer++)
+            dispatch_semaphore_signal(startGate);
+        dispatch_group_wait(producers, DISPATCH_TIME_FOREVER);
+#if !OS_OBJECT_USE_OBJC
+        dispatch_release(startGate);
+        dispatch_release(producers);
+#endif
         MGTraceContact contacts[] = {{1, 4, 0.3, 0.7, 1.2, 8.2, 6.1, 0.0}};
         for (int i = 0; i < 12000; i++)
             MGTraceRecordMouseFrame((void *)0x1, 1.0 + i, i, contacts, 1);
         MGTraceRecordDispatch(@"Two-Finger Click", @"global", @"built-in", @"suppressed-for-trace");
+        while ([[MGTraceStatus() objectForKey:@"pending"] unsignedIntegerValue] > 0)
+            usleep(1000);
+        MGTraceRecordMouseFrame((void *)0x1, 14000.0, 14000, NULL, 0);
+        usleep(900000);
+        require([[MGTraceStatus() objectForKey:@"awaiting_label"] boolValue],
+                @"full lift did not close the capture window before labeling");
         MGTraceMarkStep(@"success");
         MGTraceStop();
 

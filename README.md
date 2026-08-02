@@ -134,10 +134,13 @@ bindings. **Diagnostics** opens recent logs or copies a concise state summary.
 
 **Diagnostics > Start Trace Session…** runs a short Magic Mouse hardware check.
 The app shows one motion at a time and suppresses configured gesture actions for
-the whole session. Perform the motion, then choose **Success**, **Miss**,
-**Unsure**, or **Skip** from Diagnostics. The protocol covers three ordinary
-clicks, three two-finger clicks, quick lift, drag, rear and edge contacts,
-scrolling, tapping, and rapid repetition.
+the whole session. Before selecting **Ready**, put the pointer over an inert area
+where an ordinary click does nothing. Release **Ready**, lift fully, and wait for
+the tone after the two-second reset. Perform the motion, lift fully, wait one
+second, then choose **Success**, **Miss**, **Unsure**, or **Skip** from
+Diagnostics. Native clicks remain native. The 16-step protocol covers three
+ordinary clicks, three two-finger clicks, three three-finger clicks, quick lift,
+drag, rear and edge contacts, scrolling, tapping, and rapid repetition.
 
 **Stop and Export Trace…** closes the bounded capture, analyzes it, and asks
 where to save one redacted bundle. The bundle contains a manifest, NDJSON
@@ -152,9 +155,10 @@ From a source checkout, rerun the analyzer with:
 ./scripts/analyze-trace.sh "/path/to/MagicGestures-Trace-…"
 ```
 
-The analyzer keeps requested intent, the human label, recorded behavior, and
-its inferred false-positive or false-negative candidates separate. Review the
-redacted events before changing recognition thresholds.
+The analyzer keeps requested intent, the human label, recorded dispatch counts,
+and inferred results separate. It checks exact counts, including two dispatches
+for the rapid pair, and flags under- and over-dispatches. Review the redacted
+events before changing recognition thresholds.
 
 To have a coding agent make the change, pick one under **Manage with Agent**. It
 opens in the settings folder with editing guidance and access to your

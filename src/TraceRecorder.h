@@ -15,11 +15,12 @@ typedef struct {
 
 BOOL MGTraceStart(NSString *bundlePath, NSString **problem);
 BOOL MGTraceIsActive(void);
+BOOL MGTraceIsCapturing(void);
 BOOL MGTraceSuppressesActions(void);
 NSString *MGTraceBundlePath(void);
 NSDictionary *MGTraceStatus(void);
 void MGTraceBeginStep(NSString *step, NSString *requested,
-                      BOOL expectsDispatch, NSString *instruction);
+                      NSUInteger expectedDispatchCount, NSString *instruction);
 void MGTraceMarkStep(NSString *label);
 void MGTraceStop(void);
 

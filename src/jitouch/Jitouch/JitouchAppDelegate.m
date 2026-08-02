@@ -33,31 +33,37 @@ static NSArray *magicMouseTraceProtocol(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         steps = [@[
-            @{@"id": @"control-one-r1", @"requested": @"ordinary-click", @"dispatch": @NO,
+            @{@"id": @"control-one-r1", @"requested": @"ordinary-click", @"expected": @0,
               @"instruction": @"Ordinary one-finger click. Lift completely afterward."},
-            @{@"id": @"control-one-r2", @"requested": @"ordinary-click", @"dispatch": @NO,
+            @{@"id": @"control-one-r2", @"requested": @"ordinary-click", @"expected": @0,
               @"instruction": @"Repeat one ordinary one-finger click."},
-            @{@"id": @"control-one-r3", @"requested": @"ordinary-click", @"dispatch": @NO,
+            @{@"id": @"control-one-r3", @"requested": @"ordinary-click", @"expected": @0,
               @"instruction": @"One final ordinary one-finger click."},
-            @{@"id": @"two-click-r1", @"requested": @"two-finger-click", @"dispatch": @YES,
+            @{@"id": @"two-click-r1", @"requested": @"two-finger-click", @"expected": @1,
               @"instruction": @"Normal two-finger physical click, then lift completely."},
-            @{@"id": @"two-click-r2", @"requested": @"two-finger-click", @"dispatch": @YES,
+            @{@"id": @"two-click-r2", @"requested": @"two-finger-click", @"expected": @1,
               @"instruction": @"Repeat a normal two-finger physical click."},
-            @{@"id": @"two-click-r3", @"requested": @"two-finger-click", @"dispatch": @YES,
+            @{@"id": @"two-click-r3", @"requested": @"two-finger-click", @"expected": @1,
               @"instruction": @"One final normal two-finger physical click."},
-            @{@"id": @"quick-lift", @"requested": @"two-finger-click", @"dispatch": @YES,
+            @{@"id": @"three-click-r1", @"requested": @"three-finger-click", @"expected": @1,
+              @"instruction": @"Normal three-finger physical click, then lift completely."},
+            @{@"id": @"three-click-r2", @"requested": @"three-finger-click", @"expected": @1,
+              @"instruction": @"Repeat a normal three-finger physical click."},
+            @{@"id": @"three-click-r3", @"requested": @"three-finger-click", @"expected": @1,
+              @"instruction": @"One final normal three-finger physical click."},
+            @{@"id": @"quick-lift", @"requested": @"two-finger-click", @"expected": @1,
               @"instruction": @"Two-finger physical click and lift immediately."},
-            @{@"id": @"drag-control", @"requested": @"two-finger-drag", @"dispatch": @NO,
+            @{@"id": @"drag-control", @"requested": @"two-finger-drag", @"expected": @0,
               @"instruction": @"Press with two fingers, drag right a short distance, then release."},
-            @{@"id": @"rear-contact", @"requested": @"ordinary-click-with-rear-contact", @"dispatch": @NO,
+            @{@"id": @"rear-contact", @"requested": @"ordinary-click-with-rear-contact", @"expected": @0,
               @"instruction": @"Ordinary click with your usual loose rear-palm contact. Do not contort your grip."},
-            @{@"id": @"edge-contact", @"requested": @"ordinary-click-with-edge-contact", @"dispatch": @NO,
+            @{@"id": @"edge-contact", @"requested": @"ordinary-click-with-edge-contact", @"expected": @0,
               @"instruction": @"Ordinary click with one natural narrow side contact."},
-            @{@"id": @"scroll-control", @"requested": @"native-scroll", @"dispatch": @NO,
+            @{@"id": @"scroll-control", @"requested": @"native-scroll", @"expected": @0,
               @"instruction": @"Perform one normal horizontal scroll without clicking."},
-            @{@"id": @"tap-control", @"requested": @"two-finger-tap", @"dispatch": @NO,
+            @{@"id": @"tap-control", @"requested": @"two-finger-tap", @"expected": @0,
               @"instruction": @"Perform one two-finger tap without physically clicking."},
-            @{@"id": @"rapid-pair", @"requested": @"two-finger-click-pair", @"dispatch": @YES,
+            @{@"id": @"rapid-pair", @"requested": @"two-finger-click-pair", @"expected": @2,
               @"instruction": @"Perform two two-finger clicks in quick succession, then lift for one second."},
         ] retain];
     });
@@ -66,6 +72,10 @@ static NSArray *magicMouseTraceProtocol(void) {
 
 CursorWindow *cursorWindow;
 CGKeyCode keyMap[128]; // for dvorak support
+
+@interface JitouchAppDelegate ()
+- (void)populateDiagnosticsMenu:(NSMenu *)menu;
+@end
 
 @implementation JitouchAppDelegate
 
@@ -686,11 +696,24 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [alert setMessageText:[NSString stringWithFormat:@"Trace step %ld of %lu",
         (long)traceProtocolIndex + 1, (unsigned long)[magicMouseTraceProtocol() count]]];
     [alert setInformativeText:[NSString stringWithFormat:
-        @"%@\n\nConfigured gesture actions are suppressed during capture. Choose Success if you performed the motion cleanly, Miss if the attempt went wrong, Unsure if you cannot tell, or Skip.",
+        @"%@\n\nBefore selecting Ready, put the pointer over an inert area where an ordinary click does nothing. After releasing Ready, lift completely and keep still. One tone starts capture after a two-second reset. Perform the motion, lift fully, then wait one second before opening Diagnostics to label it.\n\nConfigured gesture actions are suppressed during capture. Native clicks remain native.",
         [step objectForKey:@"instruction"]]];
     [alert addButtonWithTitle:@"Ready"];
     [NSApp activateIgnoringOtherApps:YES];
     [alert runModal];
+
+    NSInteger preparedIndex = traceProtocolIndex;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
+                   dispatch_get_main_queue(), ^{
+        if (!MGTraceIsActive() || MGTraceIsCapturing() ||
+            traceProtocolIndex != preparedIndex) return;
+        NSDictionary *prepared = [magicMouseTraceProtocol() objectAtIndex:preparedIndex];
+        MGTraceBeginStep([prepared objectForKey:@"id"], [prepared objectForKey:@"requested"],
+                         [[prepared objectForKey:@"expected"] unsignedIntegerValue],
+                         [prepared objectForKey:@"instruction"]);
+        NSBeep();
+        [self refreshMenu];
+    });
 }
 
 - (void)advanceTraceStep {
@@ -699,10 +722,6 @@ static BOOL runLaunchctl(NSArray *arguments) {
         [self stopTraceSession:nil];
         return;
     }
-    NSDictionary *step = [magicMouseTraceProtocol() objectAtIndex:traceProtocolIndex];
-    MGTraceBeginStep([step objectForKey:@"id"], [step objectForKey:@"requested"],
-                     [[step objectForKey:@"dispatch"] boolValue],
-                     [step objectForKey:@"instruction"]);
     [self refreshMenu];
     [self showCurrentTraceStep];
 }
@@ -726,13 +745,11 @@ static BOOL runLaunchctl(NSArray *arguments) {
 }
 
 - (void)markTraceStep:(id)sender {
+    NSDictionary *status = MGTraceStatus();
+    if (![[status objectForKey:@"awaiting_label"] boolValue]) return;
     NSString *label = [sender representedObject];
     MGTraceMarkStep(label);
     [self advanceTraceStep];
-}
-
-- (void)showTraceStepAgain:(id)sender {
-    [self showCurrentTraceStep];
 }
 
 - (void)stopTraceSession:(id)sender {
@@ -782,11 +799,8 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [self refreshMenu];
 }
 
-- (void)refreshDiagnosticsSubmenu {
-    NSMenuItem *parent = [theMenu itemWithTag:kMenuTagDiagnostics];
-    if (parent == nil)
-        return;
-    NSMenu *menu = [[[NSMenu alloc] initWithTitle:@"Diagnostics"] autorelease];
+- (void)populateDiagnosticsMenu:(NSMenu *)menu {
+    [menu removeAllItems];
     NSMenuItem *copy = [menu addItemWithTitle:@"Copy Debug Info"
                                        action:@selector(copyDebugInfo:) keyEquivalent:@""];
     [copy setTarget:self];
@@ -805,26 +819,41 @@ static BOOL runLaunchctl(NSArray *arguments) {
         [start setTarget:self];
     } else {
         NSDictionary *status = MGTraceStatus();
+        BOOL capturing = [[status objectForKey:@"capturing"] boolValue];
+        BOOL awaitingLabel = [[status objectForKey:@"awaiting_label"] boolValue];
+        NSString *phase = capturing ? @"capturing" : awaitingLabel ? @"ready to label" : @"resetting";
         NSMenuItem *state = [menu addItemWithTitle:[NSString stringWithFormat:
-            @"Step %ld of %lu · %@ · %@ bytes · %@ dropped",
+            @"Step %ld of %lu · %@ · %@ · %@ bytes · %@ dropped",
             (long)traceProtocolIndex + 1, (unsigned long)[magicMouseTraceProtocol() count],
-            [status objectForKey:@"step"], [status objectForKey:@"bytes"],
+            [status objectForKey:@"step"], phase, [status objectForKey:@"bytes"],
             [status objectForKey:@"dropped"]] action:NULL keyEquivalent:@""];
         [state setEnabled:NO];
-        NSMenuItem *again = [menu addItemWithTitle:@"Show Current Step…"
-                                             action:@selector(showTraceStepAgain:) keyEquivalent:@""];
-        [again setTarget:self];
-        for (NSArray *pair in @[@[@"Success", @"success"], @[@"Miss", @"miss"],
-                                @[@"Unsure", @"unsure"], @[@"Skip", @"skip"]]) {
-            NSMenuItem *mark = [menu addItemWithTitle:pair[0]
-                                               action:@selector(markTraceStep:) keyEquivalent:@""];
-            [mark setTarget:self];
-            [mark setRepresentedObject:pair[1]];
+        if (capturing) {
+            NSMenuItem *wait = [menu addItemWithTitle:@"Lift fully and wait one second before labeling"
+                                                action:NULL keyEquivalent:@""];
+            [wait setEnabled:NO];
+        } else if (awaitingLabel) {
+            for (NSArray *pair in @[@[@"Success", @"success"], @[@"Miss", @"miss"],
+                                    @[@"Unsure", @"unsure"], @[@"Skip", @"skip"]]) {
+                NSMenuItem *mark = [menu addItemWithTitle:pair[0]
+                                                   action:@selector(markTraceStep:) keyEquivalent:@""];
+                [mark setTarget:self];
+                [mark setRepresentedObject:pair[1]];
+            }
         }
         NSMenuItem *stop = [menu addItemWithTitle:@"Stop and Export Trace…"
                                             action:@selector(stopTraceSession:) keyEquivalent:@""];
         [stop setTarget:self];
     }
+}
+
+- (void)refreshDiagnosticsSubmenu {
+    NSMenuItem *parent = [theMenu itemWithTag:kMenuTagDiagnostics];
+    if (parent == nil)
+        return;
+    NSMenu *menu = [[[NSMenu alloc] initWithTitle:@"Diagnostics"] autorelease];
+    [menu setDelegate:self];
+    [self populateDiagnosticsMenu:menu];
     [parent setSubmenu:menu];
 }
 
@@ -919,6 +948,11 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
     NSMenuItem *agents = [theMenu itemWithTag:kMenuTagAgents];
+    NSMenuItem *diagnostics = [theMenu itemWithTag:kMenuTagDiagnostics];
+    if (menu == [diagnostics submenu]) {
+        [self populateDiagnosticsMenu:menu];
+        return;
+    }
     if (menu != [agents submenu])
         return;
 

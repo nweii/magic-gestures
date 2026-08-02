@@ -142,6 +142,8 @@ grep -q '"true_positive" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
   { echo "trace analyzer changed the synthetic positive classification" >&2; exit 1; }
 grep -q '"true_negative" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
   { echo "trace analyzer changed the synthetic negative classification" >&2; exit 1; }
+grep -q '"under" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
+  { echo "trace analyzer stopped detecting an under-dispatched rapid pair" >&2; exit 1; }
 MALFORMED_TRACE="$(mktemp -d)/malformed-bundle"
 if "$TRACE_ANALYZER_OUT" "$MALFORMED_TRACE" >/dev/null 2>&1; then
   echo "trace analyzer accepted a malformed bundle" >&2

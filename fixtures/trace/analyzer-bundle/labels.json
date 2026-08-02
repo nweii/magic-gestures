@@ -1,8 +1,9 @@
 {
   "dropped_events": 0,
   "labels": [
-    {"segment": 1, "step": "positive", "requested": "two-finger-click", "expects_dispatch": true, "human": "success"},
-    {"segment": 2, "step": "negative", "requested": "ordinary-click", "expects_dispatch": false, "human": "success"}
+    {"segment": 1, "step": "positive", "requested": "two-finger-click", "expected_dispatch_count": 1, "human": "success"},
+    {"segment": 2, "step": "negative", "requested": "ordinary-click", "expected_dispatch_count": 0, "human": "success"},
+    {"segment": 3, "step": "rapid", "requested": "two-finger-click-pair", "expected_dispatch_count": 2, "human": "success"}
   ],
   "schema": 1
 }

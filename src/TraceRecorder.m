@@ -12,11 +12,15 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
 @public
     os_unfair_lock lock;
     BOOL active;
+    BOOL capturing;
+    BOOL awaitingLabel;
+    BOOL sawContactsInSegment;
+    BOOL liftScheduled;
     BOOL stopping;
     NSString *session;
     NSString *step;
     NSString *requested;
-    BOOL expectsDispatch;
+    NSUInteger expectedDispatchCount;
     NSString *bundlePath;
     NSFileHandle *eventsHandle;
     dispatch_queue_t writer;
@@ -25,6 +29,7 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
     NSUInteger pendingEvents;
     NSUInteger droppedEvents;
     NSUInteger segment;
+    NSUInteger liftGeneration;
     NSMutableArray *labels;
     NSMutableDictionary *devices;
 }
@@ -145,10 +150,14 @@ static void enqueue(NSString *source, NSString *event, NSString *device,
                     NSDictionary *data) {
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
-    if (!state->active || state->stopping ||
-        state->pendingEvents >= kTraceMaximumPendingEvents ||
+    BOOL guideEvent = [source isEqualToString:@"guide"];
+    if (!state->active || state->stopping || (!state->capturing && !guideEvent)) {
+        os_unfair_lock_unlock(&state->lock);
+        return;
+    }
+    if (state->pendingEvents >= kTraceMaximumPendingEvents ||
         state->writtenBytes >= kTraceMaximumBytes) {
-        if (state->active) state->droppedEvents++;
+        state->droppedEvents++;
         os_unfair_lock_unlock(&state->lock);
         return;
     }
@@ -157,7 +166,6 @@ static void enqueue(NSString *source, NSString *event, NSString *device,
     NSString *session = [state->session copy];
     NSString *step = [state->step copy] ?: @"idle";
     state->pendingEvents++;
-    os_unfair_lock_unlock(&state->lock);
 
     NSDictionary *envelope = @{
         @"schema": @1,
@@ -171,9 +179,8 @@ static void enqueue(NSString *source, NSString *event, NSString *device,
         @"device": device ?: [NSNull null],
         @"data": data ?: @{},
     };
-    [session release];
-    [step release];
-
+    // Queue insertion stays under the same lock as sequence assignment. The
+    // writer does all serialization and file I/O after the callback returns.
     dispatch_async(state->writer, ^{
         NSString *problem = nil;
         NSData *line = MGTraceDeterministicJSONLine(envelope, &problem);
@@ -193,6 +200,9 @@ static void enqueue(NSString *source, NSString *event, NSString *device,
         state->pendingEvents--;
         os_unfair_lock_unlock(&state->lock);
     });
+    os_unfair_lock_unlock(&state->lock);
+    [session release];
+    [step release];
 }
 
 BOOL MGTraceStart(NSString *path, NSString **problem) {
@@ -243,18 +253,23 @@ BOOL MGTraceStart(NSString *path, NSString **problem) {
 
     os_unfair_lock_lock(&state->lock);
     state->active = YES;
+    state->capturing = NO;
+    state->awaitingLabel = NO;
+    state->sawContactsInSegment = NO;
+    state->liftScheduled = NO;
     state->stopping = NO;
     [state->session release]; state->session = [newSession copy];
     [state->step release]; state->step = [@"setup" copy];
     [state->requested release]; state->requested = nil;
     [state->bundlePath release]; state->bundlePath = [path copy];
     [state->eventsHandle release]; state->eventsHandle = [handle retain];
-    state->expectsDispatch = NO;
+    state->expectedDispatchCount = 0;
     state->nextSequence = 0;
     state->writtenBytes = 0;
     state->pendingEvents = 0;
     state->droppedEvents = 0;
     state->segment = 0;
+    state->liftGeneration = 0;
     [state->labels removeAllObjects];
     [state->devices removeAllObjects];
     os_unfair_lock_unlock(&state->lock);
@@ -268,6 +283,14 @@ BOOL MGTraceIsActive(void) {
     return active;
 }
 
+BOOL MGTraceIsCapturing(void) {
+    MGTraceState *state = traceState();
+    os_unfair_lock_lock(&state->lock);
+    BOOL capturing = state->capturing;
+    os_unfair_lock_unlock(&state->lock);
+    return capturing;
+}
+
 BOOL MGTraceSuppressesActions(void) { return MGTraceIsActive(); }
 
 NSString *MGTraceBundlePath(void) {
@@ -279,7 +302,9 @@ NSString *MGTraceBundlePath(void) {
 NSDictionary *MGTraceStatus(void) {
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
-    NSDictionary *status = [@{@"active": @(state->active), @"step": state->step ?: @"idle",
+    NSDictionary *status = [@{@"active": @(state->active), @"capturing": @(state->capturing),
+                              @"awaiting_label": @(state->awaitingLabel),
+                              @"step": state->step ?: @"idle",
                               @"segment": @(state->segment), @"pending": @(state->pendingEvents),
                               @"dropped": @(state->droppedEvents), @"bytes": @(state->writtenBytes)} retain];
     os_unfair_lock_unlock(&state->lock);
@@ -287,29 +312,43 @@ NSDictionary *MGTraceStatus(void) {
 }
 
 void MGTraceBeginStep(NSString *step, NSString *requested,
-                      BOOL expectsDispatch, NSString *instruction) {
+                      NSUInteger expectedDispatchCount, NSString *instruction) {
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
     if (!state->active) { os_unfair_lock_unlock(&state->lock); return; }
     [state->step release]; state->step = [step copy];
     [state->requested release]; state->requested = [requested copy];
-    state->expectsDispatch = expectsDispatch;
-    state->segment++;
+    state->expectedDispatchCount = expectedDispatchCount;
+    state->capturing = NO;
+    state->awaitingLabel = NO;
+    state->sawContactsInSegment = NO;
+    state->liftScheduled = NO;
+    state->liftGeneration++;
+    NSUInteger segment = ++state->segment;
     os_unfair_lock_unlock(&state->lock);
     enqueue(@"guide", @"step-start", nil,
-            @{@"requested": requested ?: @"none", @"expects_dispatch": @(expectsDispatch),
+            @{@"requested": requested ?: @"none",
+              @"expected_dispatch_count": @(expectedDispatchCount),
               @"instruction": instruction ?: @""});
+    os_unfair_lock_lock(&state->lock);
+    if (state->active && state->segment == segment) state->capturing = YES;
+    os_unfair_lock_unlock(&state->lock);
 }
 
 void MGTraceMarkStep(NSString *label) {
     if (![@[@"success", @"miss", @"unsure", @"skip"] containsObject:label]) return;
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
-    if (!state->active) { os_unfair_lock_unlock(&state->lock); return; }
+    if (!state->active || !state->awaitingLabel) {
+        os_unfair_lock_unlock(&state->lock);
+        return;
+    }
     NSDictionary *entry = @{ @"segment": @(state->segment), @"step": state->step ?: @"idle",
                              @"requested": state->requested ?: @"none",
-                             @"expects_dispatch": @(state->expectsDispatch), @"human": label };
+                             @"expected_dispatch_count": @(state->expectedDispatchCount),
+                             @"human": label };
     [state->labels addObject:entry];
+    state->awaitingLabel = NO;
     os_unfair_lock_unlock(&state->lock);
     enqueue(@"guide", @"human-label", nil, @{@"label": label});
 }
@@ -328,6 +367,8 @@ void MGTraceStop(void) {
     [state->eventsHandle closeFile];
     [state->eventsHandle release]; state->eventsHandle = nil;
     state->active = NO;
+    state->capturing = NO;
+    state->awaitingLabel = NO;
     state->stopping = NO;
     os_unfair_lock_unlock(&state->lock);
     NSDictionary *labelsDocument = @{@"schema": @1, @"labels": labelsCopy,
@@ -340,7 +381,7 @@ void MGTraceStop(void) {
 void MGTraceRecordMouseFrame(const void *device, double hardwareTimestamp,
                              int frame, const MGTraceContact *contacts,
                              int contactCount) {
-    if (!MGTraceIsActive()) return;
+    if (!MGTraceIsCapturing()) return;
     NSMutableArray *values = [NSMutableArray arrayWithCapacity:MAX(contactCount, 0)];
     for (int i = 0; i < contactCount; i++) {
         [values addObject:@{@"id": @(contacts[i].identifier), @"state": @(contacts[i].state),
@@ -350,6 +391,43 @@ void MGTraceRecordMouseFrame(const void *device, double hardwareTimestamp,
     }
     enqueue(@"touch", @"frame", ephemeralDeviceName(device),
             @{@"hardware_t": @(hardwareTimestamp), @"frame": @(frame), @"contacts": values});
+
+    MGTraceState *state = traceState();
+    os_unfair_lock_lock(&state->lock);
+    if (!state->active || !state->capturing) {
+        os_unfair_lock_unlock(&state->lock);
+        return;
+    }
+    if (contactCount > 0) {
+        state->sawContactsInSegment = YES;
+        state->liftScheduled = NO;
+        state->liftGeneration++;
+        os_unfair_lock_unlock(&state->lock);
+        return;
+    }
+    if (!state->sawContactsInSegment || state->liftScheduled) {
+        os_unfair_lock_unlock(&state->lock);
+        return;
+    }
+    state->liftScheduled = YES;
+    NSUInteger generation = state->liftGeneration;
+    NSUInteger segment = state->segment;
+    os_unfair_lock_unlock(&state->lock);
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.75 * NSEC_PER_SEC)),
+                   dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+        os_unfair_lock_lock(&state->lock);
+        BOOL closesSegment = state->active && state->capturing &&
+            state->segment == segment && state->liftGeneration == generation;
+        if (closesSegment) {
+            state->capturing = NO;
+            state->awaitingLabel = YES;
+            state->liftScheduled = NO;
+        }
+        os_unfair_lock_unlock(&state->lock);
+        if (closesSegment)
+            enqueue(@"guide", @"capture-window-closed", nil, @{});
+    });
 }
 
 void MGTraceRecordFilterDecision(int identifier, NSString *reason, BOOL kept,

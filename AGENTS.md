@@ -296,7 +296,13 @@ persistent device identifiers.
 Diagnostics > Start Trace Session runs a short Magic Mouse protocol. Configured
 actions are suppressed while it records raw contact frames, filter decisions,
 mouse/drag/scroll events, recognizer outcomes, ownership, safe dispatch kinds,
-and human Success/Miss/Unsure/Skip labels. Stop and Export Trace runs the bundled
+and human Success/Miss/Unsure/Skip labels. Each step shows its instructions while
+capture is paused, asks for the pointer to rest over an inert area, then starts
+capture with a tone after a two-second reset. A full lift closes the scored
+window before the user opens Diagnostics to label it. The protocol includes
+three clean repetitions of both two- and three-finger physical clicks. Expected
+dispatch counts distinguish exact, under-, and over-dispatches, including two
+expected dispatches for the rapid pair. Stop and Export Trace runs the bundled
 `TraceAnalyzer.m` executable before moving one redacted bundle to a location the
 user chooses. `scripts/analyze-trace.sh BUNDLE` reruns the same analyzer from
 source.
