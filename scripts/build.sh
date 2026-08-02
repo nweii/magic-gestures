@@ -32,9 +32,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.5.0</string>
+  <string>0.5.1</string>
   <key>CFBundleVersion</key>
-  <string>9</string>
+  <string>10</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>LSUIElement</key>

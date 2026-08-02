@@ -2,6 +2,42 @@
 
 # Changelog
 
+## 0.5.1
+
+Released 2026-08-02.
+
+### Added
+
+- Added **Copy Prompt** under **Manage with Agent**. It gives any chat assistant
+  the public configuration reference and asks for a ready-to-paste block without
+  copying the user's existing configuration or private values.
+
+### Changed
+
+- Simplified the starter configuration from a compact reference document to a
+  short working setup with a separated examples area. Existing user-owned
+  configurations are unchanged during updates.
+- Kept guided hardware trace capture internal and hidden by default while
+  retaining logs and copied debug state in the public Diagnostics menu.
+
+### Fixed
+
+- Allowed up to three pixels of incidental Magic Mouse movement during a
+  multi-finger physical click. Four pixels of displacement begins a drag and
+  cancels the configured action.
+- Delayed Magic Mouse physical-click actions until mouse-up, preserving the
+  native click and preventing an intentional click-and-drag from firing the
+  configured action early.
+- Scoped trace results to the physical-click gesture under test so a configured
+  tap action is not reported as a click false positive.
+- Made the internal trace window closable after completion, increased its label
+  contrast, and prevented execution-quality buttons from truncating.
+
+This is a backward-compatible patch release. Existing version 2 configuration
+files keep working. Magic Mouse physical-click bindings remain disabled by
+default behind `experimental-mouse-click-gestures` while their behavior is
+tested in daily use.
+
 ## 0.5.0
 
 Released 2026-08-02.
