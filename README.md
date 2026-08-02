@@ -130,47 +130,10 @@ needed. The status row reports how many bindings loaded and whether any lines
 were skipped. **Current Gestures** shows global and application-specific
 bindings. **Diagnostics** opens recent logs or copies a concise state summary.
 
-### Guided trace sessions
-
-**Diagnostics > Start Trace Session…** runs a short Magic Mouse hardware check.
-It opens a persistent diagnostic window with the full protocol overview, current
-motion, progress, state, controls, and a large inert test surface. Keep the
-pointer in that surface, press **Space** to start the first neutral countdown, and
-perform the motion after the tone. After each label, the next three-second
-countdown starts automatically. The window advances through preparing,
-countdown, recording, full lift, and labeling without reopening the menu.
-The window reports how many recognitions it detected against the expected count.
-**Return**, **M**, **U**, and **K** mark Clean attempt, Botched attempt, Unsure,
-and Skip once the scored window closes. These labels describe only your physical
-execution. **Escape** stops at any time. Configured gesture actions
-are suppressed while native clicks remain native. The 17-step protocol focuses
-on three natural two-finger clicks and compares natural lifting with a controlled
-500 ms hold and an immediate lift. It compares upper and lower touch-surface
-positions, then checks ordinary and three-finger clicks, drag, rear and edge
-contacts, scrolling, tapping, and rapid repetition.
-
-Stopping early offers **Discard**, **Export Partial**, or **Continue**. Completion
-shows a summary and the temporary bundle location before **Export bundle (E)**
-analyzes it and asks where to save it. The bundle contains a manifest, NDJSON
-events, human labels, aggregate JSON analysis, and a Markdown report. It never
-contains application names, configured actions, keystrokes, URLs, script paths,
-clipboard contents, cursor positions, screen positions, or persistent hardware
-identifiers.
-
-From a source checkout, rerun the analyzer with:
-
-```bash
-./scripts/analyze-trace.sh "/path/to/MagicGestures-Trace-…"
-```
-
-The analyzer keeps requested intent, the human label, recorded dispatch counts,
-and inferred results separate. It checks exact counts, including two dispatches
-for the rapid pair, and flags under- and over-dispatches. Review the redacted
-events before changing recognition thresholds.
-
-To have a coding agent make the change, pick one under **Manage with Agent**. It
-opens in the settings folder with editing guidance and access to your
-configuration.
+Under **Manage with Agent**, choose an installed coding agent to edit the file
+directly or choose **Copy Prompt** for help from a general chat assistant. The
+copied prompt links to the configuration reference and asks for a ready-to-paste
+block without copying private settings.
 
 See `GESTURES.md` for the gesture names available on each device, supported keys
 and modifiers, built-in actions, custom URLs, URL substitutions, executable
@@ -212,12 +175,7 @@ It does not read your keystrokes. The event tap it installs watches mouse and
 scroll events so it can tell a gesture from a normal click. Keyboard events are
 not in the set it listens for.
 
-Touch data normally stays in memory. A guided trace session writes Magic Mouse
-contact geometry and gesture decisions to a private temporary folder until you
-stop and choose whether to export it. Trace mode is off by default, has a 50 MB
-limit, suppresses configured actions, and uses a different ephemeral device name
-for each session. Raw trace bundles can describe hand posture, so share them only
-when needed and delete them when the diagnosis is finished.
+Touch data stays in memory during ordinary use.
 
 Outside its own folder, Magic Gestures writes to two places. It creates
 `~/.config/magic-gestures/` on first run and puts your `config.txt` and an

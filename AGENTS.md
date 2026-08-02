@@ -80,10 +80,8 @@ a link to the repository.
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.
 - Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
-  enable verbose logging for the current session, or run a guided Magic Mouse
-  trace session with configured actions suppressed. The controller automatically
-  advances after each human label and compares natural, held, and immediate lift
-  timing without asking the user to estimate the interval.
+  or enable verbose logging for the current session. An internal preference can
+  also reveal the guided Magic Mouse trace session described below.
 - About Magic Gestures and Quit Magic Gestures.
 
 ## Releasing
@@ -287,6 +285,19 @@ logging:
 ```
 
 ## Guided traces
+
+Guided traces are internal and absent from the menu by default. Reveal them for
+local development, then restart the app:
+
+```bash
+defaults write fyi.nathancheng.magic-gestures InternalTraceDiagnostics -bool true
+```
+
+Delete that preference to restore the release menu:
+
+```bash
+defaults delete fyi.nathancheng.magic-gestures InternalTraceDiagnostics
+```
 
 `TraceRecorder.m` owns bounded hardware capture. It assigns monotonic sequence
 numbers before sending typed events to a serial writer queue, caps pending events

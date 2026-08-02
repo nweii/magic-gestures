@@ -1,19 +1,13 @@
-# This is the configuration file for Magic Gestures, which turns Magic Mouse
-# and Magic Trackpad gestures into shortcuts, actions, custom URLs, or scripts.
-#
-# A # at the start of a line or after whitespace starts a comment that runs to
-# the end of the line. Every other line is live.
-#
-# Save this file, then pick "Reload Settings" from the menu bar to apply it.
-#
-# To hide the menu bar icon, use System Settings > Menu Bar. Gestures keep
-# working, and you can manage this file from a terminal or an agent.
-#
-# You can also pick "Manage with Agent" from the menu bar for help configuring,
-# updating, troubleshooting, or uninstalling the app. AGENTS.md beside this file
-# tells the agent how.
-#
-# Project: https://github.com/nweii/magic-gestures
+# Magic Gestures
+# Lines without # are active. Save, then choose Reload Settings in the menu bar.
+# Choose Manage with Agent for help, or see the full reference:
+# https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
+
+[general]
+config-version = 2
+dominant-hand = right
+haptic-feedback = true
+experimental-mouse-click-gestures = false
 
 [mouse]
 hold-left-tap-right = return
@@ -24,47 +18,20 @@ two-finger-tap = middle-click
 hold-left-tap-right = return
 hold-right-tap-left = escape
 
-[general]
-config-version = 2
-enable-mouse = true
-enable-trackpad = true
-dominant-hand = right
-tap-speed = 0.25
-haptic-feedback = true
-experimental-mouse-click-gestures = false
-verbose-logging = false
+
+# EXAMPLES
+# Remove # from an example to enable it.
 
 
-# Examples
-# ───────────────────────────────────────────────────────────────
-#
-# Put bindings under [mouse] or [trackpad]. A section may appear more than once,
-# so an agent can append a complete section without depending on the one above.
-#
-# URL substitutions resolve when the gesture fires. Use
-# {{clipboard|urlencode}} for clipboard text in a query parameter. Date and time
-# substitutions use Apple date formats and the Mac's local time.
-# An agent can help construct an app deep link and save it as a URL binding.
-# Use an expanded binding with defer = true when a tap overlaps with a
-# double-tap gesture. A second matching tap cancels the delayed action.
-#
 [mouse]
-# hold-left-tap-right = cmd+shift+a
-# two-finger-tap = middle-click
-# two-finger-tap { action = "ctrl+cmd+a", defer = true }
-# front-right-tap = escape
+# three-finger-tap = ctrl+cmd+a
+# two-finger-tap { action = "middle-click", defer = true }
+# three-finger-tap = script:~/.config/magic-gestures/scripts/capture-selection
 # hold-left-slide-right = url:raycast://extensions/raycast/raycast-ai/ai-chat
-# three-finger-tap = url:things:///add?title={{clipboard|urlencode}}
-# Physical mouse clicks also require experimental-mouse-click-gestures = true.
-# They may miss depending on hand placement and how quickly contacts lift.
-# two-finger-click = ctrl+cmd+a
-# three-finger-click = script:~/.config/magic-gestures/scripts/capture-selection
+# two-finger-click = right-ctrl+space  # Also enable the experimental setting above.
+
 
 [trackpad]
-# hold-left-tap-right = mission-control
-# three-finger-swipe-up = ctrl+up
-# four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
-# five-finger-tap = mission-control
-#
-# Every gesture, key, and setting:
-# https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
+# three-finger-swipe-up = mission-control
+# four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
+# three-finger-click { action = "escape", haptic = true }

@@ -44,6 +44,11 @@ static NSString *completedTracePath = nil;
 static BOOL traceHeldLiftCueScheduled = NO;
 static BOOL traceHeldLiftCuePlayed = NO;
 
+static BOOL internalTraceDiagnosticsEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults]
+        boolForKey:@"InternalTraceDiagnostics"];
+}
+
 static NSArray *magicMouseTraceProtocol(void) {
     static NSArray *steps = nil;
     static dispatch_once_t onceToken;
@@ -771,10 +776,15 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [tracePrimaryButton setHidden:!(overview || preparing)];
     [tracePrimaryButton setTitle:overview ? @"Begin session ↩" : @"Start countdown Space"];
     [tracePrimaryButton setKeyEquivalent:overview ? @"\r" : @" "];
-    for (NSButton *button in traceLabelButtons)
+    for (NSButton *button in traceLabelButtons) {
         [button setEnabled:[traceSession labelsEnabled]];
+        [button setHidden:![traceSession labelsEnabled]];
+    }
     [traceExportButton setHidden:phase != MGTraceSessionComplete];
-    [traceStopButton setHidden:phase == MGTraceSessionComplete];
+    [traceStopButton setHidden:NO];
+    [traceStopButton setTitle:phase == MGTraceSessionComplete ? @"Close Esc" : @"Stop Esc"];
+    [traceStopButton setAction:phase == MGTraceSessionComplete
+        ? @selector(closeTraceWindow:) : @selector(stopTraceSession:)];
 }
 
 - (void)tracePoll:(NSTimer *)timer {
@@ -852,7 +862,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [[traceSurface layer] setCornerRadius:12];
     NSTextField *surfaceText = traceText(NSMakeRect(20, 85, 624, 50), 18, YES);
     [surfaceText setAlignment:NSTextAlignmentCenter];
-    [surfaceText setTextColor:[NSColor secondaryLabelColor]];
+    [surfaceText setTextColor:[NSColor colorWithWhite:1 alpha:0.72]];
     [surfaceText setStringValue:@"INERT TEST SURFACE\nPark the pointer and perform mouse motions here"];
     [traceSurface addSubview:surfaceText];
     tracePrimaryButton = [[NSButton alloc] initWithFrame:NSMakeRect(28, 92, 190, 32)];
@@ -861,14 +871,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSArray *labels = @[@[@"Clean attempt ↩", @"clean", @"\r"], @[@"Botched attempt M", @"botched", @"m"],
         @[@"Unsure U", @"unsure", @"u"], @[@"Skip K", @"skip", @"k"]];
     NSMutableArray *buttons = [NSMutableArray array];
-    CGFloat x = 228;
+    CGFloat x = 28;
     NSInteger labelIndex = 0;
     for (NSArray *item in labels) {
-        NSButton *button = [[[NSButton alloc] initWithFrame:NSMakeRect(x, 92, 102, 32)] autorelease];
+        NSButton *button = [[[NSButton alloc] initWithFrame:NSMakeRect(x, 92, 154, 32)] autorelease];
         [button setTitle:item[0]]; [button setTag:labelIndex++];
         [button setKeyEquivalent:item[2]]; [button setTarget:self];
         [button setAction:@selector(markTraceStep:)]; [content addSubview:button];
-        [buttons addObject:button]; x += 108;
+        [buttons addObject:button]; x += 166;
     }
     traceLabelButtons = [buttons copy];
     traceStopButton = [[NSButton alloc] initWithFrame:NSMakeRect(28, 34, 130, 32)];
@@ -954,6 +964,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [self exportCompletedTrace:nil];
 }
 
+- (void)closeTraceWindow:(id)sender {
+    [tracePanel orderOut:nil];
+    [traceSession release]; traceSession = nil;
+    [completedTracePath release]; completedTracePath = nil;
+    traceProtocolIndex = -1;
+    [self refreshMenu];
+}
+
 - (void)exportCompletedTrace:(id)sender {
     NSString *source = completedTracePath;
     if (source == nil) return;
@@ -1015,6 +1033,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [verbose setTarget:self];
     [verbose setState:logLevel >= LOG_LEVEL_DEBUG
         ? NSControlStateValueOn : NSControlStateValueOff];
+    BOOL showTrace = internalTraceDiagnosticsEnabled() || MGTraceIsActive() ||
+        traceSession != nil;
+    if (!showTrace) return;
     [menu addItem:[NSMenuItem separatorItem]];
     if (!MGTraceIsActive() && traceSession == nil) {
         NSMenuItem *start = [menu addItemWithTitle:@"Start Trace Session…"
@@ -1090,6 +1111,26 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     if (![[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:scriptPath]])
         [self reportFailure:@"Can't start the coding agent."
                      detail:[NSString stringWithFormat:@"Nothing opened %@.", scriptPath]];
+}
+
+// Copies a privacy-conscious prompt for a general chat assistant that cannot
+// edit the local configuration directly.
+- (void)copyAgentPrompt:(id)sender {
+    NSString *prompt =
+        @"I use Magic Gestures, a macOS app configured through one plain-text file. "
+        @"Help me create a ready-to-paste configuration block. Read the syntax and "
+        @"available gestures, actions, and settings here: "
+        @"https://github.com/nweii/magic-gestures/blob/main/GESTURES.md\n\n"
+        @"Ask what I want the gesture to do, which device it should use, and whether "
+        @"it should be global or limited to an application. Do not invent gesture or "
+        @"action names. Return the smallest valid block, tell me where to paste it, "
+        @"and remind me to choose Reload Settings. Preserve unrelated bindings. Ask "
+        @"for only the relevant lines if you need to inspect my existing configuration "
+        @"because it may contain private URLs or script paths.\n\n"
+        @"What I want to configure: ";
+    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+    [pasteboard clearContents];
+    [pasteboard setString:prompt forType:NSPasteboardTypeString];
 }
 
 // Creates the user-owned configuration once and atomically refreshes the
@@ -1176,10 +1217,17 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         [item setToolTip:path];
     }
 
+    if (any) [menu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *copyPrompt = [menu addItemWithTitle:@"Copy Prompt"
+                                             action:@selector(copyAgentPrompt:)
+                                      keyEquivalent:@""];
+    [copyPrompt setTarget:self];
+
     if (!any) {
         NSMenuItem *empty = [menu addItemWithTitle:@"No coding agent installed" action:NULL keyEquivalent:@""];
         [empty setEnabled:NO];
 
+        [menu addItem:[NSMenuItem separatorItem]];
         NSMenuItem *hint = [menu addItemWithTitle:@"Edit Settings..." action:@selector(preferences:) keyEquivalent:@""];
         [hint setTarget:self];
 
