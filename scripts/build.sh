@@ -69,6 +69,7 @@ clang \
   "$ROOT/src/MouseClickInteraction.m" \
   "$ROOT/src/ScriptRunner.m" \
   "$ROOT/src/TraceRecorder.m" \
+  "$ROOT/src/TraceSessionModel.m" \
   "$ROOT/src/TrackpadInteraction.m" \
   "$SRC_ROOT/JitouchAppDelegate.m" \
   "$SRC_ROOT/Settings.m" \

@@ -17,6 +17,7 @@
 #import "Config.h"
 #import "KeyUtility.h"
 #import "TraceRecorder.h"
+#import "TraceSessionModel.h"
 #include <pwd.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -27,6 +28,19 @@ static BOOL lastConfigRejected = NO;
 static dispatch_source_t configWatcher = nil;
 static int configWatcherFD = -1;
 static NSInteger traceProtocolIndex = -1;
+static NSPanel *tracePanel = nil;
+static MGTraceSessionModel *traceSession = nil;
+static NSTextField *traceHeading = nil;
+static NSTextField *traceDetail = nil;
+static NSTextField *traceProgress = nil;
+static NSProgressIndicator *traceProgressBar = nil;
+static NSView *traceSurface = nil;
+static NSButton *tracePrimaryButton = nil;
+static NSArray *traceLabelButtons = nil;
+static NSButton *traceStopButton = nil;
+static NSButton *traceExportButton = nil;
+static NSTimer *tracePollTimer = nil;
+static NSString *completedTracePath = nil;
 
 static NSArray *magicMouseTraceProtocol(void) {
     static NSArray *steps = nil;
@@ -688,42 +702,145 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [self refreshMenu];
 }
 
-- (void)showCurrentTraceStep {
-    if (!MGTraceIsActive() || traceProtocolIndex < 0 ||
-        traceProtocolIndex >= (NSInteger)[magicMouseTraceProtocol() count]) return;
-    NSDictionary *step = [magicMouseTraceProtocol() objectAtIndex:traceProtocolIndex];
-    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    [alert setMessageText:[NSString stringWithFormat:@"Trace step %ld of %lu",
-        (long)traceProtocolIndex + 1, (unsigned long)[magicMouseTraceProtocol() count]]];
-    [alert setInformativeText:[NSString stringWithFormat:
-        @"%@\n\nBefore selecting Ready, put the pointer over an inert area where an ordinary click does nothing. After releasing Ready, lift completely and keep still. One tone starts capture after a two-second reset. Perform the motion, lift fully, then wait one second before opening Diagnostics to label it.\n\nConfigured gesture actions are suppressed during capture. Native clicks remain native.",
-        [step objectForKey:@"instruction"]]];
-    [alert addButtonWithTitle:@"Ready"];
-    [NSApp activateIgnoringOtherApps:YES];
-    [alert runModal];
-
-    NSInteger preparedIndex = traceProtocolIndex;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
-                   dispatch_get_main_queue(), ^{
-        if (!MGTraceIsActive() || MGTraceIsCapturing() ||
-            traceProtocolIndex != preparedIndex) return;
-        NSDictionary *prepared = [magicMouseTraceProtocol() objectAtIndex:preparedIndex];
-        MGTraceBeginStep([prepared objectForKey:@"id"], [prepared objectForKey:@"requested"],
-                         [[prepared objectForKey:@"expected"] unsignedIntegerValue],
-                         [prepared objectForKey:@"instruction"]);
-        NSBeep();
-        [self refreshMenu];
-    });
+static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
+    NSTextField *field = [[[NSTextField alloc] initWithFrame:frame] autorelease];
+    [field setEditable:NO]; [field setSelectable:NO]; [field setBezeled:NO];
+    [field setDrawsBackground:NO]; [field setUsesSingleLineMode:NO];
+    [field setFont:bold ? [NSFont boldSystemFontOfSize:size] : [NSFont systemFontOfSize:size]];
+    return field;
 }
 
-- (void)advanceTraceStep {
-    traceProtocolIndex++;
-    if (traceProtocolIndex >= (NSInteger)[magicMouseTraceProtocol() count]) {
-        [self stopTraceSession:nil];
-        return;
+- (void)updateTraceWindow {
+    if (tracePanel == nil || traceSession == nil) return;
+    MGTraceSessionPhase phase = [traceSession phase];
+    NSInteger index = [traceSession stepIndex];
+    NSUInteger count = [[traceSession steps] count];
+    NSDictionary *step = index >= 0 && index < (NSInteger)count
+        ? [[traceSession steps] objectAtIndex:index] : nil;
+    NSArray *phaseNames = @[@"Overview", @"Preparing", @"Neutral countdown",
+        @"Recording", @"Waiting for full lift", @"Ready for label", @"Complete"];
+    [traceProgress setStringValue:phase == MGTraceSessionOverview
+        ? @"16 steps · about 5 minutes"
+        : phase == MGTraceSessionComplete ? @"16 of 16 complete"
+        : [NSString stringWithFormat:@"Step %ld of %lu · %@", (long)index + 1,
+            (unsigned long)count, phaseNames[phase]]];
+    [traceProgressBar setDoubleValue:phase == MGTraceSessionComplete ? count : MAX(index, 0)];
+
+    if (phase == MGTraceSessionOverview) {
+        [traceHeading setStringValue:@"Magic Mouse trace session"];
+        [traceDetail setStringValue:
+            @"This takes about 5 minutes: 3 ordinary clicks, 3 two-finger clicks, 3 three-finger clicks, then 7 focused controls. Success means you performed the requested motion cleanly. Miss means your attempt was wrong. Unsure means you cannot judge it. Skip omits the case.\n\nKeep the pointer inside the gray test surface below. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
+    } else if (phase == MGTraceSessionComplete) {
+        [traceHeading setStringValue:@"Trace complete"];
+        [traceDetail setStringValue:[NSString stringWithFormat:
+            @"All 16 steps are labeled. The redacted bundle is ready to export.\n\nTemporary bundle: %@",
+            completedTracePath ?: @"Analysis is finishing…"]];
+    } else {
+        [traceHeading setStringValue:[step objectForKey:@"requested"] ?: @"Trace step"];
+        NSString *stateInstruction = phase == MGTraceSessionPreparing
+            ? @"Place the pointer in the gray test surface, lift fully, then press Start countdown."
+            : phase == MGTraceSessionCountdown
+                ? [NSString stringWithFormat:@"Keep fully lifted and still. Recording begins in %ld…",
+                    (long)[traceSession countdown]]
+                : phase == MGTraceSessionRecording ? @"Perform the motion now."
+                : phase == MGTraceSessionWaitingForLift ? @"Lift every contact and wait."
+                : @"Score the attempt with a button or shortcut.";
+        [traceDetail setStringValue:[NSString stringWithFormat:@"%@\n\n%@",
+            [step objectForKey:@"instruction"], stateInstruction]];
     }
-    [self refreshMenu];
-    [self showCurrentTraceStep];
+
+    BOOL overview = phase == MGTraceSessionOverview;
+    BOOL preparing = phase == MGTraceSessionPreparing;
+    [tracePrimaryButton setHidden:!(overview || preparing)];
+    [tracePrimaryButton setTitle:overview ? @"Begin session ↩" : @"Start countdown Space"];
+    [tracePrimaryButton setKeyEquivalent:overview ? @"\r" : @" "];
+    for (NSButton *button in traceLabelButtons)
+        [button setEnabled:[traceSession labelsEnabled]];
+    [traceExportButton setHidden:phase != MGTraceSessionComplete];
+    [traceStopButton setHidden:phase == MGTraceSessionComplete];
+}
+
+- (void)tracePoll:(NSTimer *)timer {
+    if (!MGTraceIsActive() || traceSession == nil) return;
+    NSDictionary *status = MGTraceStatus();
+    [traceSession observeCapturing:[[status objectForKey:@"capturing"] boolValue]
+                     awaitingLabel:[[status objectForKey:@"awaiting_label"] boolValue]
+                       sawContacts:[[status objectForKey:@"saw_contacts"] boolValue]];
+    [self updateTraceWindow];
+}
+
+- (void)traceCountdownTick {
+    if (traceSession == nil || !MGTraceIsActive()) return;
+    if ([traceSession tickCountdown]) {
+        NSDictionary *step = [magicMouseTraceProtocol() objectAtIndex:[traceSession stepIndex]];
+        MGTraceBeginStep([step objectForKey:@"id"], [step objectForKey:@"requested"],
+                         [[step objectForKey:@"expected"] unsignedIntegerValue],
+                         [step objectForKey:@"instruction"]);
+        NSBeep();
+    } else {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
+                       dispatch_get_main_queue(), ^{ [self traceCountdownTick]; });
+    }
+    [self updateTraceWindow];
+}
+
+- (void)tracePrimary:(id)sender {
+    if ([traceSession phase] == MGTraceSessionOverview) [traceSession beginProtocol];
+    else if ([traceSession phase] == MGTraceSessionPreparing) {
+        [traceSession beginCountdown];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
+                       dispatch_get_main_queue(), ^{ [self traceCountdownTick]; });
+    }
+    [self updateTraceWindow];
+}
+
+- (void)buildTraceWindow {
+    if (tracePanel != nil) return;
+    tracePanel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 720, 610)
+        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskUtilityWindow
+        backing:NSBackingStoreBuffered defer:NO];
+    [tracePanel setTitle:@"Magic Gestures Diagnostics"];
+    [tracePanel setFloatingPanel:YES]; [tracePanel setHidesOnDeactivate:NO];
+    NSView *content = [tracePanel contentView];
+    traceProgress = [traceText(NSMakeRect(28, 565, 664, 22), 13, NO) retain];
+    traceProgressBar = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(28, 545, 664, 8)];
+    [traceProgressBar setIndeterminate:NO]; [traceProgressBar setMaxValue:16];
+    traceHeading = [traceText(NSMakeRect(28, 490, 664, 38), 24, YES) retain];
+    traceDetail = [traceText(NSMakeRect(28, 375, 664, 105), 15, NO) retain];
+    traceSurface = [[NSView alloc] initWithFrame:NSMakeRect(28, 145, 664, 210)];
+    [traceSurface setWantsLayer:YES];
+    [[traceSurface layer] setBackgroundColor:[[NSColor colorWithWhite:0.18 alpha:1] CGColor]];
+    [[traceSurface layer] setCornerRadius:12];
+    NSTextField *surfaceText = traceText(NSMakeRect(20, 85, 624, 50), 18, YES);
+    [surfaceText setAlignment:NSTextAlignmentCenter];
+    [surfaceText setTextColor:[NSColor secondaryLabelColor]];
+    [surfaceText setStringValue:@"INERT TEST SURFACE\nPark the pointer and perform mouse motions here"];
+    [traceSurface addSubview:surfaceText];
+    tracePrimaryButton = [[NSButton alloc] initWithFrame:NSMakeRect(28, 92, 190, 32)];
+    [tracePrimaryButton setBezelStyle:NSBezelStyleRounded]; [tracePrimaryButton setTarget:self];
+    [tracePrimaryButton setAction:@selector(tracePrimary:)];
+    NSArray *labels = @[@[@"Success ↩", @"success", @"\r"], @[@"Miss M", @"miss", @"m"],
+        @[@"Unsure U", @"unsure", @"u"], @[@"Skip K", @"skip", @"k"]];
+    NSMutableArray *buttons = [NSMutableArray array];
+    CGFloat x = 228;
+    for (NSArray *item in labels) {
+        NSButton *button = [[[NSButton alloc] initWithFrame:NSMakeRect(x, 92, 102, 32)] autorelease];
+        [button setTitle:item[0]]; [button setRepresentedObject:item[1]];
+        [button setKeyEquivalent:item[2]]; [button setTarget:self];
+        [button setAction:@selector(markTraceStep:)]; [content addSubview:button];
+        [buttons addObject:button]; x += 108;
+    }
+    traceLabelButtons = [buttons copy];
+    traceStopButton = [[NSButton alloc] initWithFrame:NSMakeRect(28, 34, 130, 32)];
+    [traceStopButton setTitle:@"Stop Esc"]; [traceStopButton setKeyEquivalent:@"\033"];
+    [traceStopButton setTarget:self]; [traceStopButton setAction:@selector(stopTraceSession:)];
+    traceExportButton = [[NSButton alloc] initWithFrame:NSMakeRect(530, 34, 162, 32)];
+    [traceExportButton setTitle:@"Export bundle E"]; [traceExportButton setKeyEquivalent:@"e"];
+    [traceExportButton setTarget:self]; [traceExportButton setAction:@selector(exportCompletedTrace:)];
+    for (NSView *view in @[traceProgress, traceProgressBar, traceHeading, traceDetail,
+                           traceSurface, tracePrimaryButton, traceStopButton, traceExportButton])
+        [content addSubview:view];
+    [tracePanel center];
 }
 
 - (void)startTraceSession:(id)sender {
@@ -740,8 +857,14 @@ static BOOL runLaunchctl(NSArray *arguments) {
         [self reportFailure:@"Could not start the trace session." detail:problem];
         return;
     }
-    traceProtocolIndex = -1;
-    [self advanceTraceStep];
+    [traceSession release];
+    traceSession = [[MGTraceSessionModel alloc] initWithSteps:magicMouseTraceProtocol()];
+    traceProtocolIndex = 0;
+    [self buildTraceWindow]; [self updateTraceWindow];
+    [tracePanel makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
+    [tracePollTimer invalidate];
+    tracePollTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self
+        selector:@selector(tracePoll:) userInfo:nil repeats:YES];
 }
 
 - (void)markTraceStep:(id)sender {
@@ -749,14 +872,44 @@ static BOOL runLaunchctl(NSArray *arguments) {
     if (![[status objectForKey:@"awaiting_label"] boolValue]) return;
     NSString *label = [sender representedObject];
     MGTraceMarkStep(label);
-    [self advanceTraceStep];
+    [traceSession markCurrentStep];
+    traceProtocolIndex = [traceSession stepIndex];
+    if ([traceSession phase] == MGTraceSessionComplete) {
+        [tracePollTimer invalidate]; tracePollTimer = nil;
+        [completedTracePath release]; completedTracePath = [MGTraceBundlePath() copy];
+        MGTraceStop();
+    }
+    [self updateTraceWindow]; [self refreshMenu];
 }
 
 - (void)stopTraceSession:(id)sender {
     if (!MGTraceIsActive()) return;
-    NSString *source = [[MGTraceBundlePath() copy] autorelease];
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:@"Stop this incomplete trace?"];
+    [alert setInformativeText:@"Export Partial keeps the labeled steps. Discard deletes the temporary bundle. Continue returns to the session."];
+    [alert addButtonWithTitle:@"Export Partial"];
+    [alert addButtonWithTitle:@"Discard"];
+    [alert addButtonWithTitle:@"Continue"];
+    NSModalResponse choice = [alert runModal];
+    if (choice == NSAlertThirdButtonReturn) return;
+    [tracePollTimer invalidate]; tracePollTimer = nil;
+    [completedTracePath release]; completedTracePath = [MGTraceBundlePath() copy];
     MGTraceStop();
     traceProtocolIndex = -1;
+    if (choice == NSAlertSecondButtonReturn) {
+        [[NSFileManager defaultManager] removeItemAtPath:completedTracePath error:nil];
+        [tracePanel orderOut:nil];
+        [traceSession release]; traceSession = nil;
+        [completedTracePath release]; completedTracePath = nil;
+        [self refreshMenu];
+        return;
+    }
+    [self exportCompletedTrace:nil];
+}
+
+- (void)exportCompletedTrace:(id)sender {
+    NSString *source = completedTracePath;
+    if (source == nil) return;
 
     NSString *analyzer = [[NSBundle mainBundle] pathForResource:@"analyze-trace" ofType:nil];
     BOOL analysisOK = NO;
@@ -792,6 +945,9 @@ static BOOL runLaunchctl(NSArray *arguments) {
             [self reportFailure:@"Could not export the trace bundle."
                          detail:error ? [error localizedDescription] : @"Choose a new bundle name."];
         } else {
+            [completedTracePath release]; completedTracePath = [destination copy];
+            [traceDetail setStringValue:[NSString stringWithFormat:
+                @"Export complete.\n\nBundle: %@", destination]];
             [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:
                 @[[NSURL fileURLWithPath:destination]]];
         }
@@ -813,11 +969,16 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [verbose setState:logLevel >= LOG_LEVEL_DEBUG
         ? NSControlStateValueOn : NSControlStateValueOff];
     [menu addItem:[NSMenuItem separatorItem]];
-    if (!MGTraceIsActive()) {
+    if (!MGTraceIsActive() && traceSession == nil) {
         NSMenuItem *start = [menu addItemWithTitle:@"Start Trace Session…"
                                             action:@selector(startTraceSession:) keyEquivalent:@""];
         [start setTarget:self];
     } else {
+        NSMenuItem *show = [menu addItemWithTitle:MGTraceIsActive()
+            ? @"Show Trace Session" : @"Show Completed Trace"
+            action:@selector(showTraceWindow:) keyEquivalent:@""];
+        [show setTarget:self];
+        if (!MGTraceIsActive()) return;
         NSDictionary *status = MGTraceStatus();
         BOOL capturing = [[status objectForKey:@"capturing"] boolValue];
         BOOL awaitingLabel = [[status objectForKey:@"awaiting_label"] boolValue];
@@ -828,23 +989,12 @@ static BOOL runLaunchctl(NSArray *arguments) {
             [status objectForKey:@"step"], phase, [status objectForKey:@"bytes"],
             [status objectForKey:@"dropped"]] action:NULL keyEquivalent:@""];
         [state setEnabled:NO];
-        if (capturing) {
-            NSMenuItem *wait = [menu addItemWithTitle:@"Lift fully and wait one second before labeling"
-                                                action:NULL keyEquivalent:@""];
-            [wait setEnabled:NO];
-        } else if (awaitingLabel) {
-            for (NSArray *pair in @[@[@"Success", @"success"], @[@"Miss", @"miss"],
-                                    @[@"Unsure", @"unsure"], @[@"Skip", @"skip"]]) {
-                NSMenuItem *mark = [menu addItemWithTitle:pair[0]
-                                                   action:@selector(markTraceStep:) keyEquivalent:@""];
-                [mark setTarget:self];
-                [mark setRepresentedObject:pair[1]];
-            }
-        }
-        NSMenuItem *stop = [menu addItemWithTitle:@"Stop and Export Trace…"
-                                            action:@selector(stopTraceSession:) keyEquivalent:@""];
-        [stop setTarget:self];
     }
+}
+
+- (void)showTraceWindow:(id)sender {
+    [tracePanel makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
 }
 
 - (void)refreshDiagnosticsSubmenu {

@@ -112,6 +112,18 @@ clang \
   -o "$TRACE_RECORDER_OUT" 2>/dev/null
 "$TRACE_RECORDER_OUT"
 
+TRACE_SESSION_OUT="$(mktemp -d)/tracesessioncheck"
+clang \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/TraceSessionModel.m" \
+  "$ROOT/src/TraceSessionModelCheck.m" \
+  -o "$TRACE_SESSION_OUT" 2>/dev/null
+"$TRACE_SESSION_OUT"
+
 TRACE_REPLAY_OUT="$(mktemp -d)/tracereplaycheck"
 clang \
   -fobjc-exceptions \

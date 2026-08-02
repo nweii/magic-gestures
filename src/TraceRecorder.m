@@ -304,6 +304,7 @@ NSDictionary *MGTraceStatus(void) {
     os_unfair_lock_lock(&state->lock);
     NSDictionary *status = [@{@"active": @(state->active), @"capturing": @(state->capturing),
                               @"awaiting_label": @(state->awaitingLabel),
+                              @"saw_contacts": @(state->sawContactsInSegment),
                               @"step": state->step ?: @"idle",
                               @"segment": @(state->segment), @"pending": @(state->pendingEvents),
                               @"dropped": @(state->droppedEvents), @"bytes": @(state->writtenBytes)} retain];

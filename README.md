@@ -133,17 +133,20 @@ bindings. **Diagnostics** opens recent logs or copies a concise state summary.
 ### Guided trace sessions
 
 **Diagnostics > Start Trace Session…** runs a short Magic Mouse hardware check.
-The app shows one motion at a time and suppresses configured gesture actions for
-the whole session. Before selecting **Ready**, put the pointer over an inert area
-where an ordinary click does nothing. Release **Ready**, lift fully, and wait for
-the tone after the two-second reset. Perform the motion, lift fully, wait one
-second, then choose **Success**, **Miss**, **Unsure**, or **Skip** from
-Diagnostics. Native clicks remain native. The 16-step protocol covers three
+It opens a persistent diagnostic window with the full protocol overview, current
+motion, progress, state, controls, and a large inert test surface. Keep the
+pointer in that surface, press **Space** to start each neutral countdown, and
+perform the motion after the tone. The window advances through preparing,
+countdown, recording, full lift, and labeling without reopening the menu.
+**Return**, **M**, **U**, and **K** mark Success, Miss, Unsure, and Skip once the
+scored window closes. **Escape** stops at any time. Configured gesture actions
+are suppressed while native clicks remain native. The 16-step protocol covers three
 ordinary clicks, three two-finger clicks, three three-finger clicks, quick lift,
 drag, rear and edge contacts, scrolling, tapping, and rapid repetition.
 
-**Stop and Export Trace…** closes the bounded capture, analyzes it, and asks
-where to save one redacted bundle. The bundle contains a manifest, NDJSON
+Stopping early offers **Discard**, **Export Partial**, or **Continue**. Completion
+shows a summary and the temporary bundle location before **Export bundle (E)**
+analyzes it and asks where to save it. The bundle contains a manifest, NDJSON
 events, human labels, aggregate JSON analysis, and a Markdown report. It never
 contains application names, configured actions, keystrokes, URLs, script paths,
 clipboard contents, cursor positions, screen positions, or persistent hardware

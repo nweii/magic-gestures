@@ -293,16 +293,20 @@ ephemeral within one session. Its interface does not accept application names,
 configured values, keyboard details, clipboard contents, cursor positions, or
 persistent device identifiers.
 
-Diagnostics > Start Trace Session runs a short Magic Mouse protocol. Configured
-actions are suppressed while it records raw contact frames, filter decisions,
+Diagnostics > Start Trace Session opens a persistent floating `NSPanel` inside
+the menu-bar app. The panel shows the whole protocol overview, current step,
+progress, explicit phase, keyboard shortcuts, and an inert surface where native
+clicks have no UI effect. It remains visible throughout the session; the
+Diagnostics menu only reports status and brings it forward. Configured actions
+are suppressed while the recorder captures raw contact frames, filter decisions,
 mouse/drag/scroll events, recognizer outcomes, ownership, safe dispatch kinds,
-and human Success/Miss/Unsure/Skip labels. Each step shows its instructions while
-capture is paused, asks for the pointer to rest over an inert area, then starts
-capture with a tone after a two-second reset. A full lift closes the scored
-window before the user opens Diagnostics to label it. The protocol includes
+and human Success/Miss/Unsure/Skip labels. Each step starts capture with a tone
+after a two-second neutral countdown. A full lift closes the scored window before
+the window enables labels. Window-local shortcuts avoid global keyboard capture.
+Stopping offers Discard, Export Partial, or Continue. The protocol includes
 three clean repetitions of both two- and three-finger physical clicks. Expected
 dispatch counts distinguish exact, under-, and over-dispatches, including two
-expected dispatches for the rapid pair. Stop and Export Trace runs the bundled
+expected dispatches for the rapid pair. Export runs the bundled
 `TraceAnalyzer.m` executable before moving one redacted bundle to a location the
 user chooses. `scripts/analyze-trace.sh BUNDLE` reruns the same analyzer from
 source.
