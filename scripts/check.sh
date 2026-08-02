@@ -249,6 +249,8 @@ grep -q 'BindingCount' "$APP_SRC" || fail "the menu does not report the active b
 grep -q 'reverseObjectEnumerator' "$APP_SRC" || fail "Current Gestures shows the first repeated declaration instead of the last"
 grep -q 'Reload failed' "$APP_SRC" || fail "a rejected watched reload is not visible in the menu"
 grep -q 'No gestures were loaded' "$APP_SRC" || fail "startup claims defaults after rejecting the configuration"
+! sed -n '/NSArray \*labels = @\[@\[@"Success/,/traceLabelButtons =/p' "$APP_SRC" | grep -q 'setRepresentedObject' ||
+  fail "trace label buttons use NSMenuItem-only representedObject storage"
 grep -q 'doCommand(gesture, device, binding, matchedApplication)' \
   "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
   gesture_fail "deferred gestures resolve their application scope twice"

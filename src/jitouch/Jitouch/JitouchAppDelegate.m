@@ -823,9 +823,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         @[@"Unsure U", @"unsure", @"u"], @[@"Skip K", @"skip", @"k"]];
     NSMutableArray *buttons = [NSMutableArray array];
     CGFloat x = 228;
+    NSInteger labelIndex = 0;
     for (NSArray *item in labels) {
         NSButton *button = [[[NSButton alloc] initWithFrame:NSMakeRect(x, 92, 102, 32)] autorelease];
-        [button setTitle:item[0]]; [button setRepresentedObject:item[1]];
+        [button setTitle:item[0]]; [button setTag:labelIndex++];
         [button setKeyEquivalent:item[2]]; [button setTarget:self];
         [button setAction:@selector(markTraceStep:)]; [content addSubview:button];
         [buttons addObject:button]; x += 108;
@@ -870,7 +871,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)markTraceStep:(id)sender {
     NSDictionary *status = MGTraceStatus();
     if (![[status objectForKey:@"awaiting_label"] boolValue]) return;
-    NSString *label = [sender representedObject];
+    NSArray *labels = @[@"success", @"miss", @"unsure", @"skip"];
+    NSInteger labelIndex = [sender tag];
+    if (labelIndex < 0 || labelIndex >= (NSInteger)[labels count]) return;
+    NSString *label = [labels objectAtIndex:labelIndex];
     MGTraceMarkStep(label);
     [traceSession markCurrentStep];
     traceProtocolIndex = [traceSession stepIndex];
