@@ -8,6 +8,7 @@
 #import "Config.h"
 #import <Carbon/Carbon.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <IOKit/hidsystem/IOLLEvent.h>
 #import <math.h>
 
 // The tables accept common alternative spellings because people and coding
@@ -198,11 +199,34 @@ static NSDictionary *modifierNames(void) {
     static NSDictionary *m = nil;
     if (m == nil) {
         m = [@{
-            @"cmd": @(kCGEventFlagMaskCommand), @"command": @(kCGEventFlagMaskCommand), @"⌘": @(kCGEventFlagMaskCommand),
-            @"ctrl": @(kCGEventFlagMaskControl), @"control": @(kCGEventFlagMaskControl), @"⌃": @(kCGEventFlagMaskControl),
-            @"opt": @(kCGEventFlagMaskAlternate), @"option": @(kCGEventFlagMaskAlternate),
-            @"alt": @(kCGEventFlagMaskAlternate), @"⌥": @(kCGEventFlagMaskAlternate),
-            @"shift": @(kCGEventFlagMaskShift), @"⇧": @(kCGEventFlagMaskShift),
+            @"cmd": @(kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK),
+            @"command": @(kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK),
+            @"⌘": @(kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK),
+            @"left-cmd": @(kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK),
+            @"left-command": @(kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK),
+            @"right-cmd": @(kCGEventFlagMaskCommand | NX_DEVICERCMDKEYMASK),
+            @"right-command": @(kCGEventFlagMaskCommand | NX_DEVICERCMDKEYMASK),
+            @"ctrl": @(kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK),
+            @"control": @(kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK),
+            @"⌃": @(kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK),
+            @"left-ctrl": @(kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK),
+            @"left-control": @(kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK),
+            @"right-ctrl": @(kCGEventFlagMaskControl | NX_DEVICERCTLKEYMASK),
+            @"right-control": @(kCGEventFlagMaskControl | NX_DEVICERCTLKEYMASK),
+            @"opt": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"option": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"alt": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"⌥": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"left-opt": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"left-option": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"left-alt": @(kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK),
+            @"right-opt": @(kCGEventFlagMaskAlternate | NX_DEVICERALTKEYMASK),
+            @"right-option": @(kCGEventFlagMaskAlternate | NX_DEVICERALTKEYMASK),
+            @"right-alt": @(kCGEventFlagMaskAlternate | NX_DEVICERALTKEYMASK),
+            @"shift": @(kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK),
+            @"⇧": @(kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK),
+            @"left-shift": @(kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK),
+            @"right-shift": @(kCGEventFlagMaskShift | NX_DEVICERSHIFTKEYMASK),
         } retain];
     }
     return m;
@@ -504,11 +528,21 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     }
 
     NSString *keyToken = nil;
-    for (NSString *raw in tokens) {
+    for (NSUInteger i = 0; i < [tokens count]; i++) {
+        NSString *raw = [tokens objectAtIndex:i];
         NSString *t = [raw stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         if ([t length] == 0)
             continue;
         NSNumber *flag = [modifierNames() objectForKey:t];
+        if (flag == nil && ([t isEqualToString:@"left"] || [t isEqualToString:@"right"]) &&
+            i + 1 < [tokens count]) {
+            NSString *next = [[tokens objectAtIndex:i + 1]
+                stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSString *sidedModifier = [NSString stringWithFormat:@"%@-%@", t, next];
+            flag = [modifierNames() objectForKey:sidedModifier];
+            if (flag != nil)
+                i++;
+        }
         if (flag != nil) {
             flags |= [flag unsignedIntegerValue];
             continue;
@@ -650,14 +684,35 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
         if ([line length] == 0)
             continue;
 
+        BOOL completedPendingBlock = NO;
         if (pendingBlock != nil) {
-            [pendingBlock appendFormat:@"\n%@", line];
-            if (unquotedClosingBraceLocation(pendingBlock) == NSNotFound)
-                continue;
-            line = pendingBlock;
-            lineNumber = pendingBlockLine;
-            pendingBlock = nil;
-        } else {
+            NSRange pendingEquals = [line rangeOfString:@"="];
+            NSString *pendingKey = pendingEquals.location == NSNotFound ? @"" :
+                [[line substringToIndex:pendingEquals.location]
+                    stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSRange pendingOpeningBrace = [line rangeOfString:@"{"];
+            BOOL startsSection = [line hasPrefix:@"["];
+            BOOL startsBinding = (pendingOpeningBrace.location != NSNotFound &&
+                                  (pendingEquals.location == NSNotFound ||
+                                   pendingOpeningBrace.location < pendingEquals.location)) ||
+                (pendingEquals.location != NSNotFound &&
+                 ![@[@"action", @"defer", @"haptic"] containsObject:[pendingKey lowercaseString]]);
+            if (startsSection || startsBinding) {
+                lineNumber = pendingBlockLine;
+                report(pendingBlock, @"expanded binding is missing a closing }");
+                pendingBlock = nil;
+                lineNumber = physicalLineNumber;
+            } else {
+                [pendingBlock appendFormat:@"\n%@", line];
+                if (unquotedClosingBraceLocation(pendingBlock) == NSNotFound)
+                    continue;
+                line = pendingBlock;
+                lineNumber = pendingBlockLine;
+                pendingBlock = nil;
+                completedPendingBlock = YES;
+            }
+        }
+        if (!completedPendingBlock) {
             lineNumber = physicalLineNumber;
             NSRange openingBrace = [line rangeOfString:@"{"];
             NSRange equals = [line rangeOfString:@"="];
@@ -806,7 +861,6 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
         NSString *device = section;
 
         if ([device isEqualToString:@"mouse"] || [device isEqualToString:@"trackpad"]) {
-            BOOL defer = expandedDefer != nil && [expandedDefer boolValue];
             NSDictionary *slugs = [device isEqualToString:@"mouse"]
                 ? [Config mouseGestureSlugs] : [Config trackpadGestureSlugs];
             NSArray *engineNames = [slugs objectForKey:key];
@@ -814,7 +868,7 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
                 report(line, [NSString stringWithFormat:@"no %@ gesture named \"%@\"", device, key]);
                 continue;
             }
-            if (defer && ![key hasSuffix:@"-tap"]) {
+            if (expandedDefer != nil && ![key hasSuffix:@"-tap"]) {
                 report(line, @"defer is available only for tap gestures");
                 continue;
             }
@@ -823,7 +877,7 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
                 continue;
             }
             NSDictionary *binding = expanded && expandedValue == nil
-                ? @{ @"Gesture": @"", @"Enable": @YES, @"InheritAction": @YES,
+                ? @{ @"Gesture": @"", @"InheritAction": @YES,
                      @"SourceLine": @(lineNumber), @"SourceText": line }
                 : parseBinding(value);
             if (binding == nil) {
@@ -846,7 +900,8 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
             NSMutableArray *target = [scopes objectForKey:scopeName];
             NSString *declarationKey = [NSString stringWithFormat:@"%@|%@|%@",
                                          device, scopeName, key];
-            if ([[binding objectForKey:@"Enable"] boolValue])
+            if ([[binding objectForKey:@"InheritAction"] boolValue] ||
+                [[binding objectForKey:@"Enable"] boolValue])
                 [activeBindingKeys addObject:declarationKey];
             else
                 [activeBindingKeys removeObject:declarationKey];
@@ -855,8 +910,8 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
                 [g setObject:name forKey:@"Gesture"];
                 if ([[binding objectForKey:@"InheritAction"] boolValue])
                     [g setObject:declarationKey forKey:@"SourceBindingKey"];
-                if (defer)
-                    [g setObject:@YES forKey:@"Defer"];
+                if (expandedDefer != nil)
+                    [g setObject:expandedDefer forKey:@"Defer"];
                 if (expandedHaptic != nil)
                     [g setObject:expandedHaptic forKey:@"HapticFeedback"];
                 [target addObject:g];
@@ -964,7 +1019,7 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
         @"ShowIcon": @1,
         @"BindingCount": @([activeBindingKeys count]),
         @"HapticFeedback": @(parseBoolean(str(@"haptic-feedback", @"true"), YES) ? 1 : 0),
-        @"LogLevel": @(parseBoolean(str(@"verbose-logging", @"false"), NO) ? 2 : 1),
+        @"LogLevel": @(parseBoolean(str(@"verbose-logging", @"false"), NO) ? 3 : 1),
         @"enTPAll": @(parseBoolean(str(@"enable-trackpad", @"true"), YES) ? 1 : 0),
         @"enMMAll": @(parseBoolean(str(@"enable-mouse", @"true"), YES) ? 1 : 0),
         @"Handed": @(leftHanded ? 1 : 0),

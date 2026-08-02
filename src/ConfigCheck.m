@@ -10,6 +10,7 @@
 
 #import <Foundation/Foundation.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <IOKit/hidsystem/IOLLEvent.h>
 #import "Config.h"
 
 static int failures = 0;
@@ -92,11 +93,87 @@ static void expectKey(NSString *label, NSString *value, int keycode, NSUInteger 
         fail([label stringByAppendingString:@" flags"], @(flags), [g objectForKey:@"ModifierFlags"]);
 }
 
+static NSArray *directDispatchLines(NSString *source) {
+    NSMutableArray *lines = [NSMutableArray array];
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceCharacterSet];
+    BOOL inBlockComment = NO;
+    for (NSString *line in [source componentsSeparatedByCharactersInSet:
+                            [NSCharacterSet newlineCharacterSet]]) {
+        NSMutableString *code = [NSMutableString string];
+        NSUInteger cursor = 0;
+        while (cursor < [line length]) {
+            if (inBlockComment) {
+                NSRange end = [line rangeOfString:@"*/" options:0
+                                            range:NSMakeRange(cursor, [line length] - cursor)];
+                if (end.location == NSNotFound) {
+                    cursor = [line length];
+                    continue;
+                }
+                inBlockComment = NO;
+                cursor = NSMaxRange(end);
+                continue;
+            }
+            NSRange remainder = NSMakeRange(cursor, [line length] - cursor);
+            NSRange lineComment = [line rangeOfString:@"//" options:0 range:remainder];
+            NSRange blockComment = [line rangeOfString:@"/*" options:0 range:remainder];
+            NSUInteger nextComment = MIN(
+                lineComment.location == NSNotFound ? [line length] : lineComment.location,
+                blockComment.location == NSNotFound ? [line length] : blockComment.location);
+            [code appendString:[line substringWithRange:
+                                NSMakeRange(cursor, nextComment - cursor)]];
+            if (nextComment == [line length]) {
+                cursor = [line length];
+            } else if (blockComment.location == nextComment) {
+                inBlockComment = YES;
+                cursor = NSMaxRange(blockComment);
+            } else {
+                cursor = [line length];
+            }
+        }
+        NSString *trimmed = [code stringByTrimmingCharactersInSet:whitespace];
+        if ([trimmed hasPrefix:@"static void dispatchCommand("] ||
+            [trimmed rangeOfString:@"dispatchCommand("].location == NSNotFound)
+            continue;
+        [lines addObject:trimmed];
+    }
+    return lines;
+}
+
+static NSArray *unexpectedDirectDispatchLines(NSString *source) {
+    NSSet *allowed = [NSSet setWithArray:@[
+        @"dispatchCommand(gesture, device);",
+        @"dispatchCommand(commandString, CHARRECOGNITION);",
+        @"dispatchCommand(gesture, MAGICMOUSE);",
+    ]];
+    NSMutableArray *unexpected = [NSMutableArray array];
+    for (NSString *line in directDispatchLines(source)) {
+        if (![allowed containsObject:line])
+            [unexpected addObject:line];
+    }
+    return unexpected;
+}
+
+static NSUInteger directDispatchLineCount(NSString *source, NSString *line) {
+    NSUInteger count = 0;
+    for (NSString *candidate in directDispatchLines(source)) {
+        if ([candidate isEqualToString:line])
+            count++;
+    }
+    return count;
+}
+
 int main(void) {
     @autoreleasepool {
-        NSUInteger CMD = kCGEventFlagMaskCommand;
-        NSUInteger SHIFT = kCGEventFlagMaskShift;
-        NSUInteger CTRL = kCGEventFlagMaskControl;
+        NSUInteger CMD = kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK;
+        NSUInteger SHIFT = kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK;
+        NSUInteger CTRL = kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK;
+
+        NSString *bypassingRecognizer =
+            @"static void recognizer(void) {\n"
+             "    dispatchCommand(@\"New Gesture\", TRACKPAD);\n"
+             "}\n";
+        if ([unexpectedDirectDispatchLines(bypassingRecognizer) count] != 1)
+            fail(@"direct recognizer dispatch guard", @"one violation", @"not detected");
 
         // Bare keys and key names containing the separator must parse.
         expectKey(@"return", @"return", 36, 0);
@@ -111,8 +188,18 @@ int main(void) {
         expectKey(@"space separator", @"Cmd Shift A", 0, CMD | SHIFT);
         expectKey(@"symbols without separators", @"⌘⇧A", 0, CMD | SHIFT);
         expectKey(@"mixed case", @"CMD+Shift+A", 0, CMD | SHIFT);
-        expectKey(@"alt is option", @"ctrl+alt+right", 124, CTRL | kCGEventFlagMaskAlternate);
+        expectKey(@"alt is option", @"ctrl+alt+right", 124,
+                  CTRL | kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK);
         expectKey(@"quoted value", @"\"cmd+shift+a\"", 0, CMD | SHIFT);
+        expectKey(@"right control", @"right-control+space", 49,
+                  kCGEventFlagMaskControl | NX_DEVICERCTLKEYMASK);
+        expectKey(@"right control with hyphen separators", @"right-control-space", 49,
+                  kCGEventFlagMaskControl | NX_DEVICERCTLKEYMASK);
+        expectKey(@"right-side modifier chord",
+                  @"right-shift+right-option+right-command+a", 0,
+                  kCGEventFlagMaskShift | NX_DEVICERSHIFTKEYMASK |
+                  kCGEventFlagMaskAlternate | NX_DEVICERALTKEYMASK |
+                  kCGEventFlagMaskCommand | NX_DEVICERCMDKEYMASK);
 
         NSDictionary *punctuation = @{
             @"[": @33, @"]": @30, @"-": @27, @"=": @24, @";": @41,
@@ -215,6 +302,20 @@ int main(void) {
             fail(@"substitution braces do not close a multiline binding block",
                  @"configured substitution", [g objectForKey:@"OpenURL"] ?: @"missing");
 
+        NSArray *unterminatedProblems = nil;
+        s = parseWithProblems(@"[trackpad]\n"
+                              @"three-finger-tap { action = \"escape\"\n"
+                              @"[mouse]\n"
+                              @"two-finger-click = return\n",
+                              &unterminatedProblems);
+        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") == nil ||
+            [unterminatedProblems count] != 1)
+            fail(@"unterminated expanded binding stops at the next section",
+                 @"mouse binding loaded and one problem",
+                 [NSString stringWithFormat:@"%@; %lu problems",
+                  bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") ?: @"missing",
+                  (unsigned long)[unterminatedProblems count]]);
+
         NSArray *expandedProblems = nil;
         s = parseWithProblems(@"[trackpad]\nthree-finger-tap { action = escape }\n",
                               &expandedProblems);
@@ -252,6 +353,20 @@ int main(void) {
         if ([[s objectForKey:@"BindingCount"] integerValue] != 1)
             fail(@"binding count includes active declarations and excludes off rules",
                  @1, [s objectForKey:@"BindingCount"] ?: @"missing");
+
+        s = parse(@"[trackpad]\nthree-finger-click = off\n"
+                  @"[trackpad \"Safari\"]\nthree-finger-click { haptic = false }\n");
+        g = bindingForApplication(s, @"TrackpadCommands", @"Safari", @"Three-Finger Click");
+        if (g == nil || [[g objectForKey:@"Enable"] boolValue])
+            fail(@"app property override preserves a global exclusion",
+                 @"disabled binding", g ?: @"missing");
+
+        s = parse(@"[trackpad]\nthree-finger-tap { action = \"escape\", defer = true }\n"
+                  @"[trackpad \"Safari\"]\nthree-finger-tap { defer = false }\n");
+        g = bindingForApplication(s, @"TrackpadCommands", @"Safari", @"Three-Finger Tap");
+        if (g == nil || [[g objectForKey:@"Defer"] boolValue])
+            fail(@"app property override can disable global deferral",
+                 @"immediate binding", g ?: @"missing");
 
         s = parse(@"[mouse]\ntwo-finger-click = return\n"
                   @"[mouse]\ntwo-finger-click = escape\n");
@@ -294,6 +409,14 @@ int main(void) {
             fail(@"script binding preserves its executable path", scriptPath, [g objectForKey:@"ScriptPath"]);
         if (![[g objectForKey:@"IsAction"] boolValue])
             fail(@"script binding is an action", @YES, [g objectForKey:@"IsAction"]);
+
+        s = parse([NSString stringWithFormat:
+            @"[trackpad]\nthree-finger-click { action = \"script:%@\", haptic = false }\n",
+            scriptPath]);
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Click");
+        if (![[g objectForKey:@"ScriptPath"] isEqualToString:scriptPath])
+            fail(@"expanded binding accepts a script action", scriptPath,
+                 [g objectForKey:@"ScriptPath"] ?: @"missing");
 
         NSArray *scriptProblems = nil;
         s = parseWithProblems(@"[trackpad]\nthree-finger-tap = script: relative-script\n", &scriptProblems);
@@ -419,6 +542,10 @@ int main(void) {
         if ([[s objectForKey:@"HapticFeedback"] intValue] != 0)
             fail(@"haptic feedback can be disabled", @0, [s objectForKey:@"HapticFeedback"]);
 
+        s = parse(@"[general]\nverbose-logging = true\n");
+        if ([[s objectForKey:@"LogLevel"] intValue] != 3)
+            fail(@"verbose logging includes touch geometry", @3, [s objectForKey:@"LogLevel"]);
+
         s = parse(@"[general]\ndominant-hand = left\n");
         if ([[s objectForKey:@"Handed"] intValue] != 1 ||
             [[s objectForKey:@"MMHanded"] intValue] != 1)
@@ -535,6 +662,20 @@ int main(void) {
         // A matching name on the other device does not make a binding reachable.
         if ([args count] > 4) {
             NSString *engine = [NSString stringWithContentsOfFile:args[4] encoding:NSUTF8StringEncoding error:NULL];
+            NSArray *unexpectedDispatches = unexpectedDirectDispatchLines(engine);
+            if ([unexpectedDispatches count] > 0)
+                fail(@"recognizers dispatch only through ownership helpers",
+                     @"no unexpected direct dispatch", unexpectedDispatches);
+            NSUInteger gestureDispatchCount = directDispatchLineCount(
+                engine, @"dispatchCommand(gesture, device);");
+            if (gestureDispatchCount != 5)
+                fail(@"direct gesture dispatch allowlist",
+                     @5, @(gestureDispatchCount));
+            NSUInteger characterDispatchCount = directDispatchLineCount(
+                engine, @"dispatchCommand(commandString, CHARRECOGNITION);");
+            if (characterDispatchCount != 3)
+                fail(@"character recognition dispatch allowlist",
+                     @3, @(characterDispatchCount));
             NSArray *devices = @[
                 @[[Config mouseGestureSlugs], @"MAGICMOUSE"],
                 @[[Config trackpadGestureSlugs], @"TRACKPAD"],
@@ -568,7 +709,8 @@ int main(void) {
                                          @"trackpadRewritingSecondaryClick",
                                          @"trackpadClickFingerCount == 3", @"trackpadClickFingerCount == 4",
                                          @"magicMouseThreeFingerFlag", @"device = TRACKPAD",
-                                         @"device = MAGICMOUSE", @"dispatchCommand(gesture, device)"]) {
+                                         @"device = MAGICMOUSE", @"dispatchCommand(gesture, device)",
+                                         @"dispatchMagicMousePhysicalClickForContactCount"]) {
                 if ([clickCallback rangeOfString:required].location == NSNotFound)
                     fail(@"physical click callback retains its device dispatch",
                          required, @"missing");
@@ -580,6 +722,19 @@ int main(void) {
             if ([engine rangeOfString:@"MGGestureSequenceFinishFrame"].location == NSNotFound)
                 fail(@"gesture ownership ends through the raw-contact lifecycle",
                      @"MGGestureSequenceFinishFrame", @"missing");
+            if ([engine rangeOfString:@"ModifierFlags:modifierFlags"].location == NSNotFound)
+                fail(@"configured shortcuts preserve modifier sides",
+                     @"ModifierFlags:modifierFlags", @"missing");
+            for (NSString *required in @[
+                @"MGTrackpadInteractionObserveBoundScrollFamily",
+                @"MGGestureSequenceObserveBoundScrollFamily",
+                @"MGTrackpadInteractionSuppressesNativeScroll",
+                @"MGGestureSequenceSuppressesNativeScroll",
+            ]) {
+                if ([engine rangeOfString:required].location == NSNotFound)
+                    fail(@"bound swipe families suppress native scrolling through sequence lift",
+                         required, @"missing");
+            }
 
             for (NSString *command in [[Config actionNames] allValues]) {
                 NSString *branch = [NSString stringWithFormat:@"isEqualToString:@\"%@\"", command];
@@ -590,7 +745,7 @@ int main(void) {
             NSArray *invocations = @[
                 @"gestureMagicMouseThreeFingerTap(data, nFingers, timestamp, thumbPresent)",
                 @"gestureMagicMouseTwoFingerSwipe(data, nFingers, timestamp, thumbPresent)",
-                @"gestureTrackpadTwoFingerTap(data, nFingers, timestamp)",
+                @"gestureTrackpadTwoFingerTap(data, nFingers,",
                 @"gestureTrackpadHoldSlide(data, nFingers)",
             ];
             for (NSString *invocation in invocations) {

@@ -12,4 +12,4 @@ typedef struct {
 size_t MGPlanKeyEventSequence(CGKeyCode keyCode,
                               CGEventFlags requestedFlags,
                               CGEventFlags physicalFlags,
-                              MGKeyEventStep steps[10]);
+                              MGKeyEventStep steps[18]);

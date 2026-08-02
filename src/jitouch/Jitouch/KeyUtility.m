@@ -82,12 +82,17 @@ static void languageChanged(CFNotificationCenterRef center, void *observer, CFSt
     if (alt)  flags |= kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK;
     if (cmd)  flags |= kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK;
 
+    [self simulateKeyCode:code ModifierFlags:flags];
+}
+
+- (void)simulateKeyCode:(CGKeyCode)code ModifierFlags:(CGEventFlags)flags {
+
     CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
     CGKeyCode key = a[code];
     CGEventFlags physicalFlags = CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState);
-    MGKeyEventStep steps[10];
+    MGKeyEventStep steps[18];
     size_t count = MGPlanKeyEventSequence(key, flags, physicalFlags, steps);
-    CGEventRef events[10] = {NULL};
+    CGEventRef events[18] = {NULL};
 
     // Build the full sequence before posting any part of it. A failed event
     // allocation therefore cannot leave a synthetic modifier held down.

@@ -16,7 +16,7 @@ static void expectStep(const char *label, MGKeyEventStep actual,
 }
 
 int main(void) {
-    MGKeyEventStep steps[10];
+    MGKeyEventStep steps[18];
     CGEventFlags control = kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK;
     CGEventFlags command = kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK;
     CGEventFlags chord = control | command;
@@ -52,6 +52,27 @@ int main(void) {
     } else {
         expectStep("Escape down", steps[0], 53, true, 0);
         expectStep("Escape up", steps[1], 53, false, 0);
+    }
+
+    CGEventFlags rightControl = kCGEventFlagMaskControl | NX_DEVICERCTLKEYMASK;
+    count = MGPlanKeyEventSequence(49, rightControl, 0, steps);
+    if (count != 4) {
+        fprintf(stderr, "FAIL  right-control-Space event count\n");
+        failures++;
+    } else {
+        expectStep("right control down", steps[0], 62, true, rightControl);
+        expectStep("Space with right control down", steps[1], 49, true, rightControl);
+        expectStep("Space with right control up", steps[2], 49, false, rightControl);
+        expectStep("right control up", steps[3], 62, false, 0);
+    }
+
+    count = MGPlanKeyEventSequence(49, rightControl, rightControl, steps);
+    if (count != 2) {
+        fprintf(stderr, "FAIL  physically held right control event count\n");
+        failures++;
+    } else {
+        expectStep("held right control chord down", steps[0], 49, true, rightControl);
+        expectStep("held right control chord up", steps[1], 49, false, rightControl);
     }
 
     if (failures == 0) {

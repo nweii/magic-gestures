@@ -3,6 +3,6 @@
 #import <Foundation/Foundation.h>
 
 BOOL MGMagicMouseContactShouldBeExcluded(float x, float y, float size,
-                                         float minorAxis, float minimumY);
+                                         float minorAxis);
 BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,
                                           int contactCount);

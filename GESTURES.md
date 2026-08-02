@@ -139,6 +139,12 @@ Modifiers, then one key. These four are the same binding:
 | Option | `opt` `option` `alt` `⌥` |
 | Shift | `shift` `⇧` |
 
+Modifiers default to the left-side key. Prefix a written name with `left-` or
+`right-` when an application distinguishes the two sides, such as
+`right-control+space`. The prefix works with every written alias, including
+`right-ctrl`, `right-cmd`, and `right-alt`. Modifier symbols use the default
+left side.
+
 Keys: any letter or digit, plus `return` `escape` `tab` `space` `delete`
 `forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down`
 and `f1` through `f12`. Punctuation keys: `[` `]` `-` `=` `;` `'` `,` `.`

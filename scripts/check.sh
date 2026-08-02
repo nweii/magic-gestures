@@ -87,6 +87,18 @@ clang \
   -o "$MOUSE_CONTACT_FILTER_OUT" 2>/dev/null
 "$MOUSE_CONTACT_FILTER_OUT"
 
+MOUSE_CLICK_INTERACTION_OUT="$(mktemp -d)/mouseclickinteractioncheck"
+clang \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/MouseClickInteraction.m" \
+  "$ROOT/src/MouseClickInteractionCheck.m" \
+  -o "$MOUSE_CLICK_INTERACTION_OUT" 2>/dev/null
+"$MOUSE_CLICK_INTERACTION_OUT"
+
 TRACKPAD_INTERACTION_OUT="$(mktemp -d)/trackpadinteractioncheck"
 clang \
   -fobjc-exceptions \
@@ -144,6 +156,11 @@ wake_fail() {
   exit 1
 }
 
+gesture_fail() {
+  echo "gesture conflict regression: $1" >&2
+  exit 1
+}
+
 for f in "$APP_SRC" "$INSTALL_SH" "$ROOT/scripts/uninstall-login-agent.sh" "$ROOT/scripts/uninstall.sh"; do
   grep -q "$LABEL" "$f" || fail "$f does not contain the label $LABEL"
 done
@@ -166,11 +183,51 @@ for item in 'Diagnostics' 'Copy Debug Info' 'Open Recent Logs' 'Verbose Logging 
   grep -q "$item" "$APP_SRC" || fail "the menu is missing $item"
 done
 grep -q 'BindingCount' "$APP_SRC" || fail "the menu does not report the active binding count"
+grep -q 'reverseObjectEnumerator' "$APP_SRC" || fail "Current Gestures shows the first repeated declaration instead of the last"
+grep -q 'Reload failed' "$APP_SRC" || fail "a rejected watched reload is not visible in the menu"
+grep -q 'No gestures were loaded' "$APP_SRC" || fail "startup claims defaults after rejecting the configuration"
+grep -q 'doCommand(gesture, device, binding, matchedApplication)' \
+  "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+  gesture_fail "deferred gestures resolve their application scope twice"
+
+# Hold-taps end in a tap, so they must pass through the shared tap eligibility
+# path that rejects broad contacts and physical clicks.
+for gesture in 'One-Fix Left-Tap' 'One-Fix Right-Tap'; do
+  grep -q "dispatchExclusiveTapCommand(@\"$gesture\", TRACKPAD" "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+    gesture_fail "$gesture bypasses shared trackpad tap eligibility"
+done
+grep -q 'BOOL anchorRemained = nFingers == 1 && data\[0\]\.identifier == fixId;' \
+  "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+  gesture_fail "trackpad hold-tap treats full lift as a held anchor"
+grep -q 'major=%f minor=%f size=%f' "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+  gesture_fail "verbose logging cannot capture trackpad contact geometry"
+for gesture in 'Two-Finger Click' 'Three-Finger Click'; do
+  grep -q "bindingForGesture(@\"$gesture\", MAGICMOUSE) != nil" \
+    "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+    gesture_fail "an unbound $gesture can claim the Magic Mouse sequence"
+done
+for gesture in \
+  'One-Fix-Press Two-Slide-Up' 'One-Fix-Press Two-Slide-Down' \
+  'One-Fix Two-Slide-Up' 'One-Fix Two-Slide-Down' \
+  'Three-Finger Pinch-Out' 'Three-Finger Pinch-In' \
+  'Two-Fix Index-Double-Tap' 'Two-Fix Middle-Double-Tap' 'Two-Fix Ring-Double-Tap' \
+  'Pinch Out' 'Pinch In' 'Thumb'; do
+  ! grep -q "dispatchCommand(@\"$gesture\"" "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+    gesture_fail "$gesture bypasses gesture sequence ownership"
+done
+for gesture in 'Two-Fix One-Slide-Right' 'Two-Fix One-Slide-Left' \
+  'Two-Fix One-Slide-Up' 'Two-Fix One-Slide-Down'; do
+  grep -q "dispatchExclusiveCommand(@\"$gesture\", MAGICMOUSE, kGestureOwnerTwoFixedOneSlide)" \
+    "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+    gesture_fail "$gesture shares the Magic Mouse hold-slide owner"
+done
 
 grep -q 'NSWorkspaceDidWakeNotification' "$APP_SRC" || wake_fail "the app does not observe wake notifications"
 grep -q '\[self reload\]' "$APP_SRC" || wake_fail "the wake handler does not reload gesture devices"
-for token in MTDeviceStop MTDeviceCreateList MTRegisterContactFrameCallback MTDeviceStart; do
-  grep -q "$token" "$ROOT/src/jitouch/Jitouch/Gesture.m" || wake_fail "Gesture reload is missing $token"
+for token in turnOffMagicMouse turnOffTrackpad MTUnregisterContactFrameCallback \
+  MTDeviceStop MTDeviceCreateList MTRegisterContactFrameCallback MTDeviceStart; do
+  sed -n '/^- (void)reload {/,/^}/p' "$ROOT/src/jitouch/Jitouch/Gesture.m" | grep -q "$token" ||
+    wake_fail "Gesture reload is missing $token"
 done
 
 grep -q 'config-version' "$ROOT/config.default.txt" || managed_fail "the default config has no format version"

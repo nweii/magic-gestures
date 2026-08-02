@@ -76,11 +76,11 @@ a link to the repository.
   pointing at the installed instructions.
 - Edit Settings, which opens `config.txt` in the user's editor.
 - Reload Settings, which rereads the file into the running engine.
-- Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
-  or enable verbose logging for the current session.
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.
+- Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
+  or enable verbose logging for the current session.
 - About Magic Gestures and Quit Magic Gestures.
 
 ## Releasing
@@ -225,7 +225,9 @@ globally, or set `haptic` in an expanded trackpad binding for one override.
 hold-tap direction and thumb-side filtering.
 
 Shift, Control, Option, and Command are the available modifiers. Fn is a HID
-usage rather than a key event and cannot be synthesized.
+usage rather than a key event and cannot be synthesized. Written modifiers may
+use a `left-` or `right-` prefix. An unspecified side and modifier symbols use
+the left-side key.
 
 The `appID` CFPreferences domain in `Settings.h` is vestigial — only the removed
 preference pane wrote to it.
@@ -243,7 +245,9 @@ and deferred dispatch, URL substitution parsing and resolution, script
 validation and execution, skipped bad lines, boolean spellings, and comment
 stripping. It also asserts that every slug appears in both `GESTURES.md` and
 `config-notes.default.md`, and that every engine name reachable from a slug has
-a menu phrase. Adding a gesture without documenting it fails the check.
+a menu phrase. Adding a gesture without documenting it fails the check. Direct
+gesture dispatch is allowlisted so a recognizer that bypasses contact-sequence
+ownership also fails the check.
 
 ## Login item
 
@@ -304,10 +308,11 @@ silently regress the configuration contract.
 `KeyUtility.m`, `simulateKeyCode:` posts a hardware-shaped sequence through
 `CGEventCreateKeyboardEvent`: modifier presses, the key press and release, then
 modifier releases. The key events retain the full modifier flags conventional
-hotkey APIs inspect. Each modifier also sets its device-dependent left-side bit
-(`NX_DEVICELSHIFTKEYMASK` and kin), since an application can register a
-side-specific hotkey that the generic masks cannot satisfy. Modifiers already
-held by the user are neither pressed nor released by the sequence.
+hotkey APIs inspect. Each modifier also sets its requested device-dependent side
+bit (`NX_DEVICELSHIFTKEYMASK`, `NX_DEVICERSHIFTKEYMASK`, and kin), since an
+application can register a side-specific hotkey that the generic masks cannot
+satisfy. Modifiers already held on the requested side are neither pressed nor
+released by the sequence.
 
 `Gesture.m`, `gestureMagicMouseOneFingerSwipe` returns early when nothing is
 bound to a one-finger swipe. The suppression below that point disables
@@ -329,11 +334,21 @@ arbitration belong in this module.
 lifts. `dispatchExclusiveCommand` checks that a binding exists before claiming,
 allows the owning recognizer to repeat, and blocks a click, tap, swipe, or hold
 recognizer from dispatching over a different owner. Tap dispatch adds the shared
-trackpad contact-eligibility check. New recognizers that can share a contact
-sequence with an existing gesture must use one of these paths.
+trackpad contact-eligibility check. A bound swipe family suppresses native scroll
+events from the moment its required contacts arrive until raw full lift; an
+unbound family never suppresses scrolling. New recognizers that can share a
+contact sequence with an existing gesture must use one of these paths.
 
 `MouseContactFilter.m` rejects measured rear-palm and narrow side-edge contacts
-before physical click counting. Counted fingertips must form a connected
-cluster; `gestureMagicMouseThumb` identifies and excludes a thumb from that
-cluster. Apply these rules to physical clicks, not holds or swipes whose contact
-geometry has different meaning.
+before physical click counting while retaining substantial fingertips in those
+regions. Counted fingertips must form a connected cluster;
+`gestureMagicMouseThumb` identifies and excludes a thumb from that cluster.
+Apply these rules to physical clicks, not holds or swipes whose contact geometry
+has different meaning.
+
+`MouseClickInteraction.m` serializes the CG physical-click stream with Magic
+Mouse touch frames, which arrive on separate callback threads and in either
+order. It retains eligible two- or three-finger contact counts through a bounded
+mouse-up grace period, cancels on drag, and prevents immediate recognition from
+dispatching again on release. Keep this cross-stream lifetime separate from
+contact filtering and recognizer ownership.

@@ -8,15 +8,17 @@ static const float kRestingEdgeInset = 0.10;
 static const float kRestingEdgeMaximumSize = 1.0;
 static const float kRestingEdgeMaximumMinorAxis = 7.0;
 static const float kClickNeighborDistanceSquared = 0.25;
+static const float kClickMinimumY = 0.30;
 
 BOOL MGMagicMouseContactShouldBeExcluded(float x, float y, float size,
-                                         float minorAxis, float minimumY) {
-    if (y < minimumY)
+                                         float minorAxis) {
+    BOOL narrowRestingContact = size <= kRestingEdgeMaximumSize &&
+        minorAxis < kRestingEdgeMaximumMinorAxis;
+    if (y < kClickMinimumY && narrowRestingContact)
         return YES;
     float edgeDistance = MIN(x, 1.0f - x);
     return edgeDistance < kRestingEdgeInset &&
-           size <= kRestingEdgeMaximumSize &&
-           minorAxis < kRestingEdgeMaximumMinorAxis;
+           narrowRestingContact;
 }
 
 BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,

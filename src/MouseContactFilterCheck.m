@@ -14,22 +14,28 @@ static void require(BOOL condition, NSString *message) {
 int main(void) {
     @autoreleasepool {
         require(MGMagicMouseContactShouldBeExcluded(0.9620, 0.6574, 0.8750,
-                                                    6.5800, 0.16),
+                                                    6.5800),
                 @"measured right-edge resting contact was retained");
         require(MGMagicMouseContactShouldBeExcluded(0.0380, 0.6574, 0.8750,
-                                                    6.5800, 0.16),
+                                                    6.5800),
                 @"equivalent left-edge resting contact was retained");
         require(MGMagicMouseContactShouldBeExcluded(0.9448, 0.1200, 0.3750,
-                                                    4.3900, 0.30),
+                                                    4.3900),
                 @"measured rear palm contact was retained");
+        require(MGMagicMouseContactShouldBeExcluded(0.5000, 0.2000, 0.7500,
+                                                    6.0000),
+                @"rear palm passed the relaxed two-contact click threshold");
+        require(!MGMagicMouseContactShouldBeExcluded(0.5000, 0.2000, 1.5000,
+                                                     8.1000),
+                @"substantial fingertip near the rear was rejected");
         require(!MGMagicMouseContactShouldBeExcluded(0.7901, 0.7643, 2.2500,
-                                                     8.4900, 0.16),
+                                                     8.4900),
                 @"measured intentional fingertip was rejected");
         require(!MGMagicMouseContactShouldBeExcluded(0.9500, 0.7000, 1.5000,
-                                                     8.1000, 0.16),
+                                                     8.1000),
                 @"substantial fingertip near the edge was rejected");
         require(!MGMagicMouseContactShouldBeExcluded(0.5000, 0.7000, 0.5000,
-                                                     5.0000, 0.16),
+                                                     5.0000),
                 @"small central fingertip was rejected");
 
         float intentionalXs[] = {0.3484, 0.7901};

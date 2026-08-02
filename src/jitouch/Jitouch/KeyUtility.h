@@ -13,6 +13,7 @@
 }
 
 - (void)simulateKeyCode:(CGKeyCode)code ShftDown:(BOOL)shft CtrlDown:(BOOL)ctrl AltDown:(BOOL)alt CmdDown:(BOOL)cmd;
+- (void)simulateKeyCode:(CGKeyCode)code ModifierFlags:(CGEventFlags)flags;
 - (void)simulateKey:(NSString *)key ShftDown:(BOOL)shft CtrlDown:(BOOL)ctrl AltDown:(BOOL)alt CmdDown:(BOOL)cmd;
 - (void)simulateSpecialKey:(int)key;
 - (CGKeyCode)charToCode:(NSString*) chr;

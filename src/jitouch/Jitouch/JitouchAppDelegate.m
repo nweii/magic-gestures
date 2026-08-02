@@ -22,6 +22,7 @@
 
 static NSArray *lastConfigProblems = nil;
 static NSInteger lastConfigBindingCount = 0;
+static BOOL lastConfigRejected = NO;
 static dispatch_source_t configWatcher = nil;
 static int configWatcherFD = -1;
 
@@ -351,6 +352,9 @@ static BOOL runLaunchctl(NSArray *arguments) {
     NSArray *problems = nil;
     NSDictionary *parsed = [Config settingsFromFile:path problems:&problems];
     if (parsed == nil) {
+        [self setConfigProblems:problems];
+        lastConfigRejected = YES;
+        [self refreshMenu];
         NSString *detail = [problems count] > 0
             ? [[problems componentsJoinedByString:@"\n\n"] stringByAppendingString:@"\n\nNothing changed."]
             : [NSString stringWithFormat:@"%@ could not be opened. Nothing changed.", path];
@@ -359,6 +363,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
     }
 
     [self setConfigProblems:problems];
+    lastConfigRejected = NO;
     lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
     [Settings loadSettings2:parsed];
     [self refreshMenu];
@@ -377,9 +382,14 @@ static BOOL runLaunchctl(NSArray *arguments) {
         return;
     NSArray *problems = nil;
     NSDictionary *parsed = [Config settingsFromFile:path problems:&problems];
-    if (parsed == nil)
+    if (parsed == nil) {
+        [self setConfigProblems:problems];
+        lastConfigRejected = YES;
+        [self refreshMenu];
         return;
+    }
     [self setConfigProblems:problems];
+    lastConfigRejected = NO;
     lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
     [Settings loadSettings2:parsed];
     [self refreshMenu];
@@ -483,7 +493,12 @@ static BOOL runLaunchctl(NSArray *arguments) {
         return;
 
     NSUInteger n = [lastConfigProblems count];
-    if (n == 0) {
+    if (lastConfigRejected) {
+        [item setTitle:[NSString stringWithFormat:@"Reload failed, %ld binding%@ still active...",
+                        (long)lastConfigBindingCount,
+                        lastConfigBindingCount == 1 ? @"" : @"s"]];
+        [item setAction:@selector(showConfigProblems:)];
+    } else if (n == 0) {
         [item setTitle:[NSString stringWithFormat:@"%ld binding%@ loaded",
                         (long)lastConfigBindingCount,
                         lastConfigBindingCount == 1 ? @"" : @"s"]];
@@ -510,11 +525,12 @@ static BOOL runLaunchctl(NSArray *arguments) {
     for (NSArray *pair in sources) {
         NSMutableArray *lines = [NSMutableArray array];
         for (NSDictionary *app in pair[1]) {
+            NSMutableArray *appLines = [NSMutableArray array];
             NSString *application = [app objectForKey:@"Application"];
             NSString *scope = [application isEqualToString:@"All Applications"]
                 ? @"" : [NSString stringWithFormat:@"%@ · ", application];
             NSMutableSet *seenGestures = [NSMutableSet set];
-            for (NSDictionary *g in [app objectForKey:@"Gestures"]) {
+            for (NSDictionary *g in [[app objectForKey:@"Gestures"] reverseObjectEnumerator]) {
                 NSString *gestureName = [g objectForKey:@"Gesture"];
                 if (gestureName == nil)
                     continue;
@@ -525,9 +541,11 @@ static BOOL runLaunchctl(NSArray *arguments) {
                 if ([fires length] == 0)
                     continue;
                 [seenGestures addObject:gestureName];
-                [lines addObject:[NSString stringWithFormat:@"%@%@  →  %@", scope,
-                                  [Config humanNameForGesture:gestureName], fires]];
+                [appLines insertObject:[NSString stringWithFormat:@"%@%@  →  %@", scope,
+                                        [Config humanNameForGesture:gestureName], fires]
+                                 atIndex:0];
             }
+            [lines addObjectsFromArray:appLines];
         }
         if ([lines count] == 0)
             continue;
@@ -800,13 +818,13 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [theMenu addItemWithTitle:@"Edit Settings..." action:@selector(preferences:) keyEquivalent:@""];
     [theMenu addItemWithTitle:@"Reload Settings" action:@selector(reloadConfiguration:) keyEquivalent:@""];
 
-    item = [theMenu addItemWithTitle:@"Diagnostics" action:NULL keyEquivalent:@""];
-    [item setTag:kMenuTagDiagnostics];
-
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];
 
     [theMenu addItem:[NSMenuItem separatorItem]];
+    item = [theMenu addItemWithTitle:@"Diagnostics" action:NULL keyEquivalent:@""];
+    [item setTag:kMenuTagDiagnostics];
+
     NSMenu *aboutMenu = [[[NSMenu alloc] initWithTitle:@"About Magic Gestures"] autorelease];
     NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
     NSMenuItem *versionItem = [aboutMenu addItemWithTitle:
@@ -990,13 +1008,18 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
         NSDictionary *parsed = [Config settingsFromFile:configPath problems:&problems];
         [self setConfigProblems:problems];
         if (parsed != nil) {
+            lastConfigRejected = NO;
             lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
             [Settings loadSettings2:parsed];
-        } else if ([problems count] > 0)
+        } else if ([problems count] > 0) {
+            lastConfigRejected = YES;
+            lastConfigBindingCount = 0;
             [self reportFailure:@"Could not apply the configuration."
                          detail:[[problems componentsJoinedByString:@"\n\n"]
-                                 stringByAppendingString:@"\n\nBuilt-in defaults are active."]];
+                                 stringByAppendingString:@"\n\nNo gestures were loaded."]];
+        }
     } else {
+        lastConfigRejected = NO;
         [Settings loadSettings];
     }
 

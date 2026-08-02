@@ -89,6 +89,14 @@ Keystrokes are modifiers plus one key. These are equivalent:
 | Option | `opt` `option` `alt` `⌥` |
 | Shift | `shift` `⇧` |
 
+Modifiers default to the left-side key. Prefix a written name with `left-` or
+`right-` when an application distinguishes the two sides:
+
+    right-control+space
+
+The prefix works with every written alias, including `right-ctrl`, `right-cmd`,
+and `right-alt`. Modifier symbols use the default left side.
+
 Key names: letters, digits, `return` `escape` `tab` `space` `delete`
 `forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down`
 `f1` through `f12`, and punctuation `[` `]` `-` `=` `;` `'` `,` `.` `/` `\`

@@ -7,29 +7,58 @@
 typedef struct {
     CGKeyCode keyCode;
     CGEventFlags genericFlag;
+    CGEventFlags sideFlag;
+    CGEventFlags sideMask;
     CGEventFlags flags;
 } MGModifier;
 
 size_t MGPlanKeyEventSequence(CGKeyCode keyCode,
                               CGEventFlags requestedFlags,
                               CGEventFlags physicalFlags,
-                              MGKeyEventStep steps[10]) {
+                              MGKeyEventStep steps[18]) {
     static const MGModifier modifiers[] = {
-        {56, kCGEventFlagMaskShift, kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK},
-        {59, kCGEventFlagMaskControl, kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK},
-        {58, kCGEventFlagMaskAlternate, kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK},
-        {55, kCGEventFlagMaskCommand, kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK},
+        {56, kCGEventFlagMaskShift, NX_DEVICELSHIFTKEYMASK,
+            NX_DEVICELSHIFTKEYMASK | NX_DEVICERSHIFTKEYMASK,
+            kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK},
+        {60, kCGEventFlagMaskShift, NX_DEVICERSHIFTKEYMASK,
+            NX_DEVICELSHIFTKEYMASK | NX_DEVICERSHIFTKEYMASK,
+            kCGEventFlagMaskShift | NX_DEVICERSHIFTKEYMASK},
+        {59, kCGEventFlagMaskControl, NX_DEVICELCTLKEYMASK,
+            NX_DEVICELCTLKEYMASK | NX_DEVICERCTLKEYMASK,
+            kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK},
+        {62, kCGEventFlagMaskControl, NX_DEVICERCTLKEYMASK,
+            NX_DEVICELCTLKEYMASK | NX_DEVICERCTLKEYMASK,
+            kCGEventFlagMaskControl | NX_DEVICERCTLKEYMASK},
+        {58, kCGEventFlagMaskAlternate, NX_DEVICELALTKEYMASK,
+            NX_DEVICELALTKEYMASK | NX_DEVICERALTKEYMASK,
+            kCGEventFlagMaskAlternate | NX_DEVICELALTKEYMASK},
+        {61, kCGEventFlagMaskAlternate, NX_DEVICERALTKEYMASK,
+            NX_DEVICELALTKEYMASK | NX_DEVICERALTKEYMASK,
+            kCGEventFlagMaskAlternate | NX_DEVICERALTKEYMASK},
+        {55, kCGEventFlagMaskCommand, NX_DEVICELCMDKEYMASK,
+            NX_DEVICELCMDKEYMASK | NX_DEVICERCMDKEYMASK,
+            kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK},
+        {54, kCGEventFlagMaskCommand, NX_DEVICERCMDKEYMASK,
+            NX_DEVICELCMDKEYMASK | NX_DEVICERCMDKEYMASK,
+            kCGEventFlagMaskCommand | NX_DEVICERCMDKEYMASK},
     };
     size_t count = 0;
-    size_t pressed[4];
+    size_t pressed[8];
     size_t pressedCount = 0;
     CGEventFlags activeFlags = 0;
 
     for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); i++) {
         MGModifier modifier = modifiers[i];
-        if (!(requestedFlags & modifier.genericFlag))
+        if (!(requestedFlags & modifier.genericFlag) ||
+            !(requestedFlags & modifier.sideFlag))
             continue;
-        if (physicalFlags & modifier.genericFlag) {
+        BOOL physicalSideIsUnknown = (physicalFlags & modifier.genericFlag) &&
+            !(physicalFlags & modifier.sideMask);
+        if ((physicalFlags & modifier.sideFlag) ||
+            (physicalSideIsUnknown && (modifier.sideFlag == NX_DEVICELSHIFTKEYMASK ||
+                                       modifier.sideFlag == NX_DEVICELCTLKEYMASK ||
+                                       modifier.sideFlag == NX_DEVICELALTKEYMASK ||
+                                       modifier.sideFlag == NX_DEVICELCMDKEYMASK))) {
             activeFlags |= modifier.flags;
             continue;
         }

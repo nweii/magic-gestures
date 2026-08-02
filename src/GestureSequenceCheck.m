@@ -29,6 +29,22 @@ int main(void) {
                 @"raw full lift did not release sequence ownership");
 
         MGGestureSequenceInitialize(&sequence);
+        MGGestureSequenceObserveBoundScrollFamily(&sequence, 3, 3, YES);
+        require(MGGestureSequenceSuppressesNativeScroll(&sequence),
+                @"a bound three-contact swipe family did not suppress native scrolling");
+        MGGestureSequenceObserveBoundScrollFamily(&sequence, 2, 3, YES);
+        require(MGGestureSequenceSuppressesNativeScroll(&sequence),
+                @"a brief contact dropout leaked native scrolling before full lift");
+        MGGestureSequenceFinishFrame(&sequence, 0);
+        require(!MGGestureSequenceSuppressesNativeScroll(&sequence),
+                @"native scrolling remained suppressed after full lift");
+
+        MGGestureSequenceInitialize(&sequence);
+        MGGestureSequenceObserveBoundScrollFamily(&sequence, 3, 3, NO);
+        require(!MGGestureSequenceSuppressesNativeScroll(&sequence),
+                @"an unbound swipe family suppressed native scrolling");
+
+        MGGestureSequenceInitialize(&sequence);
         require(MGGestureSequenceTryClaim(&sequence, 2), @"full lift did not release sequence ownership");
 
         NSLog(@"gesture sequence: all checks passed");
