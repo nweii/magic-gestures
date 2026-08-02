@@ -16,6 +16,9 @@ int main(void) {
         require(MGMagicMouseContactShouldBeExcluded(0.9620, 0.6574, 0.8750,
                                                     6.5800),
                 @"measured right-edge resting contact was retained");
+        require(MGMagicMouseContactDecisionForGeometry(0.9620, 0.6574, 0.8750, 6.5800) ==
+                    MGMagicMouseContactExcludedSideNarrow,
+                @"side rejection did not preserve its trace reason");
         require(MGMagicMouseContactShouldBeExcluded(0.0380, 0.6574, 0.8750,
                                                     6.5800),
                 @"equivalent left-edge resting contact was retained");
@@ -25,6 +28,10 @@ int main(void) {
         require(MGMagicMouseContactShouldBeExcluded(0.5000, 0.2000, 0.7500,
                                                     6.0000),
                 @"rear palm passed the relaxed two-contact click threshold");
+        require([MGMagicMouseContactDecisionName(
+                    MGMagicMouseContactDecisionForGeometry(0.5000, 0.2000, 0.7500, 6.0000))
+                    isEqualToString:@"rear-narrow"],
+                @"rear rejection did not preserve its stable trace reason");
         require(!MGMagicMouseContactShouldBeExcluded(0.5000, 0.2000, 1.5000,
                                                      8.1000),
                 @"substantial fingertip near the rear was rejected");

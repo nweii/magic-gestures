@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "name": "late two-finger frame after mouse down",
+      "events": [
+        {"type": "mouse_begin", "t": 10.0},
+        {"type": "contacts", "count": 2, "t": 10.06},
+        {"type": "mouse_finish", "expect": 2}
+      ]
+    },
+    {
+      "name": "drag cancels click",
+      "events": [
+        {"type": "mouse_begin", "t": 20.0},
+        {"type": "contacts", "count": 2, "t": 20.02},
+        {"type": "drag"},
+        {"type": "mouse_finish", "expect": 0}
+      ]
+    },
+    {
+      "name": "rear narrow contact is excluded",
+      "events": [
+        {"type": "filter", "x": 0.5, "y": 0.2, "size": 0.75, "minor": 6.0, "expect": "rear-narrow"}
+      ]
+    },
+    {
+      "name": "one owner survives until lift",
+      "events": [
+        {"type": "claim", "owner": 3, "expect": true},
+        {"type": "claim", "owner": 4, "expect": false},
+        {"type": "lift"},
+        {"type": "claim", "owner": 4, "expect": true}
+      ]
+    }
+  ]
+}

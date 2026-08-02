@@ -12,13 +12,30 @@ static const float kClickMinimumY = 0.30;
 
 BOOL MGMagicMouseContactShouldBeExcluded(float x, float y, float size,
                                          float minorAxis) {
+    return MGMagicMouseContactDecisionForGeometry(x, y, size, minorAxis) !=
+        MGMagicMouseContactKept;
+}
+
+MGMagicMouseContactDecision MGMagicMouseContactDecisionForGeometry(float x, float y,
+                                                                    float size,
+                                                                    float minorAxis) {
     BOOL narrowRestingContact = size <= kRestingEdgeMaximumSize &&
         minorAxis < kRestingEdgeMaximumMinorAxis;
     if (y < kClickMinimumY && narrowRestingContact)
-        return YES;
+        return MGMagicMouseContactExcludedRearNarrow;
     float edgeDistance = MIN(x, 1.0f - x);
-    return edgeDistance < kRestingEdgeInset &&
-           narrowRestingContact;
+    if (edgeDistance < kRestingEdgeInset && narrowRestingContact)
+        return MGMagicMouseContactExcludedSideNarrow;
+    return MGMagicMouseContactKept;
+}
+
+NSString *MGMagicMouseContactDecisionName(MGMagicMouseContactDecision decision) {
+    switch (decision) {
+        case MGMagicMouseContactExcludedRearNarrow: return @"rear-narrow";
+        case MGMagicMouseContactExcludedSideNarrow: return @"side-narrow";
+        case MGMagicMouseContactKept: return @"kept";
+    }
+    return @"unknown";
 }
 
 BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,

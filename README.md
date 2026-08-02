@@ -130,6 +130,32 @@ needed. The status row reports how many bindings loaded and whether any lines
 were skipped. **Current Gestures** shows global and application-specific
 bindings. **Diagnostics** opens recent logs or copies a concise state summary.
 
+### Guided trace sessions
+
+**Diagnostics > Start Trace Session…** runs a short Magic Mouse hardware check.
+The app shows one motion at a time and suppresses configured gesture actions for
+the whole session. Perform the motion, then choose **Success**, **Miss**,
+**Unsure**, or **Skip** from Diagnostics. The protocol covers three ordinary
+clicks, three two-finger clicks, quick lift, drag, rear and edge contacts,
+scrolling, tapping, and rapid repetition.
+
+**Stop and Export Trace…** closes the bounded capture, analyzes it, and asks
+where to save one redacted bundle. The bundle contains a manifest, NDJSON
+events, human labels, aggregate JSON analysis, and a Markdown report. It never
+contains application names, configured actions, keystrokes, URLs, script paths,
+clipboard contents, cursor positions, screen positions, or persistent hardware
+identifiers.
+
+From a source checkout, rerun the analyzer with:
+
+```bash
+./scripts/analyze-trace.sh "/path/to/MagicGestures-Trace-…"
+```
+
+The analyzer keeps requested intent, the human label, recorded behavior, and
+its inferred false-positive or false-negative candidates separate. Review the
+redacted events before changing recognition thresholds.
+
 To have a coding agent make the change, pick one under **Manage with Agent**. It
 opens in the settings folder with editing guidance and access to your
 configuration.
@@ -174,8 +200,12 @@ It does not read your keystrokes. The event tap it installs watches mouse and
 scroll events so it can tell a gesture from a normal click. Keyboard events are
 not in the set it listens for.
 
-Touch data from the mouse and trackpad stays in memory and is never written
-anywhere.
+Touch data normally stays in memory. A guided trace session writes Magic Mouse
+contact geometry and gesture decisions to a private temporary folder until you
+stop and choose whether to export it. Trace mode is off by default, has a 50 MB
+limit, suppresses configured actions, and uses a different ephemeral device name
+for each session. Raw trace bundles can describe hand posture, so share them only
+when needed and delete them when the diagnosis is finished.
 
 Outside its own folder, Magic Gestures writes to two places. It creates
 `~/.config/magic-gestures/` on first run and puts your `config.txt` and an

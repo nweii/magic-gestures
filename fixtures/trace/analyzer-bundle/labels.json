@@ -1,0 +1,8 @@
+{
+  "dropped_events": 0,
+  "labels": [
+    {"segment": 1, "step": "positive", "requested": "two-finger-click", "expects_dispatch": true, "human": "success"},
+    {"segment": 2, "step": "negative", "requested": "ordinary-click", "expects_dispatch": false, "human": "success"}
+  ],
+  "schema": 1
+}

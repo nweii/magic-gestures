@@ -80,7 +80,8 @@ a link to the repository.
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.
 - Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
-  or enable verbose logging for the current session.
+  enable verbose logging for the current session, or run a guided Magic Mouse
+  trace session with configured actions suppressed.
 - About Magic Gestures and Quit Magic Gestures.
 
 ## Releasing
@@ -282,6 +283,28 @@ logging:
 ```bash
 /usr/bin/log show --style compact --last 5m --predicate 'process == "MagicGestures"'
 ```
+
+## Guided traces
+
+`TraceRecorder.m` owns bounded hardware capture. It assigns monotonic sequence
+numbers before sending typed events to a serial writer queue, caps pending events
+at 4,096 and output at 50 MB, and writes deterministic NDJSON. Device names are
+ephemeral within one session. Its interface does not accept application names,
+configured values, keyboard details, clipboard contents, cursor positions, or
+persistent device identifiers.
+
+Diagnostics > Start Trace Session runs a short Magic Mouse protocol. Configured
+actions are suppressed while it records raw contact frames, filter decisions,
+mouse/drag/scroll events, recognizer outcomes, ownership, safe dispatch kinds,
+and human Success/Miss/Unsure/Skip labels. Stop and Export Trace runs the bundled
+`TraceAnalyzer.m` executable before moving one redacted bundle to a location the
+user chooses. `scripts/analyze-trace.sh BUNDLE` reruns the same analyzer from
+source.
+
+Synthetic fixtures under `fixtures/trace/` exercise click correlation, contact
+filtering, sequence ownership, analyzer classification, malformed bundles, and
+serialization without committing captured hand geometry. Raw trace bundles are
+private diagnostic material and do not belong in the repository.
 
 ## Standing constraints
 

@@ -16,6 +16,7 @@
 #import "SystemPreferences.h"
 #import "Config.h"
 #import "KeyUtility.h"
+#import "TraceRecorder.h"
 #include <pwd.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -25,6 +26,43 @@ static NSInteger lastConfigBindingCount = 0;
 static BOOL lastConfigRejected = NO;
 static dispatch_source_t configWatcher = nil;
 static int configWatcherFD = -1;
+static NSInteger traceProtocolIndex = -1;
+
+static NSArray *magicMouseTraceProtocol(void) {
+    static NSArray *steps = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        steps = [@[
+            @{@"id": @"control-one-r1", @"requested": @"ordinary-click", @"dispatch": @NO,
+              @"instruction": @"Ordinary one-finger click. Lift completely afterward."},
+            @{@"id": @"control-one-r2", @"requested": @"ordinary-click", @"dispatch": @NO,
+              @"instruction": @"Repeat one ordinary one-finger click."},
+            @{@"id": @"control-one-r3", @"requested": @"ordinary-click", @"dispatch": @NO,
+              @"instruction": @"One final ordinary one-finger click."},
+            @{@"id": @"two-click-r1", @"requested": @"two-finger-click", @"dispatch": @YES,
+              @"instruction": @"Normal two-finger physical click, then lift completely."},
+            @{@"id": @"two-click-r2", @"requested": @"two-finger-click", @"dispatch": @YES,
+              @"instruction": @"Repeat a normal two-finger physical click."},
+            @{@"id": @"two-click-r3", @"requested": @"two-finger-click", @"dispatch": @YES,
+              @"instruction": @"One final normal two-finger physical click."},
+            @{@"id": @"quick-lift", @"requested": @"two-finger-click", @"dispatch": @YES,
+              @"instruction": @"Two-finger physical click and lift immediately."},
+            @{@"id": @"drag-control", @"requested": @"two-finger-drag", @"dispatch": @NO,
+              @"instruction": @"Press with two fingers, drag right a short distance, then release."},
+            @{@"id": @"rear-contact", @"requested": @"ordinary-click-with-rear-contact", @"dispatch": @NO,
+              @"instruction": @"Ordinary click with your usual loose rear-palm contact. Do not contort your grip."},
+            @{@"id": @"edge-contact", @"requested": @"ordinary-click-with-edge-contact", @"dispatch": @NO,
+              @"instruction": @"Ordinary click with one natural narrow side contact."},
+            @{@"id": @"scroll-control", @"requested": @"native-scroll", @"dispatch": @NO,
+              @"instruction": @"Perform one normal horizontal scroll without clicking."},
+            @{@"id": @"tap-control", @"requested": @"two-finger-tap", @"dispatch": @NO,
+              @"instruction": @"Perform one two-finger tap without physically clicking."},
+            @{@"id": @"rapid-pair", @"requested": @"two-finger-click-pair", @"dispatch": @YES,
+              @"instruction": @"Perform two two-finger clicks in quick succession, then lift for one second."},
+        ] retain];
+    });
+    return steps;
+}
 
 CursorWindow *cursorWindow;
 CGKeyCode keyMap[128]; // for dvorak support
@@ -640,6 +678,110 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [self refreshMenu];
 }
 
+- (void)showCurrentTraceStep {
+    if (!MGTraceIsActive() || traceProtocolIndex < 0 ||
+        traceProtocolIndex >= (NSInteger)[magicMouseTraceProtocol() count]) return;
+    NSDictionary *step = [magicMouseTraceProtocol() objectAtIndex:traceProtocolIndex];
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:[NSString stringWithFormat:@"Trace step %ld of %lu",
+        (long)traceProtocolIndex + 1, (unsigned long)[magicMouseTraceProtocol() count]]];
+    [alert setInformativeText:[NSString stringWithFormat:
+        @"%@\n\nConfigured gesture actions are suppressed during capture. Choose Success if you performed the motion cleanly, Miss if the attempt went wrong, Unsure if you cannot tell, or Skip.",
+        [step objectForKey:@"instruction"]]];
+    [alert addButtonWithTitle:@"Ready"];
+    [NSApp activateIgnoringOtherApps:YES];
+    [alert runModal];
+}
+
+- (void)advanceTraceStep {
+    traceProtocolIndex++;
+    if (traceProtocolIndex >= (NSInteger)[magicMouseTraceProtocol() count]) {
+        [self stopTraceSession:nil];
+        return;
+    }
+    NSDictionary *step = [magicMouseTraceProtocol() objectAtIndex:traceProtocolIndex];
+    MGTraceBeginStep([step objectForKey:@"id"], [step objectForKey:@"requested"],
+                     [[step objectForKey:@"dispatch"] boolValue],
+                     [step objectForKey:@"instruction"]);
+    [self refreshMenu];
+    [self showCurrentTraceStep];
+}
+
+- (void)startTraceSession:(id)sender {
+    if (MGTraceIsActive()) return;
+    if (!enMMAll) {
+        [self reportFailure:@"Magic Mouse gestures are turned off."
+                     detail:@"Turn them on in config.txt before starting a trace session. Nothing changed."];
+        return;
+    }
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:
+        [NSString stringWithFormat:@"MagicGestures-Trace-%@", [[NSUUID UUID] UUIDString]]];
+    NSString *problem = nil;
+    if (!MGTraceStart(path, &problem)) {
+        [self reportFailure:@"Could not start the trace session." detail:problem];
+        return;
+    }
+    traceProtocolIndex = -1;
+    [self advanceTraceStep];
+}
+
+- (void)markTraceStep:(id)sender {
+    NSString *label = [sender representedObject];
+    MGTraceMarkStep(label);
+    [self advanceTraceStep];
+}
+
+- (void)showTraceStepAgain:(id)sender {
+    [self showCurrentTraceStep];
+}
+
+- (void)stopTraceSession:(id)sender {
+    if (!MGTraceIsActive()) return;
+    NSString *source = [[MGTraceBundlePath() copy] autorelease];
+    MGTraceStop();
+    traceProtocolIndex = -1;
+
+    NSString *analyzer = [[NSBundle mainBundle] pathForResource:@"analyze-trace" ofType:nil];
+    BOOL analysisOK = NO;
+    if (analyzer != nil) {
+        NSTask *task = [[[NSTask alloc] init] autorelease];
+        [task setLaunchPath:analyzer];
+        [task setArguments:@[source]];
+        [task setStandardOutput:[NSFileHandle fileHandleWithNullDevice]];
+        [task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
+        @try {
+            [task launch];
+            [task waitUntilExit];
+            analysisOK = [task terminationStatus] == 0;
+        } @catch (NSException *exception) {}
+    }
+    if (!analysisOK) {
+        [self reportFailure:@"Could not analyze the trace bundle."
+                     detail:@"The private temporary capture was kept. Nothing was exported."];
+        [self refreshMenu];
+        return;
+    }
+
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    [panel setTitle:@"Export redacted trace bundle"];
+    [panel setNameFieldStringValue:[source lastPathComponent]];
+    [panel setCanCreateDirectories:YES];
+    [NSApp activateIgnoringOtherApps:YES];
+    if ([panel runModal] == NSModalResponseOK) {
+        NSString *destination = [[panel URL] path];
+        NSError *error = nil;
+        if ([[NSFileManager defaultManager] fileExistsAtPath:destination] ||
+            ![[NSFileManager defaultManager] moveItemAtPath:source toPath:destination error:&error]) {
+            [self reportFailure:@"Could not export the trace bundle."
+                         detail:error ? [error localizedDescription] : @"Choose a new bundle name."];
+        } else {
+            [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:
+                @[[NSURL fileURLWithPath:destination]]];
+        }
+    }
+    [self refreshMenu];
+}
+
 - (void)refreshDiagnosticsSubmenu {
     NSMenuItem *parent = [theMenu itemWithTag:kMenuTagDiagnostics];
     if (parent == nil)
@@ -656,6 +798,33 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [verbose setTarget:self];
     [verbose setState:logLevel >= LOG_LEVEL_DEBUG
         ? NSControlStateValueOn : NSControlStateValueOff];
+    [menu addItem:[NSMenuItem separatorItem]];
+    if (!MGTraceIsActive()) {
+        NSMenuItem *start = [menu addItemWithTitle:@"Start Trace Session…"
+                                            action:@selector(startTraceSession:) keyEquivalent:@""];
+        [start setTarget:self];
+    } else {
+        NSDictionary *status = MGTraceStatus();
+        NSMenuItem *state = [menu addItemWithTitle:[NSString stringWithFormat:
+            @"Step %ld of %lu · %@ · %@ bytes · %@ dropped",
+            (long)traceProtocolIndex + 1, (unsigned long)[magicMouseTraceProtocol() count],
+            [status objectForKey:@"step"], [status objectForKey:@"bytes"],
+            [status objectForKey:@"dropped"]] action:NULL keyEquivalent:@""];
+        [state setEnabled:NO];
+        NSMenuItem *again = [menu addItemWithTitle:@"Show Current Step…"
+                                             action:@selector(showTraceStepAgain:) keyEquivalent:@""];
+        [again setTarget:self];
+        for (NSArray *pair in @[@[@"Success", @"success"], @[@"Miss", @"miss"],
+                                @[@"Unsure", @"unsure"], @[@"Skip", @"skip"]]) {
+            NSMenuItem *mark = [menu addItemWithTitle:pair[0]
+                                               action:@selector(markTraceStep:) keyEquivalent:@""];
+            [mark setTarget:self];
+            [mark setRepresentedObject:pair[1]];
+        }
+        NSMenuItem *stop = [menu addItemWithTitle:@"Stop and Export Trace…"
+                                            action:@selector(stopTraceSession:) keyEquivalent:@""];
+        [stop setTarget:self];
+    }
     [parent setSubmenu:menu];
 }
 

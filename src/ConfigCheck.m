@@ -686,9 +686,9 @@ int main(void) {
                      @"no unexpected direct dispatch", unexpectedDispatches);
             NSUInteger gestureDispatchCount = directDispatchLineCount(
                 engine, @"dispatchCommand(gesture, device);");
-            if (gestureDispatchCount != 5)
+            if (gestureDispatchCount != 6)
                 fail(@"direct gesture dispatch allowlist",
-                     @5, @(gestureDispatchCount));
+                     @6, @(gestureDispatchCount));
             NSUInteger characterDispatchCount = directDispatchLineCount(
                 engine, @"dispatchCommand(commandString, CHARRECOGNITION);");
             if (characterDispatchCount != 3)

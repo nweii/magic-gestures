@@ -68,6 +68,7 @@ clang \
   "$ROOT/src/MouseContactFilter.m" \
   "$ROOT/src/MouseClickInteraction.m" \
   "$ROOT/src/ScriptRunner.m" \
+  "$ROOT/src/TraceRecorder.m" \
   "$ROOT/src/TrackpadInteraction.m" \
   "$SRC_ROOT/JitouchAppDelegate.m" \
   "$SRC_ROOT/Settings.m" \
@@ -84,6 +85,16 @@ clang \
 # configuration folder without the source tree beside it.
 cp "$ROOT/config.default.txt" "$RES_DIR/config.default.txt"
 cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
+
+# The installed app analyzes its redacted export without depending on source files.
+clang \
+  -fblocks \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/TraceAnalyzer.m" \
+  -o "$RES_DIR/analyze-trace"
 
 # A stable designated requirement lets macOS TCC associate Accessibility
 # permission with this bundle identifier across rebuilds.

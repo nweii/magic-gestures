@@ -29,6 +29,7 @@
 #import "MouseClickInteraction.h"
 #import "MouseContactFilter.h"
 #import "ScriptRunner.h"
+#import "TraceRecorder.h"
 #import "TrackpadInteraction.h"
 
 #define TRACKPAD 0
@@ -93,6 +94,7 @@ enum {
     MTTouchStateLingerInRange = 6,
     MTTouchStateOutOfRange = 7
 };
+
 typedef uint32_t MTTouchState;
 
 typedef struct {
@@ -173,6 +175,26 @@ enum {
     kGestureOwnerTwoFingerPinch,
     kGestureOwnerThumb,
 };
+
+static NSString *gestureOwnerName(NSUInteger owner) {
+    switch (owner) {
+        case kGestureOwnerPhysicalClick: return @"physical-click";
+        case kGestureOwnerTwoFingerTap: return @"two-finger-tap";
+        case kGestureOwnerThreeFingerTap: return @"three-finger-tap";
+        case kGestureOwnerHoldTap: return @"hold-tap";
+        case kGestureOwnerHoldSlide: return @"hold-slide";
+        case kGestureOwnerTwoFixedOneSlide: return @"two-fixed-one-slide";
+        case kGestureOwnerThreeFingerSwipe: return @"three-finger-swipe";
+        case kGestureOwnerOneFingerTap: return @"one-finger-tap";
+        case kGestureOwnerFrontRightTap: return @"front-right-tap";
+        case kGestureOwnerOneFingerSwipe: return @"one-finger-swipe";
+        case kGestureOwnerTwoFingerSwipe: return @"two-finger-swipe";
+        case kGestureOwnerTwoFingerPinch: return @"two-finger-pinch";
+        case kGestureOwnerThumb: return @"thumb";
+        case 0: return @"none";
+        default: return [NSString stringWithFormat:@"owner-%lu", (unsigned long)owner];
+    }
+}
 
 static int disableHorizontalScroll;
 static CFAbsoluteTime customMagicMouseScrollSuppressionUntil = 0;
@@ -929,6 +951,16 @@ static void dispatchCommand(NSString *gesture, int device) {
     NSDictionary *binding = bindingForGestureWithMatch(gesture, device, &matchedApplication);
     if (binding == nil)
         return;
+    if (device == MAGICMOUSE && MGTraceSuppressesActions()) {
+        NSString *scope = [matchedApplication isEqualToString:@"All Applications"]
+            ? @"global" : @"application";
+        NSString *kind = ![[binding objectForKey:@"Enable"] boolValue] ? @"off" :
+            [binding objectForKey:@"ScriptPath"] != nil ? @"script" :
+            [binding objectForKey:@"OpenURL"] != nil ? @"url" :
+            [[binding objectForKey:@"IsAction"] boolValue] ? @"built-in" : @"keystroke";
+        MGTraceRecordDispatch(gesture, scope, kind, @"suppressed-for-trace");
+        return;
+    }
     BOOL deferred = [[binding objectForKey:@"Defer"] boolValue];
     NSString *gestureKey = [NSString stringWithFormat:@"%d:%@", device, gesture];
     dispatch_block_t action = ^{
@@ -954,22 +986,40 @@ static void dispatchCommand(NSString *gesture, int device) {
 // A bound recognizer owns its device's contact sequence before dispatch. The
 // same recognizer may repeat, while competing gestures wait for a full lift.
 static BOOL dispatchExclusiveCommand(NSString *gesture, int device, NSUInteger owner) {
-    if (bindingForGesture(gesture, device) == nil)
+    if (bindingForGesture(gesture, device) == nil) {
+        if (device == MAGICMOUSE) MGTraceRecordCandidate(gesture, @"canceled", @"unconfigured");
         return NO;
+    }
+    NSUInteger previous = device == MAGICMOUSE ? magicMouseSequence.owner : trackpadInteraction.sequence.owner;
     BOOL claimed = device == TRACKPAD
         ? MGTrackpadInteractionClaimGesture(&trackpadInteraction, owner)
         : MGGestureSequenceTryClaim(&magicMouseSequence, owner);
+    if (device == MAGICMOUSE) {
+        MGTraceRecordCandidate(gesture, claimed ? @"recognized" : @"canceled",
+                               claimed ? @"eligible" : @"owned-by-other-recognizer");
+        MGTraceRecordOwnership(gestureOwnerName(owner), gestureOwnerName(previous),
+                               gestureOwnerName(magicMouseSequence.owner), claimed);
+    }
     if (claimed)
         dispatchCommand(gesture, device);
     return claimed;
 }
 
 static BOOL dispatchExclusiveTapCommand(NSString *gesture, int device, NSUInteger owner) {
-    if (bindingForGesture(gesture, device) == nil)
+    if (bindingForGesture(gesture, device) == nil) {
+        if (device == MAGICMOUSE) MGTraceRecordCandidate(gesture, @"canceled", @"unconfigured");
         return NO;
+    }
+    NSUInteger previous = device == MAGICMOUSE ? magicMouseSequence.owner : trackpadInteraction.sequence.owner;
     BOOL claimed = device == TRACKPAD
         ? MGTrackpadInteractionClaimTap(&trackpadInteraction, owner)
         : MGGestureSequenceTryClaim(&magicMouseSequence, owner);
+    if (device == MAGICMOUSE) {
+        MGTraceRecordCandidate(gesture, claimed ? @"recognized" : @"canceled",
+                               claimed ? @"eligible" : @"owned-by-other-recognizer");
+        MGTraceRecordOwnership(gestureOwnerName(owner), gestureOwnerName(previous),
+                               gestureOwnerName(magicMouseSequence.owner), claimed);
+    }
     if (claimed)
         dispatchCommand(gesture, device);
     return claimed;
@@ -995,12 +1045,21 @@ static BOOL hasThreeFingerSwipeBinding(int device) {
 
 static void dispatchMagicMousePhysicalClickForContactCount(int contactCount) {
     NSString *gesture = nil;
-    if (contactCount == 2 && bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil)
+    if (contactCount == 2 && (MGTraceIsActive() ||
+        bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil))
         gesture = @"Two-Finger Click";
-    else if (contactCount == 3 && bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil)
+    else if (contactCount == 3 && (MGTraceIsActive() ||
+        bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil))
         gesture = @"Three-Finger Click";
-    if (gesture != nil)
-        dispatchCommand(gesture, MAGICMOUSE);
+    if (gesture != nil) {
+        MGTraceRecordCandidate(gesture, @"recognized", @"correlated-physical-click");
+        if (bindingForGesture(gesture, MAGICMOUSE) != nil)
+            dispatchCommand(gesture, MAGICMOUSE);
+        else
+            MGTraceRecordDispatch(gesture, @"none", @"none", @"suppressed-for-trace");
+    } else if (contactCount > 0) {
+        MGTraceRecordCandidate(@"physical-click", @"canceled", @"unconfigured-contact-count");
+    }
 }
 
 
@@ -3801,10 +3860,22 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
         return 0;
     }
 
+    if (MGTraceIsActive()) {
+        MGTraceContact traceContacts[16];
+        int traceCount = MIN(nFingers, 16);
+        for (int i = 0; i < traceCount; i++) {
+            traceContacts[i] = (MGTraceContact){data[i].identifier, data[i].state,
+                data[i].px, data[i].py, data[i].size, data[i].majorAxis,
+                data[i].minorAxis, data[i].zDensity};
+        }
+        MGTraceRecordMouseFrame(device, timestamp, frame, traceContacts, traceCount);
+    }
+
     if (nFingers > 1) {
         for (int i = 0; i < nFingers; i++) {
             if (data[i].size > 5.5) {
                 ignore = 1;
+                MGTraceRecordCandidate(@"physical-click", @"canceled", @"broad-contact-size");
                 break;
             }
         }
@@ -3828,8 +3899,13 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
         int thumbIndex = thumbPresent - 1;
         for (int i = 0; i < nFingers && eligibleClickContactCount < 8; i++) {
             BOOL excludedAsThumb = i == thumbIndex;
-            BOOL excludedByQuality = MGMagicMouseContactShouldBeExcluded(
+            MGMagicMouseContactDecision qualityDecision = MGMagicMouseContactDecisionForGeometry(
                 data[i].px, data[i].py, data[i].size, data[i].minorAxis);
+            BOOL excludedByQuality = qualityDecision != MGMagicMouseContactKept;
+            MGTraceRecordFilterDecision(data[i].identifier,
+                excludedAsThumb ? @"thumb-id" : MGMagicMouseContactDecisionName(qualityDecision),
+                !(excludedAsThumb || excludedByQuality), data[i].px, data[i].py,
+                data[i].size, data[i].majorAxis, data[i].minorAxis);
             if (excludedAsThumb || excludedByQuality)
                 continue;
             clickXs[eligibleClickContactCount] = data[i].px;
@@ -3840,6 +3916,8 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
             clickXs, clickYs, eligibleClickContactCount);
         if (!clickCluster)
             eligibleClickContactCount = 0;
+        if (!clickCluster)
+            MGTraceRecordCandidate(@"physical-click", @"canceled", @"disconnected-click-cluster");
         magicMouseTwoFingerFlag = eligibleClickContactCount == 2;
         magicMouseThreeFingerFlag = eligibleClickContactCount == 3;
 
@@ -3867,7 +3945,11 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
     }
     dispatchMagicMousePhysicalClickForContactCount(completedClickContactCount);
 
+    NSUInteger ownerBeforeFinish = magicMouseSequence.owner;
     MGGestureSequenceFinishFrame(&magicMouseSequence, activeMagicMouseContactCount);
+    if (ownerBeforeFinish != magicMouseSequence.owner)
+        MGTraceRecordOwnership(@"reset", gestureOwnerName(ownerBeforeFinish),
+                               gestureOwnerName(magicMouseSequence.owner), YES);
 
     return 0;
 }
@@ -4030,6 +4112,19 @@ static void multitouchDeviceRemoved(void* refCon, io_iterator_t iterator) {
 #pragma mark - CGEventCallback
 
 static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+    NSString *traceCGEvent = nil;
+    if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown) traceCGEvent = @"mouse-down";
+    else if (type == kCGEventLeftMouseUp || type == kCGEventRightMouseUp) traceCGEvent = @"mouse-up";
+    else if (type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged ||
+             type == kCGEventOtherMouseDragged) traceCGEvent = @"mouse-drag";
+    else if (type == kCGEventScrollWheel) traceCGEvent = @"scroll";
+    if (traceCGEvent != nil) {
+        MGTraceRecordCGEvent(traceCGEvent,
+            CGEventGetDoubleValueField(event, kCGMouseEventPressure),
+            type == kCGEventScrollWheel ? CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1) : 0,
+            type == kCGEventScrollWheel ? CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis2) : 0,
+            @"observed");
+    }
     if (trackpadRewritingSecondaryClick && type == kCGEventRightMouseDragged) {
         CGEventSetIntegerValueField(event, kCGMouseEventButtonNumber, 0);
         CGEventSetType(event, kCGEventLeftMouseDragged);
@@ -4098,24 +4193,40 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         }
         NSString *gesture = nil;
         int device = 0;
+        NSUInteger mouseOwnerBeforeClick = magicMouseSequence.owner;
         if (middleClickFlag && bindingForGesture(@"Middle Click", MAGICMOUSE) != nil) {
             gesture = @"Middle Click";
             device = MAGICMOUSE;
         } else if (magicMouseTwoFingerFlag &&
-                   bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil &&
+                   (MGTraceIsActive() || bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil) &&
                    MGGestureSequenceTryClaim(&magicMouseSequence, kGestureOwnerPhysicalClick)) {
             gesture = @"Two-Finger Click";
             device = MAGICMOUSE;
         } else if (magicMouseThreeFingerFlag &&
-                   bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil &&
+                   (MGTraceIsActive() || bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil) &&
                    MGGestureSequenceTryClaim(&magicMouseSequence, kGestureOwnerPhysicalClick)) {
             gesture = @"Three-Finger Click";
             device = MAGICMOUSE;
         }
         if (gesture != nil) {
+            MGTraceRecordCandidate(gesture, @"recognized", @"contacts-present-at-mouse-down");
+            MGTraceRecordOwnership(@"physical-click", gestureOwnerName(mouseOwnerBeforeClick),
+                                   gestureOwnerName(magicMouseSequence.owner), YES);
+        } else if (MGTraceIsActive()) {
+            MGTraceRecordCandidate(@"physical-click", @"canceled", @"no-eligible-configured-contact-count");
+            if ((magicMouseTwoFingerFlag || magicMouseThreeFingerFlag) && mouseOwnerBeforeClick != 0)
+                MGTraceRecordOwnership(@"physical-click", gestureOwnerName(mouseOwnerBeforeClick),
+                                       gestureOwnerName(magicMouseSequence.owner), NO);
+        }
+        if (gesture != nil) {
             MGMouseClickInteractionMarkHandled(&magicMouseClickInteraction);
             NSString *command = commandForGesture(gesture, device);
-            if ([command isEqualToString:@"Middle Click"]) {
+            if (MGTraceSuppressesActions()) {
+                if (bindingForGesture(gesture, device) != nil)
+                    dispatchCommand(gesture, device);
+                else
+                    MGTraceRecordDispatch(gesture, @"none", @"none", @"suppressed-for-trace");
+            } else if ([command isEqualToString:@"Middle Click"]) {
                 simulating = MIDDLEBUTTONDOWN;
                 simulatingByDevice = device;
                 CGEventSetIntegerValueField(event, kCGMouseEventButtonNumber, 2);
@@ -4139,7 +4250,8 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
                 dispatchCommand(gesture, device);
                 return NULL;
             }
-            if (command != nil && logLevel >= LOG_LEVEL_INFO) NSLog(@"Gesture \"%@\" -> \"%@\" for %@", gesture, command, deviceTypeName[device]);
+            if (!MGTraceIsActive() && command != nil && logLevel >= LOG_LEVEL_INFO)
+                NSLog(@"Gesture \"%@\" -> \"%@\" for %@", gesture, command, deviceTypeName[device]);
         }
 
 
@@ -4199,8 +4311,10 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         }
         if (MGGestureSequenceSuppressesNativeScroll(&magicMouseSequence) ||
             MGTrackpadInteractionSuppressesNativeScroll(&trackpadInteraction) ||
-            isTrackpadRecognizing)
+            isTrackpadRecognizing) {
+            MGTraceRecordCGEvent(@"scroll", 0, axis1, axis2, @"suppressed-by-recognizer");
             return NULL;
+        }
         else if (autoScrollFlag) {
             int64_t sc = CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1);
             if (sc*autoScrollFlag <= 0)

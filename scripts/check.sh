@@ -99,6 +99,55 @@ clang \
   -o "$MOUSE_CLICK_INTERACTION_OUT" 2>/dev/null
 "$MOUSE_CLICK_INTERACTION_OUT"
 
+TRACE_RECORDER_OUT="$(mktemp -d)/tracerecordercheck"
+clang \
+  -fblocks \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/TraceRecorder.m" \
+  "$ROOT/src/TraceRecorderCheck.m" \
+  -o "$TRACE_RECORDER_OUT" 2>/dev/null
+"$TRACE_RECORDER_OUT"
+
+TRACE_REPLAY_OUT="$(mktemp -d)/tracereplaycheck"
+clang \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/GestureSequence.m" \
+  "$ROOT/src/MouseClickInteraction.m" \
+  "$ROOT/src/MouseContactFilter.m" \
+  "$ROOT/src/TraceReplayCheck.m" \
+  -o "$TRACE_REPLAY_OUT" 2>/dev/null
+"$TRACE_REPLAY_OUT" "$ROOT/fixtures/trace/interaction-replay.synthetic.json"
+
+TRACE_ANALYZER_OUT="$(mktemp -d)/traceanalyzer"
+clang \
+  -fblocks \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/TraceAnalyzer.m" \
+  -o "$TRACE_ANALYZER_OUT" 2>/dev/null
+TRACE_ANALYZER_FIXTURE="$(mktemp -d)/analyzer-bundle"
+cp -R "$ROOT/fixtures/trace/analyzer-bundle/." "$TRACE_ANALYZER_FIXTURE"
+"$TRACE_ANALYZER_OUT" "$TRACE_ANALYZER_FIXTURE" >/dev/null
+grep -q '"true_positive" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
+  { echo "trace analyzer changed the synthetic positive classification" >&2; exit 1; }
+grep -q '"true_negative" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
+  { echo "trace analyzer changed the synthetic negative classification" >&2; exit 1; }
+MALFORMED_TRACE="$(mktemp -d)/malformed-bundle"
+if "$TRACE_ANALYZER_OUT" "$MALFORMED_TRACE" >/dev/null 2>&1; then
+  echo "trace analyzer accepted a malformed bundle" >&2
+  exit 1
+fi
+
 TRACKPAD_INTERACTION_OUT="$(mktemp -d)/trackpadinteractioncheck"
 clang \
   -fobjc-exceptions \
