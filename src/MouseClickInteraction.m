@@ -3,12 +3,15 @@
 #import "MouseClickInteraction.h"
 
 static const double kMouseClickContactArrivalGrace = 0.10;
+static const int kMouseClickDragThreshold = 4;
 
 static void finishInteractionWhileLocked(MGMouseClickInteraction *interaction) {
     interaction->active = NO;
     interaction->handled = NO;
     interaction->dragged = NO;
     interaction->released = NO;
+    interaction->cumulativeDeltaX = 0;
+    interaction->cumulativeDeltaY = 0;
     interaction->peakContactCount = interaction->currentContactCount;
     interaction->mouseDownTime = -1;
 }
@@ -22,6 +25,8 @@ void MGMouseClickInteractionInitialize(MGMouseClickInteraction *interaction) {
     interaction->released = NO;
     interaction->currentContactCount = 0;
     interaction->peakContactCount = 0;
+    interaction->cumulativeDeltaX = 0;
+    interaction->cumulativeDeltaY = 0;
     interaction->mouseDownTime = -1;
     os_unfair_lock_unlock(&interaction->lock);
 }
@@ -63,6 +68,8 @@ void MGMouseClickInteractionBegin(MGMouseClickInteraction *interaction,
     interaction->dragged = NO;
     interaction->released = NO;
     interaction->peakContactCount = interaction->currentContactCount;
+    interaction->cumulativeDeltaX = 0;
+    interaction->cumulativeDeltaY = 0;
     interaction->mouseDownTime = timestamp;
     os_unfair_lock_unlock(&interaction->lock);
 }
@@ -73,9 +80,17 @@ void MGMouseClickInteractionMarkHandled(MGMouseClickInteraction *interaction) {
     os_unfair_lock_unlock(&interaction->lock);
 }
 
-void MGMouseClickInteractionRecordDrag(MGMouseClickInteraction *interaction) {
+void MGMouseClickInteractionRecordDrag(MGMouseClickInteraction *interaction,
+                                       int deltaX, int deltaY) {
     os_unfair_lock_lock(&interaction->lock);
-    interaction->dragged = YES;
+    if (interaction->active && !interaction->dragged) {
+        interaction->cumulativeDeltaX += deltaX;
+        interaction->cumulativeDeltaY += deltaY;
+        int distanceSquared = interaction->cumulativeDeltaX * interaction->cumulativeDeltaX +
+            interaction->cumulativeDeltaY * interaction->cumulativeDeltaY;
+        interaction->dragged = distanceSquared >=
+            kMouseClickDragThreshold * kMouseClickDragThreshold;
+    }
     os_unfair_lock_unlock(&interaction->lock);
 }
 

@@ -11,6 +11,8 @@ typedef struct {
     BOOL released;
     int currentContactCount;
     int peakContactCount;
+    int cumulativeDeltaX;
+    int cumulativeDeltaY;
     double mouseDownTime;
 } MGMouseClickInteraction;
 
@@ -21,5 +23,6 @@ int MGMouseClickInteractionObserveContacts(MGMouseClickInteraction *interaction,
 void MGMouseClickInteractionBegin(MGMouseClickInteraction *interaction,
                                   double timestamp);
 void MGMouseClickInteractionMarkHandled(MGMouseClickInteraction *interaction);
-void MGMouseClickInteractionRecordDrag(MGMouseClickInteraction *interaction);
+void MGMouseClickInteractionRecordDrag(MGMouseClickInteraction *interaction,
+                                       int deltaX, int deltaY);
 int MGMouseClickInteractionFinish(MGMouseClickInteraction *interaction);

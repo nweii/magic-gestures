@@ -36,8 +36,8 @@ tapping. Either hand works, and either finger can play either part.
 
 Physical clicks ignore narrow contacts at either side and palm contacts at the
 rear. Counted fingertips must form one connected cluster; a recognized thumb
-does not count toward the gesture. They are disabled by default because contact
-timing and hand posture can still cause missed recognition. Set
+does not count toward the gesture. They are disabled by default while
+recognition is calibrated across natural grips and hardware. Set
 `experimental-mouse-click-gestures = true` under `[general]` to opt in.
 
 ## Magic Trackpad
@@ -67,10 +67,9 @@ slide name where the mouse has two.
 | `index-to-pinky` | Brush your fingers across in sequence, index first |
 | `pinky-to-index` | Brush your fingers across in sequence, pinky first |
 
-On a Magic Mouse, binding a physical multi-finger click consumes that click so
-only its configured action fires. On a trackpad, the native click continues and
-the configured action fires on release. A trackpad drag keeps its native events
-and does not fire the configured click action.
+On both devices, the native click continues and the configured action fires on
+release. A drag keeps its native events and does not fire the configured click
+action.
 
 One continuous touch sequence can run one kind of configured gesture. A swipe
 or hold gesture may repeat while it owns the sequence, but a physical click,

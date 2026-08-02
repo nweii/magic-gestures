@@ -29,7 +29,9 @@ int main(int argc, const char *argv[]) {
                     MGMouseClickInteractionObserveContacts(&click, [[event objectForKey:@"count"] intValue],
                                                             [[event objectForKey:@"t"] doubleValue]);
                 else if ([type isEqualToString:@"drag"])
-                    MGMouseClickInteractionRecordDrag(&click);
+                    MGMouseClickInteractionRecordDrag(&click,
+                        [([event objectForKey:@"dx"] ?: @5) intValue],
+                        [([event objectForKey:@"dy"] ?: @0) intValue]);
                 else if ([type isEqualToString:@"mouse_finish"])
                     require(MGMouseClickInteractionFinish(&click) == [[event objectForKey:@"expect"] intValue],
                             [testCase objectForKey:@"name"]);

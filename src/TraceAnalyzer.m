@@ -42,6 +42,15 @@ static NSDictionary *distribution(NSArray *numbers) {
              @"p90": sorted[p90], @"max": sorted[count - 1]};
 }
 
+static BOOL gestureMatchesRequestedPhysicalClick(NSString *gesture, NSString *requested) {
+    if ([requested hasPrefix:@"two-finger-click"])
+        return [gesture isEqualToString:@"Two-Finger Click"];
+    if ([requested hasPrefix:@"three-finger-click"])
+        return [gesture isEqualToString:@"Three-Finger Click"];
+    return [gesture isEqualToString:@"Two-Finger Click"] ||
+        [gesture isEqualToString:@"Three-Finger Click"];
+}
+
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         if (argc != 2) fail(@"usage: analyze-trace BUNDLE");
@@ -55,7 +64,7 @@ int main(int argc, const char *argv[]) {
         NSArray *labels = [labelDocument objectForKey:@"labels"];
         if (![labels isKindOfClass:[NSArray class]]) fail(@"labels.json has no labels array");
 
-        NSMutableDictionary *dispatchBySegment = [NSMutableDictionary dictionary];
+        NSMutableDictionary *dispatchGesturesBySegment = [NSMutableDictionary dictionary];
         NSMutableDictionary *filters = [NSMutableDictionary dictionary];
         NSMutableDictionary *outcomes = [NSMutableDictionary dictionary];
         NSMutableDictionary *firstDown = [NSMutableDictionary dictionary];
@@ -79,7 +88,12 @@ int main(int argc, const char *argv[]) {
             NSDictionary *data = [event objectForKey:@"data"];
             NSNumber *time = [event objectForKey:@"t_ns"];
             if ([source isEqualToString:@"dispatch"]) {
-                dispatchBySegment[segment] = @([dispatchBySegment[segment] unsignedIntegerValue] + 1);
+                NSMutableArray *gestures = dispatchGesturesBySegment[segment];
+                if (gestures == nil) {
+                    gestures = [NSMutableArray array];
+                    dispatchGesturesBySegment[segment] = gestures;
+                }
+                [gestures addObject:[data objectForKey:@"gesture"] ?: @"unknown"];
                 NSString *outcome = [data objectForKey:@"outcome"] ?: @"unknown";
                 outcomes[outcome] = @([outcomes[outcome] unsignedIntegerValue] + 1);
             } else if ([source isEqualToString:@"filter"]) {
@@ -127,7 +141,10 @@ int main(int argc, const char *argv[]) {
         for (NSDictionary *label in labels) {
             NSNumber *segment = [label objectForKey:@"segment"];
             NSUInteger expected = [[label objectForKey:@"expected_dispatch_count"] unsignedIntegerValue];
-            NSUInteger observed = [dispatchBySegment[segment] unsignedIntegerValue];
+            NSString *requested = [label objectForKey:@"requested"] ?: @"none";
+            NSUInteger observed = 0;
+            for (NSString *gesture in dispatchGesturesBySegment[segment])
+                if (gestureMatchesRequestedPhysicalClick(gesture, requested)) observed++;
             NSString *human = [label objectForKey:@"human"] ?: @"unlabeled";
             humanCounts[human] = @([humanCounts[human] unsignedIntegerValue] + 1);
             BOOL excludedByHuman = [human isEqualToString:@"skip"] || [human isEqualToString:@"botched"];
@@ -135,7 +152,7 @@ int main(int argc, const char *argv[]) {
                 observed == expected ? @"matches-request" :
                 observed < expected ? @"under-dispatch" : @"over-dispatch";
             [caseResults addObject:@{@"segment": segment,
-                @"requested": [label objectForKey:@"requested"] ?: @"none",
+                @"requested": requested,
                 @"human": human, @"expected_dispatch_count": @(expected),
                 @"observed_dispatch_count": @(observed), @"inference": inference}];
             if (excludedByHuman) continue;

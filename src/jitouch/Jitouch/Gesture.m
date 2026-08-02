@@ -1052,7 +1052,14 @@ static void dispatchMagicMousePhysicalClickForContactCount(int contactCount) {
         bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil))
         gesture = @"Three-Finger Click";
     if (gesture != nil) {
-        MGTraceRecordCandidate(gesture, @"recognized", @"correlated-physical-click");
+        NSUInteger previous = magicMouseSequence.owner;
+        BOOL claimed = MGGestureSequenceTryClaim(
+            &magicMouseSequence, kGestureOwnerPhysicalClick);
+        MGTraceRecordCandidate(gesture, claimed ? @"recognized" : @"canceled",
+            claimed ? @"correlated-physical-click" : @"owned-by-other-recognizer");
+        MGTraceRecordOwnership(@"physical-click", gestureOwnerName(previous),
+            gestureOwnerName(magicMouseSequence.owner), claimed);
+        if (!claimed) return;
         if (bindingForGesture(gesture, MAGICMOUSE) != nil)
             dispatchCommand(gesture, MAGICMOUSE);
         else
@@ -4119,10 +4126,17 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
              type == kCGEventOtherMouseDragged) traceCGEvent = @"mouse-drag";
     else if (type == kCGEventScrollWheel) traceCGEvent = @"scroll";
     if (traceCGEvent != nil) {
+        int64_t axis1 = type == kCGEventScrollWheel
+            ? CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1)
+            : [traceCGEvent isEqualToString:@"mouse-drag"]
+                ? CGEventGetIntegerValueField(event, kCGMouseEventDeltaX) : 0;
+        int64_t axis2 = type == kCGEventScrollWheel
+            ? CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis2)
+            : [traceCGEvent isEqualToString:@"mouse-drag"]
+                ? CGEventGetIntegerValueField(event, kCGMouseEventDeltaY) : 0;
         MGTraceRecordCGEvent(traceCGEvent,
             CGEventGetDoubleValueField(event, kCGMouseEventPressure),
-            type == kCGEventScrollWheel ? CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1) : 0,
-            type == kCGEventScrollWheel ? CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis2) : 0,
+            axis1, axis2,
             @"observed");
     }
     if (trackpadRewritingSecondaryClick && type == kCGEventRightMouseDragged) {
@@ -4137,7 +4151,9 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
 
     if (type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged) {
         MGTrackpadInteractionRecordPhysicalDrag(&trackpadInteraction);
-        MGMouseClickInteractionRecordDrag(&magicMouseClickInteraction);
+        MGMouseClickInteractionRecordDrag(&magicMouseClickInteraction,
+            (int)CGEventGetIntegerValueField(event, kCGMouseEventDeltaX),
+            (int)CGEventGetIntegerValueField(event, kCGMouseEventDeltaY));
     }
 
     if ((type == kCGEventLeftMouseUp || type == kCGEventRightMouseUp) &&
@@ -4196,16 +4212,6 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         NSUInteger mouseOwnerBeforeClick = magicMouseSequence.owner;
         if (middleClickFlag && bindingForGesture(@"Middle Click", MAGICMOUSE) != nil) {
             gesture = @"Middle Click";
-            device = MAGICMOUSE;
-        } else if (magicMouseTwoFingerFlag &&
-                   (MGTraceIsActive() || bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil) &&
-                   MGGestureSequenceTryClaim(&magicMouseSequence, kGestureOwnerPhysicalClick)) {
-            gesture = @"Two-Finger Click";
-            device = MAGICMOUSE;
-        } else if (magicMouseThreeFingerFlag &&
-                   (MGTraceIsActive() || bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil) &&
-                   MGGestureSequenceTryClaim(&magicMouseSequence, kGestureOwnerPhysicalClick)) {
-            gesture = @"Three-Finger Click";
             device = MAGICMOUSE;
         }
         if (gesture != nil) {

@@ -40,7 +40,15 @@ int main(void) {
 
         MGMouseClickInteractionBegin(&interaction, 40.0);
         MGMouseClickInteractionObserveContacts(&interaction, 2, 40.04);
-        MGMouseClickInteractionRecordDrag(&interaction);
+        MGMouseClickInteractionRecordDrag(&interaction, 1, 1);
+        MGMouseClickInteractionRecordDrag(&interaction, -1, 0);
+        require(MGMouseClickInteractionFinish(&interaction) == 2,
+                @"minor pointer jitter canceled a physical click action");
+
+        MGMouseClickInteractionBegin(&interaction, 45.0);
+        MGMouseClickInteractionObserveContacts(&interaction, 2, 45.04);
+        MGMouseClickInteractionRecordDrag(&interaction, 3, 0);
+        MGMouseClickInteractionRecordDrag(&interaction, 2, 0);
         require(MGMouseClickInteractionFinish(&interaction) == 0,
                 @"a physical drag completed a click action");
 
