@@ -2,6 +2,28 @@
 
 # Changelog
 
+## 0.6.1
+
+Released 2026-08-03.
+
+### Fixed
+
+- Prevented a resting Magic Mouse edge contact from being recruited into a
+  two-finger tap. A configured tap starts only when its two target contacts
+  arrive together, so deliberate taps near an edge remain available.
+- Applied per-contact arrival tracking to simultaneous multi-finger taps on
+  both devices. Hold gestures, swipes, and physical clicks retain their own
+  recognition rules because their contacts intentionally arrive or resolve at
+  different times.
+
+### Changed
+
+- Grouped hidden guided hardware tests under a `Gesture testing` Diagnostics
+  submenu. It remains absent from normal installs.
+
+This is a backward-compatible patch release. Existing version 3 configuration
+files keep working.
+
 ## 0.6.0
 
 Released 2026-08-03.
