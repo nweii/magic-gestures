@@ -222,6 +222,10 @@ int main(void) {
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Far-Tap") == nil)
             fail(@"one slug binds near and far", @"far variant present", @"missing");
 
+        s = parse(@"[MOUSE]\n\nhold-right-tap-left = return\n");
+        if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") == nil)
+            fail(@"uppercase section with spacing", @"binding present", @"missing");
+
         // A built-in action must dispatch by name instead of as a keystroke.
         s = parse(@"[trackpad]\nthree-finger-tap = middle-click\n");
         NSDictionary *g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");

@@ -3,27 +3,31 @@
 # Choose Manage with Agent for help, or see the full reference:
 # https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
 
-[general]
+[GENERAL]
+
 config-version = 2
 dominant-hand = right
 haptic-feedback = true
 experimental-mouse-click-gestures = false
 
-[mouse]
+[MOUSE]
+
 hold-left-tap-right = return
 hold-right-tap-left = escape
 two-finger-tap = middle-click
 
-[trackpad]
+[TRACKPAD]
+
 hold-left-tap-right = return
 hold-right-tap-left = escape
 
 
-# EXAMPLES
+# ------------------------------ EXAMPLES ------------------------------
 # Remove # from an example to enable it.
 
 
-[mouse]
+[MOUSE]
+
 # three-finger-tap = ctrl+cmd+a
 # two-finger-tap { action = "middle-click", defer = true }
 # three-finger-tap = script:~/.config/magic-gestures/scripts/capture-selection
@@ -31,7 +35,8 @@ hold-right-tap-left = escape
 # two-finger-click = right-ctrl+space  # Also enable the experimental setting above.
 
 
-[trackpad]
+[TRACKPAD]
+
 # three-finger-swipe-up = mission-control
 # four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
 # three-finger-click { action = "escape", haptic = true }
