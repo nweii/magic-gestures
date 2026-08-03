@@ -17,8 +17,6 @@ tapping. Either hand works, and either finger can play either part.
 |---|---|
 | `hold-left-tap-right` | Hold one finger still, tap to its right with another |
 | `hold-right-tap-left` | Hold one finger still, tap to its left with another |
-| `hold-left-slide-right` | Hold the left finger still, slide the right one toward or away |
-| `hold-right-slide-left` | Hold the right finger still, slide the left one toward or away |
 | `one-finger-tap` | Tap with one finger |
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
@@ -197,7 +195,7 @@ A URL binding can contain substitutions that resolve when its gesture fires:
 
 For example:
 
-    hold-left-slide-right = url:things:///add?title={{clipboard|urlencode}}
+    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
     four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
 
 Use `urlencode` for clipboard text placed in a query parameter. It escapes

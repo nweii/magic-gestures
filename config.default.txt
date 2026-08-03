@@ -31,7 +31,7 @@ hold-right-tap-left = escape
 # three-finger-tap = ctrl+cmd+a
 # two-finger-tap { action = "middle-click", defer = true }
 # three-finger-tap = script:~/.config/magic-gestures/scripts/capture-selection
-# hold-left-slide-right = url:raycast://extensions/raycast/raycast-ai/ai-chat
+# four-finger-tap = url:raycast://extensions/raycast/raycast-ai/ai-chat
 # two-finger-click = right-ctrl+space  # Also enable the experimental setting above.
 
 

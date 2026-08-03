@@ -26,8 +26,6 @@
         m = [@{
             @"hold-left-tap-right": @[@"Index-Fix Middle-Near-Tap", @"Index-Fix Middle-Far-Tap"],
             @"hold-right-tap-left": @[@"Middle-Fix Index-Near-Tap", @"Middle-Fix Index-Far-Tap"],
-            @"hold-left-slide-right": @[@"Index-Fix Middle-Slide-In", @"Index-Fix Middle-Slide-Out"],
-            @"hold-right-slide-left": @[@"Middle-Fix Index-Slide-In", @"Middle-Fix Index-Slide-Out"],
             @"one-finger-tap": @[@"One-Finger Tap"],
             @"two-finger-tap": @[@"Two-Finger Tap"],
             @"three-finger-tap": @[@"Three-Finger Tap"],
@@ -138,10 +136,6 @@
             @"Four-Swipe-Right": @"Swipe right with four fingers",
             @"Four-Swipe-Up": @"Swipe up with four fingers",
             @"Four-Swipe-Down": @"Swipe down with four fingers",
-            @"Index-Fix Middle-Slide-In": @"Hold your left finger, slide the right one inward",
-            @"Index-Fix Middle-Slide-Out": @"Hold your left finger, slide the right one outward",
-            @"Middle-Fix Index-Slide-In": @"Hold your right finger, slide the left one inward",
-            @"Middle-Fix Index-Slide-Out": @"Hold your right finger, slide the left one outward",
             @"Index-To-Pinky": @"Brush index toward pinky",
             @"Pinky-To-Index": @"Brush pinky toward index",
         } retain];

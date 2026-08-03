@@ -128,7 +128,7 @@ A URL binding can contain substitutions that resolve when its gesture fires:
 
 Examples:
 
-    hold-left-slide-right = url:things:///add?title={{clipboard|urlencode}}
+    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
     four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
 
 Use `urlencode` for clipboard text in a query parameter. Raw clipboard text must
@@ -149,8 +149,8 @@ commands, arguments, substitutions, or an interactive shell profile.
 
 A name from one device does nothing on the other.
 
-Mouse: `hold-left-tap-right` `hold-right-tap-left` `hold-left-slide-right`
-`hold-right-slide-left` `one-finger-tap` `two-finger-tap` `three-finger-tap`
+Mouse: `hold-left-tap-right` `hold-right-tap-left` `one-finger-tap`
+`two-finger-tap` `three-finger-tap`
 `two-finger-click` `three-finger-click`
 `front-right-tap` `one-finger-swipe-left` `one-finger-swipe-right`
 `two-finger-swipe-left` `two-finger-swipe-right` `three-finger-swipe-left`
