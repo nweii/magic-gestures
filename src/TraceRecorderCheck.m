@@ -41,7 +41,7 @@ int main(void) {
         NSString *root = [NSTemporaryDirectory() stringByAppendingPathComponent:
             [NSString stringWithFormat:@"MGTraceCheck-%@", [[NSUUID UUID] UUIDString]]];
         require(MGTraceStart(root, &problem), @"trace session did not start");
-        MGTraceBeginStep(@"normal-r1", @"two-finger-click", 1, @"Click once");
+        MGTraceBeginStep(@"normal-r1", @"two-finger-click", @"Two-Finger Click", 1, @"Click once");
         require(![[MGTraceStatus() objectForKey:@"saw_mouse_up"] boolValue],
                 @"new segment inherited a mouse-up marker");
         dispatch_group_t producers = dispatch_group_create();

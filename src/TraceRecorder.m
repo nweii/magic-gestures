@@ -21,6 +21,7 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
     NSString *session;
     NSString *step;
     NSString *requested;
+    NSString *observedGesture;
     NSUInteger expectedDispatchCount;
     NSUInteger observedDispatchCount;
     NSString *bundlePath;
@@ -263,6 +264,7 @@ BOOL MGTraceStart(NSString *path, NSString **problem) {
     [state->session release]; state->session = [newSession copy];
     [state->step release]; state->step = [@"setup" copy];
     [state->requested release]; state->requested = nil;
+    [state->observedGesture release]; state->observedGesture = nil;
     [state->bundlePath release]; state->bundlePath = [path copy];
     [state->eventsHandle release]; state->eventsHandle = [handle retain];
     state->expectedDispatchCount = 0;
@@ -318,12 +320,14 @@ NSDictionary *MGTraceStatus(void) {
 }
 
 void MGTraceBeginStep(NSString *step, NSString *requested,
-                      NSUInteger expectedDispatchCount, NSString *instruction) {
+                      NSString *observedGesture, NSUInteger expectedDispatchCount,
+                      NSString *instruction) {
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
     if (!state->active) { os_unfair_lock_unlock(&state->lock); return; }
     [state->step release]; state->step = [step copy];
     [state->requested release]; state->requested = [requested copy];
+    [state->observedGesture release]; state->observedGesture = [observedGesture copy];
     state->expectedDispatchCount = expectedDispatchCount;
     state->observedDispatchCount = 0;
     state->capturing = NO;
@@ -336,6 +340,7 @@ void MGTraceBeginStep(NSString *step, NSString *requested,
     os_unfair_lock_unlock(&state->lock);
     enqueue(@"guide", @"step-start", nil,
             @{@"requested": requested ?: @"none",
+              @"observed_gesture": observedGesture ?: @"unknown",
               @"expected_dispatch_count": @(expectedDispatchCount),
               @"instruction": instruction ?: @""});
     os_unfair_lock_lock(&state->lock);
@@ -353,6 +358,7 @@ void MGTraceMarkStep(NSString *label) {
     }
     NSDictionary *entry = @{ @"segment": @(state->segment), @"step": state->step ?: @"idle",
                              @"requested": state->requested ?: @"none",
+                             @"observed_gesture": state->observedGesture ?: @"unknown",
                              @"expected_dispatch_count": @(state->expectedDispatchCount),
                              @"human": label };
     [state->labels addObject:entry];

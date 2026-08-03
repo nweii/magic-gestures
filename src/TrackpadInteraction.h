@@ -1,6 +1,7 @@
 // Classifies a trackpad contact sequence and arbitrates among recognizers that could claim it.
 
 #import <Foundation/Foundation.h>
+#import "ContactOnsetTracker.h"
 #import "GestureSequence.h"
 
 typedef struct {
@@ -22,8 +23,7 @@ typedef struct {
     int maximumContactCount;
     int pendingClickContactCount;
     double physicalClickContactsLiftedAt;
-    double sequenceStartTime;
-    double latestArrivalTime;
+    MGContactOnsetTracker rawContactOnsets;
 } MGTrackpadInteraction;
 
 void MGTrackpadInteractionInitialize(MGTrackpadInteraction *interaction);
@@ -56,6 +56,7 @@ BOOL MGTrackpadInteractionShouldPreservePrimaryClick(const MGTrackpadInteraction
 void MGTrackpadInteractionRecordPhysicalDrag(MGTrackpadInteraction *interaction);
 int MGTrackpadInteractionFinishPhysicalClick(MGTrackpadInteraction *interaction);
 BOOL MGTrackpadInteractionContactsArrivedWithin(const MGTrackpadInteraction *interaction,
+                                                const int *identifiers, int contactCount,
                                                 double maximumInterval);
 BOOL MGTrackpadInteractionClaimGesture(MGTrackpadInteraction *interaction,
                                        NSUInteger owner);

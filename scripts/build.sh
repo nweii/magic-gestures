@@ -32,9 +32,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.6.0</string>
+  <string>0.6.1</string>
   <key>CFBundleVersion</key>
-  <string>11</string>
+  <string>12</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>LSUIElement</key>
@@ -68,6 +68,7 @@ clang \
   "$ROOT/src/KeyEventSequence.m" \
   "$ROOT/src/MouseContactFilter.m" \
   "$ROOT/src/MouseClickInteraction.m" \
+  "$ROOT/src/ContactOnsetTracker.m" \
   "$ROOT/src/ScriptRunner.m" \
   "$ROOT/src/TraceRecorder.m" \
   "$ROOT/src/TraceSessionModel.m" \

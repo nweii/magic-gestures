@@ -28,6 +28,7 @@
 #import "GestureSequence.h"
 #import "MouseClickInteraction.h"
 #import "MouseContactFilter.h"
+#import "ContactOnsetTracker.h"
 #import "ScriptRunner.h"
 #import "TraceRecorder.h"
 #import "TrackpadInteraction.h"
@@ -140,6 +141,7 @@ static int middleClickFlag, magicMouseTwoFingerFlag, magicMouseThreeFingerFlag;
 static int trackpadNFingers, trackpadClicked;
 static MGTrackpadInteraction trackpadInteraction = {0};
 static MGMouseClickInteraction magicMouseClickInteraction = {0};
+static MGContactOnsetTracker magicMouseContactOnsets = {0};
 static int lastLoggedMagicMouseClickContactCount = -1;
 static BOOL trackpadRewritingSecondaryClick = NO;
 static MGGestureSequence magicMouseSequence = {0};
@@ -208,6 +210,7 @@ static const double kMagicMouseTapSuppressionAfterScroll = 0.14;
 static const double kMagicMouseTwoFingerTapMaxDuration = 0.36;
 static const double kMagicMouseTwoFingerTapMaxMove = 0.006;
 static const double kMagicMouseTwoFingerTapLiftGraceDuration = 0.10;
+static const double kMagicMouseTwoFingerTapMaximumOnsetSpread = 0.12;
 static const double kMagicMouseThreeFingerTapMaxDuration = 0.36;
 static const double kMagicMouseThreeFingerTapMaxMove = 0.006;
 static const double kMagicMouseThreeFingerTapLiftGraceDuration = 0.10;
@@ -217,6 +220,17 @@ static const float kMagicMouseRightFrontTapKeepMinX = 0.70f;
 static const float kMagicMouseRightFrontTapKeepMinY = 0.74f;
 static const double kMagicMouseRightFrontTapMaxDuration = 0.21;
 static const double kMagicMouseRightFrontTapMaxMove = 0.00075;
+static const double kTrackpadSimultaneousTapMaximumOnsetSpread = 0.05;
+
+static BOOL trackpadContactsArrivedTogether(const Finger *data, int contactCount,
+                                            double maximumSpread) {
+    int identifiers[16];
+    int limitedCount = MIN(contactCount, 16);
+    for (int i = 0; i < limitedCount; i++)
+        identifiers[i] = data[i].identifier;
+    return MGTrackpadInteractionContactsArrivedWithin(
+        &trackpadInteraction, identifiers, limitedCount, maximumSpread);
+}
 
 static GestureWindow *gestureWindow;
 
@@ -308,6 +322,7 @@ static void turnOffMagicMouse() {
     quickTabSwitching = 0;
     MGGestureSequenceInitialize(&magicMouseSequence);
     MGMouseClickInteractionInitialize(&magicMouseClickInteraction);
+    magicMouseContactOnsets = (MGContactOnsetTracker){0};
     [cursorWindow orderOut:nil];
 }
 
@@ -1590,6 +1605,11 @@ static void gestureTrackpadFourFingerTap(const Finger *data, int nFingers, doubl
         sttime = -1;
     }
     else if (step == 0 && nFingers == 4) {
+        if (!trackpadContactsArrivedTogether(
+                data, 4, kTrackpadSimultaneousTapMaximumOnsetSpread)) {
+            step = 2;
+            return;
+        }
         if (sttime == -1) {
             sttime = timestamp;
             step = 1;
@@ -2006,6 +2026,11 @@ static void gestureTrackpadThreeFingerTap(const Finger *data, int nFingers,
             step = 2;
             return;
         }
+        if (!trackpadContactsArrivedTogether(
+                data, 3, kTrackpadSimultaneousTapMaximumOnsetSpread)) {
+            step = 2;
+            return;
+        }
         if (sttime == -1) {
             sttime = timestamp;
             step = 1;
@@ -2026,8 +2051,6 @@ static void gestureTrackpadThreeFingerTap(const Finger *data, int nFingers,
             idf[1] = 3 - idf[0] - idf[2];
             for (int i = 0; i < 3; i++)
                 idf[i] = data[idf[i]].identifier;
-            if (!MGTrackpadInteractionContactsArrivedWithin(&trackpadInteraction, 0.05))
-                step = 2;
         }
     } else if (step == 1) {
         if (nFingers <= 1) {
@@ -2074,7 +2097,10 @@ static void gestureTrackpadTwoFingerTap(const Finger *data, int nFingers,
         return;
     }
 
-    if (nFingers >= 3 || (nFingers == 2 && !contactsFormTapGroup)) {
+    if (nFingers >= 3 || (nFingers == 2 &&
+                          (!contactsFormTapGroup ||
+                           !trackpadContactsArrivedTogether(
+                               data, 2, kTrackpadSimultaneousTapMaximumOnsetSpread)))) {
         step = kTrackpadTwoFingerTapRejectedUntilLift;
         startTime = -1;
     } else if (step == kTrackpadTwoFingerTapRejectedUntilLift) {
@@ -2692,7 +2718,9 @@ static int trackpadCallback(MTDeviceRef device, Finger *data, int nFingers, doub
         gestureTrackpadFiveFingerTap(
             data, nFingers,
             MGTrackpadInteractionFiveFingerContactsAreEligible(
-                rawContactMajorAxes, rawContactYs, rawContactCount),
+                rawContactMajorAxes, rawContactYs, rawContactCount) &&
+            (nFingers != 5 || trackpadContactsArrivedTogether(
+                data, 5, kTrackpadSimultaneousTapMaximumOnsetSpread)),
             timestamp);
 
         // detect thumb & palm resting
@@ -3011,12 +3039,22 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
         if (nFingers == 0)
             step = kTwoFingerTapIdle;
     } else if (step == kTwoFingerTapIdle && nFingers == 2) {
-        step = kTwoFingerTapTracking;
-        startTime = timestamp;
-        for (int i = 0; i < 2; i++) {
-            fingerIds[i] = data[i].identifier;
-            startx[i] = data[i].px;
-            starty[i] = data[i].py;
+        int identifiers[] = {data[0].identifier, data[1].identifier};
+        if (!MGContactOnsetTrackerContactsArrivedWithin(
+                &magicMouseContactOnsets, identifiers, 2,
+                kMagicMouseTwoFingerTapMaximumOnsetSpread)) {
+            MGTraceRecordCandidate(@"Two-Finger Tap", @"canceled",
+                                   @"contact-onset-spread");
+            step = kTwoFingerTapRejectedUntilLift;
+            startTime = -1;
+        } else {
+            step = kTwoFingerTapTracking;
+            startTime = timestamp;
+            for (int i = 0; i < 2; i++) {
+                fingerIds[i] = data[i].identifier;
+                startx[i] = data[i].px;
+                starty[i] = data[i].py;
+            }
         }
     } else if (step == kTwoFingerTapTracking && nFingers == 2) {
         BOOL valid = timestamp - startTime <= kMagicMouseTwoFingerTapMaxDuration;
@@ -3104,12 +3142,22 @@ static void gestureMagicMouseThreeFingerTap(Finger *data, int nFingers, double t
         if (nFingers == 0)
             step = kThreeFingerTapIdle;
     } else if (step == kThreeFingerTapIdle && nFingers == 3) {
-        step = kThreeFingerTapTracking;
-        startTime = timestamp;
-        for (int i = 0; i < 3; i++) {
-            fingerIds[i] = data[i].identifier;
-            startx[i] = data[i].px;
-            starty[i] = data[i].py;
+        int identifiers[] = {data[0].identifier, data[1].identifier, data[2].identifier};
+        if (!MGContactOnsetTrackerContactsArrivedWithin(
+                &magicMouseContactOnsets, identifiers, 3,
+                kMagicMouseTwoFingerTapMaximumOnsetSpread)) {
+            MGTraceRecordCandidate(@"Three-Finger Tap", @"canceled",
+                                   @"contact-onset-spread");
+            step = kThreeFingerTapRejectedUntilLift;
+            startTime = -1;
+        } else {
+            step = kThreeFingerTapTracking;
+            startTime = timestamp;
+            for (int i = 0; i < 3; i++) {
+                fingerIds[i] = data[i].identifier;
+                startx[i] = data[i].px;
+                starty[i] = data[i].py;
+            }
         }
     } else if (step == kThreeFingerTapTracking || step == kThreeFingerTapWaitingForLift) {
         BOOL valid = timestamp - startTime <=
@@ -3877,6 +3925,13 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
         }
         MGTraceRecordMouseFrame(device, timestamp, frame, traceContacts, traceCount);
     }
+
+    int identifiers[16];
+    int identifierCount = MIN(nFingers, 16);
+    for (int i = 0; i < identifierCount; i++)
+        identifiers[i] = data[i].identifier;
+    MGContactOnsetTrackerObserve(&magicMouseContactOnsets, identifiers,
+                                 identifierCount, timestamp);
 
     if (nFingers > 1) {
         for (int i = 0; i < nFingers; i++) {

@@ -43,13 +43,17 @@ static NSTimer *tracePollTimer = nil;
 static NSString *completedTracePath = nil;
 static BOOL traceHeldLiftCueScheduled = NO;
 static BOOL traceHeldLiftCuePlayed = NO;
+static NSArray *activeTraceProtocol = nil;
+static NSString *activeTraceProtocolTitle = nil;
+static NSString *activeTraceProtocolOverview = nil;
+static NSString *activeTraceObservedGesture = nil;
 
 static BOOL internalTraceDiagnosticsEnabled(void) {
     return [[NSUserDefaults standardUserDefaults]
         boolForKey:@"InternalTraceDiagnostics"];
 }
 
-static NSArray *magicMouseTraceProtocol(void) {
+static NSArray *magicMousePhysicalClickTraceProtocol(void) {
     static NSArray *steps = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -94,11 +98,52 @@ static NSArray *magicMouseTraceProtocol(void) {
     return steps;
 }
 
+static NSArray *magicMouseTapCalibrationTraceProtocol(void) {
+    static NSArray *steps = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        steps = [@[
+            @{@"id": @"tap-natural-r1", @"requested": @"two-finger-tap", @"expected": @1,
+              @"instruction": @"Tap with two fingers together. Do not physically click."},
+            @{@"id": @"tap-natural-r2", @"requested": @"two-finger-tap", @"expected": @1,
+              @"instruction": @"Repeat one natural two-finger tap. Do not physically click."},
+            @{@"id": @"tap-natural-r3", @"requested": @"two-finger-tap", @"expected": @1,
+              @"instruction": @"Perform one final natural two-finger tap. Do not physically click."},
+            @{@"id": @"tap-edge-r1", @"requested": @"two-finger-tap-near-edge", @"expected": @1,
+              @"instruction": @"Deliberately tap with two fingers near the side edge. Place both fingers together; do not physically click."},
+            @{@"id": @"tap-edge-r2", @"requested": @"two-finger-tap-near-edge", @"expected": @1,
+              @"instruction": @"Repeat one deliberate two-finger tap near the side edge. Do not physically click."},
+            @{@"id": @"resting-edge-click-r1", @"requested": @"ordinary-click-with-resting-edge-contact", @"expected": @0,
+              @"instruction": @"Rest one finger in your usual edge position. With another finger, make one ordinary click. Keep the resting finger down throughout."},
+            @{@"id": @"resting-edge-click-r2", @"requested": @"ordinary-click-with-resting-edge-contact", @"expected": @0,
+              @"instruction": @"Repeat the ordinary click with your usual resting edge finger present throughout."},
+            @{@"id": @"resting-edge-scroll-r1", @"requested": @"ordinary-scroll-with-resting-edge-contact", @"expected": @0,
+              @"instruction": @"Keep one natural edge contact resting. With another finger, scroll vertically a few lines. Do not click."},
+            @{@"id": @"resting-edge-scroll-r2", @"requested": @"ordinary-scroll-with-resting-edge-contact", @"expected": @0,
+              @"instruction": @"Repeat the scroll with your usual resting edge finger present throughout."},
+            @{@"id": @"resting-edge-touch-r1", @"requested": @"resting-edge-contact-plus-touch", @"expected": @0,
+              @"instruction": @"Rest one finger in your usual edge position. Briefly touch and lift another finger without clicking or scrolling."},
+        ] retain];
+    });
+    return steps;
+}
+
+static NSArray *currentTraceProtocol(void) {
+    return activeTraceProtocol ?: magicMousePhysicalClickTraceProtocol();
+}
+
+static NSString *traceObservedGestureForStep(NSDictionary *step) {
+    if (activeTraceObservedGesture != nil) return activeTraceObservedGesture;
+    return [[step objectForKey:@"requested"] hasPrefix:@"three-finger-click"]
+        ? @"Three-Finger Click" : @"Two-Finger Click";
+}
+
 CursorWindow *cursorWindow;
 CGKeyCode keyMap[128]; // for dvorak support
 
 @interface JitouchAppDelegate ()
 - (void)populateDiagnosticsMenu:(NSMenu *)menu;
+- (void)populateGestureTestingMenu:(NSMenu *)menu;
 @end
 
 @implementation JitouchAppDelegate
@@ -738,9 +783,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [traceProgressBar setDoubleValue:phase == MGTraceSessionComplete ? count : MAX(index, 0)];
 
     if (phase == MGTraceSessionOverview) {
-        [traceHeading setStringValue:@"Magic Mouse trace session"];
-        [traceDetail setStringValue:
-            @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
+        [traceHeading setStringValue:activeTraceProtocolTitle ?: @"Magic Mouse trace session"];
+        [traceDetail setStringValue:activeTraceProtocolOverview ?: @"Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
     } else if (phase == MGTraceSessionComplete) {
         [traceHeading setStringValue:@"Trace complete"];
         [traceDetail setStringValue:[NSString stringWithFormat:
@@ -818,8 +862,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)traceCountdownTick {
     if (traceSession == nil || !MGTraceIsActive()) return;
     if ([traceSession tickCountdown]) {
-        NSDictionary *step = [magicMouseTraceProtocol() objectAtIndex:[traceSession stepIndex]];
+        NSDictionary *step = [currentTraceProtocol() objectAtIndex:[traceSession stepIndex]];
         MGTraceBeginStep([step objectForKey:@"id"], [step objectForKey:@"requested"],
+                         traceObservedGestureForStep(step),
                          [[step objectForKey:@"expected"] unsignedIntegerValue],
                          [step objectForKey:@"instruction"]);
         traceHeldLiftCueScheduled = NO;
@@ -853,7 +898,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     traceProgress = [traceText(NSMakeRect(28, 565, 664, 22), 13, NO) retain];
     traceProgressBar = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(28, 545, 664, 8)];
     [traceProgressBar setIndeterminate:NO];
-    [traceProgressBar setMaxValue:[magicMouseTraceProtocol() count]];
+    [traceProgressBar setMaxValue:[[traceSession steps] count]];
     traceHeading = [traceText(NSMakeRect(28, 490, 664, 38), 24, YES) retain];
     traceDetail = [traceText(NSMakeRect(28, 375, 664, 105), 15, NO) retain];
     traceSurface = [[NSView alloc] initWithFrame:NSMakeRect(28, 145, 664, 210)];
@@ -907,8 +952,21 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         [self reportFailure:@"Could not start the trace session." detail:problem];
         return;
     }
+    BOOL tapCalibration = [sender tag] == 1;
+    [activeTraceProtocol release];
+    activeTraceProtocol = [(tapCalibration ? magicMouseTapCalibrationTraceProtocol() :
+        magicMousePhysicalClickTraceProtocol()) retain];
+    [activeTraceProtocolTitle release];
+    activeTraceProtocolTitle = [(tapCalibration ? @"Magic Mouse tap calibration" :
+        @"Magic Mouse physical-click trace") copy];
+    [activeTraceProtocolOverview release];
+    activeTraceProtocolOverview = [(tapCalibration
+        ? @"This takes about 3 minutes. It compares deliberate two-finger taps, including taps near an edge, against your natural resting edge contact during ordinary clicks, scrolling, and a brief extra touch. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."
+        : @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active.") copy];
+    [activeTraceObservedGesture release];
+    activeTraceObservedGesture = [(tapCalibration ? @"Two-Finger Tap" : nil) copy];
     [traceSession release];
-    traceSession = [[MGTraceSessionModel alloc] initWithSteps:magicMouseTraceProtocol()];
+    traceSession = [[MGTraceSessionModel alloc] initWithSteps:currentTraceProtocol()];
     traceProtocolIndex = 0;
     [self buildTraceWindow]; [self updateTraceWindow];
     [tracePanel makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
@@ -1037,8 +1095,20 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         traceSession != nil;
     if (!showTrace) return;
     [menu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *testing = [menu addItemWithTitle:@"Gesture testing"
+                                           action:nil keyEquivalent:@""];
+    NSMenu *testingMenu = [[[NSMenu alloc] initWithTitle:@"Gesture testing"] autorelease];
+    [self populateGestureTestingMenu:testingMenu];
+    [testing setSubmenu:testingMenu];
+}
+
+- (void)populateGestureTestingMenu:(NSMenu *)menu {
+    [menu removeAllItems];
     if (!MGTraceIsActive() && traceSession == nil) {
-        NSMenuItem *start = [menu addItemWithTitle:@"Start Trace Session…"
+        NSMenuItem *tap = [menu addItemWithTitle:@"Start Tap Calibration…"
+                                            action:@selector(startTraceSession:) keyEquivalent:@""];
+        [tap setTarget:self]; [tap setTag:1];
+        NSMenuItem *start = [menu addItemWithTitle:@"Start Physical Click Trace…"
                                             action:@selector(startTraceSession:) keyEquivalent:@""];
         [start setTarget:self];
     } else {
@@ -1053,7 +1123,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         NSString *phase = capturing ? @"capturing" : awaitingLabel ? @"ready to label" : @"resetting";
         NSMenuItem *state = [menu addItemWithTitle:[NSString stringWithFormat:
             @"Step %ld of %lu · %@ · %@ · %@ bytes · %@ dropped",
-            (long)traceProtocolIndex + 1, (unsigned long)[magicMouseTraceProtocol() count],
+            (long)traceProtocolIndex + 1, (unsigned long)[[traceSession steps] count],
             [status objectForKey:@"step"], phase, [status objectForKey:@"bytes"],
             [status objectForKey:@"dropped"]] action:NULL keyEquivalent:@""];
         [state setEnabled:NO];

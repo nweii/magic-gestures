@@ -2,6 +2,8 @@
 
 #import <Foundation/Foundation.h>
 
+#include <math.h>
+
 static void fail(NSString *message) {
     fprintf(stderr, "trace analyzer: %s\n", [message UTF8String]);
     exit(1);
@@ -42,7 +44,9 @@ static NSDictionary *distribution(NSArray *numbers) {
              @"p90": sorted[p90], @"max": sorted[count - 1]};
 }
 
-static BOOL gestureMatchesRequestedPhysicalClick(NSString *gesture, NSString *requested) {
+static BOOL gestureMatchesLegacyRequestedGesture(NSString *gesture, NSString *requested) {
+    if ([requested hasPrefix:@"two-finger-tap"])
+        return [gesture isEqualToString:@"Two-Finger Tap"];
     if ([requested hasPrefix:@"two-finger-click"])
         return [gesture isEqualToString:@"Two-Finger Click"];
     if ([requested hasPrefix:@"three-finger-click"])
@@ -73,6 +77,8 @@ int main(int argc, const char *argv[]) {
         NSMutableDictionary *lastTouch = [NSMutableDictionary dictionary];
         NSMutableDictionary *contactFrames = [NSMutableDictionary dictionary];
         NSMutableDictionary *contactPersistence = [NSMutableDictionary dictionary];
+        NSMutableDictionary *contactFirstSeenBySegment = [NSMutableDictionary dictionary];
+        NSMutableDictionary *firstPairSpanBySegment = [NSMutableDictionary dictionary];
         NSMutableSet *contactIdentifiers = [NSMutableSet set];
         NSMutableArray *sizes = [NSMutableArray array];
         NSMutableArray *majorAxes = [NSMutableArray array];
@@ -116,9 +122,16 @@ int main(int argc, const char *argv[]) {
                     lastTouch[segment] = time;
                 }
                 contactFrames[segment] = @([contactFrames[segment] unsignedIntegerValue] + 1);
+                NSMutableDictionary *firstSeen = contactFirstSeenBySegment[segment];
+                if (firstSeen == nil) {
+                    firstSeen = [NSMutableDictionary dictionary];
+                    contactFirstSeenBySegment[segment] = firstSeen;
+                }
                 for (NSDictionary *contact in contacts) {
                     NSString *contactKey = [NSString stringWithFormat:@"%@:%@", segment,
                                              [contact objectForKey:@"id"]];
+                    NSString *contactID = [[contact objectForKey:@"id"] stringValue] ?: @"unknown";
+                    if (firstSeen[contactID] == nil) firstSeen[contactID] = time;
                     [contactIdentifiers addObject:contactKey];
                     contactPersistence[contactKey] = @([contactPersistence[contactKey] unsignedIntegerValue] + 1);
                     if ([contact objectForKey:@"size"]) [sizes addObject:[contact objectForKey:@"size"]];
@@ -126,6 +139,19 @@ int main(int argc, const char *argv[]) {
                     if ([contact objectForKey:@"minor"]) [minorAxes addObject:[contact objectForKey:@"minor"]];
                     if ([contact objectForKey:@"x"]) [xs addObject:[contact objectForKey:@"x"]];
                     if ([contact objectForKey:@"y"]) [ys addObject:[contact objectForKey:@"y"]];
+                }
+                if ([contacts count] >= 2 && firstPairSpanBySegment[segment] == nil) {
+                    double maximumDistance = 0;
+                    for (NSUInteger i = 0; i < [contacts count]; i++) {
+                        for (NSUInteger j = i + 1; j < [contacts count]; j++) {
+                            double dx = [[contacts[i] objectForKey:@"x"] doubleValue] -
+                                [[contacts[j] objectForKey:@"x"] doubleValue];
+                            double dy = [[contacts[i] objectForKey:@"y"] doubleValue] -
+                                [[contacts[j] objectForKey:@"y"] doubleValue];
+                            maximumDistance = MAX(maximumDistance, sqrt(dx * dx + dy * dy));
+                        }
+                    }
+                    firstPairSpanBySegment[segment] = @(maximumDistance);
                 }
             }
         }
@@ -142,9 +168,28 @@ int main(int argc, const char *argv[]) {
             NSNumber *segment = [label objectForKey:@"segment"];
             NSUInteger expected = [[label objectForKey:@"expected_dispatch_count"] unsignedIntegerValue];
             NSString *requested = [label objectForKey:@"requested"] ?: @"none";
+            NSString *observedGesture = [label objectForKey:@"observed_gesture"];
+            NSDictionary *firstSeen = contactFirstSeenBySegment[segment] ?: @{};
+            NSArray *onsetTimes = [firstSeen allValues];
+            NSNumber *earliestOnset = [onsetTimes valueForKeyPath:@"@min.self"];
+            NSNumber *latestOnset = [onsetTimes valueForKeyPath:@"@max.self"];
+            NSNumber *firstTouchTime = firstTouch[segment];
+            NSNumber *lastTouchTime = lastTouch[segment];
+            NSMutableDictionary *contactMetrics = [@{
+                @"contact_count": @([firstSeen count]),
+                @"first_pair_span": firstPairSpanBySegment[segment] ?: [NSNull null],
+                @"contact_onset_spread_ms": earliestOnset != nil && latestOnset != nil
+                    ? @(([latestOnset longLongValue] - [earliestOnset longLongValue]) / 1000000.0)
+                    : [NSNull null],
+                @"touch_duration_ms": firstTouchTime != nil && lastTouchTime != nil
+                    ? @(([lastTouchTime longLongValue] - [firstTouchTime longLongValue]) / 1000000.0)
+                    : [NSNull null],
+            } mutableCopy];
             NSUInteger observed = 0;
             for (NSString *gesture in dispatchGesturesBySegment[segment])
-                if (gestureMatchesRequestedPhysicalClick(gesture, requested)) observed++;
+                if (observedGesture != nil
+                    ? [gesture isEqualToString:observedGesture]
+                    : gestureMatchesLegacyRequestedGesture(gesture, requested)) observed++;
             NSString *human = [label objectForKey:@"human"] ?: @"unlabeled";
             humanCounts[human] = @([humanCounts[human] unsignedIntegerValue] + 1);
             BOOL excludedByHuman = [human isEqualToString:@"skip"] || [human isEqualToString:@"botched"];
@@ -154,7 +199,9 @@ int main(int argc, const char *argv[]) {
             [caseResults addObject:@{@"segment": segment,
                 @"requested": requested,
                 @"human": human, @"expected_dispatch_count": @(expected),
-                @"observed_dispatch_count": @(observed), @"inference": inference}];
+                @"observed_dispatch_count": @(observed), @"inference": inference,
+                @"contact_metrics": contactMetrics}];
+            [contactMetrics release];
             if (excludedByHuman) continue;
             if (observed == expected) exactCount++;
             else if (observed < expected) underCount++;

@@ -97,8 +97,7 @@ void MGTrackpadInteractionInitialize(MGTrackpadInteraction *interaction) {
     interaction->maximumContactCount = 0;
     interaction->pendingClickContactCount = 0;
     interaction->physicalClickContactsLiftedAt = -1;
-    interaction->sequenceStartTime = -1;
-    interaction->latestArrivalTime = -1;
+    interaction->rawContactOnsets = (MGContactOnsetTracker){0};
 }
 
 void MGTrackpadInteractionObserveRawContacts(MGTrackpadInteraction *interaction,
@@ -109,13 +108,18 @@ void MGTrackpadInteractionObserveRawContacts(MGTrackpadInteraction *interaction,
         MGTrackpadInteractionInitialize(interaction);
 
     interaction->rawContactsObserved = YES;
+    int identifiers[16];
+    int limitedCount = MIN(contactCount, 16);
+    for (int i = 0; i < limitedCount; i++)
+        identifiers[i] = contacts[i].identifier;
+    MGContactOnsetTrackerObserve(&interaction->rawContactOnsets, identifiers,
+                                 limitedCount, timestamp);
     if (contactsContainPalmPatchCluster(contacts, contactCount))
         interaction->broadContact = YES;
     for (int i = 0; i < contactCount; i++) {
         if (contacts[i].majorAxis > kTrackpadBroadContactMajorAxis)
             interaction->broadContact = YES;
     }
-    (void)timestamp;
 }
 
 void MGTrackpadInteractionObserveContacts(MGTrackpadInteraction *interaction,
@@ -127,13 +131,6 @@ void MGTrackpadInteractionObserveContacts(MGTrackpadInteraction *interaction,
         MGTrackpadInteractionInitialize(interaction);
         rawContactsObserved = NO;
     }
-    if (interaction->sequenceStartTime < 0 && contactCount > 0) {
-        interaction->sequenceStartTime = timestamp;
-        interaction->latestArrivalTime = timestamp;
-    } else if (contactCount > interaction->previousContactCount) {
-        interaction->latestArrivalTime = timestamp;
-    }
-
     if (contactCount > interaction->maximumContactCount)
         interaction->maximumContactCount = contactCount;
 
@@ -195,9 +192,11 @@ int MGTrackpadInteractionFinishPhysicalClick(MGTrackpadInteraction *interaction)
 }
 
 BOOL MGTrackpadInteractionContactsArrivedWithin(const MGTrackpadInteraction *interaction,
+                                                const int *identifiers, int contactCount,
                                                 double maximumInterval) {
-    return interaction->sequenceStartTime >= 0 &&
-           interaction->latestArrivalTime - interaction->sequenceStartTime <= maximumInterval;
+    return MGContactOnsetTrackerContactsArrivedWithin(&interaction->rawContactOnsets,
+                                                      identifiers, contactCount,
+                                                      maximumInterval);
 }
 
 BOOL MGTrackpadInteractionClaimGesture(MGTrackpadInteraction *interaction,

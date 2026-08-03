@@ -20,7 +20,8 @@ BOOL MGTraceSuppressesActions(void);
 NSString *MGTraceBundlePath(void);
 NSDictionary *MGTraceStatus(void);
 void MGTraceBeginStep(NSString *step, NSString *requested,
-                      NSUInteger expectedDispatchCount, NSString *instruction);
+                      NSString *observedGesture, NSUInteger expectedDispatchCount,
+                      NSString *instruction);
 void MGTraceMarkStep(NSString *label);
 void MGTraceStop(void);
 

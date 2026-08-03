@@ -89,6 +89,18 @@ clang \
   -o "$MOUSE_CONTACT_FILTER_OUT" 2>/dev/null
 "$MOUSE_CONTACT_FILTER_OUT"
 
+CONTACT_ONSET_TRACKER_OUT="$(mktemp -d)/contactonsettrackercheck"
+clang \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/ContactOnsetTracker.m" \
+  "$ROOT/src/ContactOnsetTrackerCheck.m" \
+  -o "$CONTACT_ONSET_TRACKER_OUT" 2>/dev/null
+"$CONTACT_ONSET_TRACKER_OUT"
+
 MOUSE_CLICK_INTERACTION_OUT="$(mktemp -d)/mouseclickinteractioncheck"
 clang \
   -fobjc-exceptions \
@@ -171,6 +183,7 @@ clang \
   -I"$ROOT/src" \
   -isysroot "$SDKROOT" \
   -framework Foundation \
+  "$ROOT/src/ContactOnsetTracker.m" \
   "$ROOT/src/GestureSequence.m" \
   "$ROOT/src/TrackpadInteraction.m" \
   "$ROOT/src/TrackpadInteractionCheck.m" \

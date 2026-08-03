@@ -23,14 +23,28 @@ int main(void) {
             {2, 0.50, 0.60, 8.72},
             {3, 0.70, 0.60, 8.51},
         };
+        MGTrackpadInteractionObserveRawContacts(&interaction, oneFinger, 1, 1.000);
         MGTrackpadInteractionObserveContacts(&interaction, oneFinger, 1, 1.000);
         MGTrackpadInteractionFinishFrame(&interaction, 1);
         float fingertips[] = {8.95, 8.72, 8.51};
+        MGTrackpadInteractionObserveRawContacts(&interaction, threeFingers, 3, 1.008);
         MGTrackpadInteractionObserveContacts(&interaction, threeFingers, 3, 1.008);
-        require(MGTrackpadInteractionContactsArrivedWithin(&interaction, 0.05),
+        int threeFingerIdentifiers[] = {1, 2, 3};
+        require(MGTrackpadInteractionContactsArrivedWithin(
+                    &interaction, threeFingerIdentifiers, 3, 0.05),
                 @"intentional three-finger arrival was rejected");
         require(MGTrackpadInteractionClaimGesture(&interaction, 1), @"intentional tap could not claim sequence");
         require(!MGTrackpadInteractionClaimGesture(&interaction, 2), @"two gestures claimed one sequence");
+        MGTrackpadInteractionFinishFrame(&interaction, 0);
+
+        MGTrackpadInteractionObserveRawContacts(&interaction, oneFinger, 1, 1.100);
+        MGTrackpadInteractionObserveContacts(&interaction, oneFinger, 1, 1.100);
+        MGTrackpadInteractionFinishFrame(&interaction, 1);
+        MGTrackpadInteractionObserveRawContacts(&interaction, threeFingers, 3, 1.160);
+        MGTrackpadInteractionObserveContacts(&interaction, threeFingers, 3, 1.160);
+        require(!MGTrackpadInteractionContactsArrivedWithin(
+                    &interaction, threeFingerIdentifiers, 3, 0.05),
+                @"resting trackpad contact and later fingers were accepted as simultaneous");
         MGTrackpadInteractionFinishFrame(&interaction, 0);
 
         float palms[] = {17.62, 18.27, 14.68};
