@@ -46,14 +46,81 @@ static NSDictionary *bindingForApplication(NSDictionary *settings, NSString *dev
     return nil;
 }
 
+// Most semantic checks predate the TOML surface. Convert their compact fixture
+// spelling here so each assertion continues to exercise the production parser.
+static NSString *TOMLFixture(NSString *text) {
+    NSMutableString *result = [NSMutableString string];
+    NSString *section = nil;
+    for (NSString *raw in [text componentsSeparatedByString:@"\n"]) {
+        NSString *line = raw;
+        if ([line hasPrefix:@"[mouse \""] && [line hasSuffix:@"\"]"]) {
+            NSString *app = [line substringWithRange:NSMakeRange(8, [line length] - 10)];
+            line = [NSString stringWithFormat:@"[MOUSE.\"%@\"]", app];
+            section = @"MOUSE";
+        } else if ([line hasPrefix:@"[trackpad \""] && [line hasSuffix:@"\"]"]) {
+            NSString *app = [line substringWithRange:NSMakeRange(11, [line length] - 13)];
+            line = [NSString stringWithFormat:@"[TRACKPAD.\"%@\"]", app];
+            section = @"TRACKPAD";
+        } else if ([[line lowercaseString] isEqualToString:@"[mouse]"]) {
+            line = @"[MOUSE]";
+            section = @"MOUSE";
+        } else if ([[line lowercaseString] isEqualToString:@"[trackpad]"]) {
+            line = @"[TRACKPAD]";
+            section = @"TRACKPAD";
+        } else if ([[line lowercaseString] isEqualToString:@"[general]"]) {
+            line = @"[GENERAL]";
+            section = @"GENERAL";
+        } else if (([section isEqualToString:@"MOUSE"] ||
+                    [section isEqualToString:@"TRACKPAD"])) {
+            NSRange brace = [line rangeOfString:@"{"];
+            NSRange equals = [line rangeOfString:@"="];
+            if (brace.location != NSNotFound &&
+                (equals.location == NSNotFound || brace.location < equals.location)) {
+                line = [line stringByReplacingCharactersInRange:NSMakeRange(brace.location, 1)
+                                                      withString:@"= {"];
+            } else if (equals.location != NSNotFound) {
+                NSString *prefix = [line substringToIndex:equals.location + 1];
+                NSString *valueAndComment = [[line substringFromIndex:equals.location + 1]
+                    stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                NSRange comment = [valueAndComment rangeOfString:@" #"];
+                NSString *value = comment.location == NSNotFound ? valueAndComment :
+                    [valueAndComment substringToIndex:comment.location];
+                NSString *suffix = comment.location == NSNotFound ? @"" :
+                    [valueAndComment substringFromIndex:comment.location];
+                if (![value hasPrefix:@"\""] && ![value hasPrefix:@"{"]) {
+                    NSData *json = [NSJSONSerialization dataWithJSONObject:@[value] options:0 error:NULL];
+                    NSString *array = [[[NSString alloc] initWithData:json
+                                                              encoding:NSUTF8StringEncoding] autorelease];
+                    NSString *quoted = [[array substringWithRange:NSMakeRange(1, [array length] - 2)]
+                        stringByReplacingOccurrencesOfString:@"\\/" withString:@"/"];
+                    line = [NSString stringWithFormat:@"%@ %@%@", prefix, quoted, suffix];
+                }
+            }
+        } else if ([section isEqualToString:@"GENERAL"] &&
+                   [line hasPrefix:@"dominant-hand = "] &&
+                   [line rangeOfString:@"\""].location == NSNotFound) {
+            NSString *value = [line substringFromIndex:[@"dominant-hand = " length]];
+            line = [NSString stringWithFormat:@"dominant-hand = \"%@\"", value];
+        }
+        [result appendFormat:@"%@\n", line];
+    }
+    return result;
+}
+
 static NSDictionary *parse(NSString *text) {
-    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.conf"];
-    [text writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.toml"];
+    [TOMLFixture(text) writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL];
     return [Config settingsFromFile:path];
 }
 
 static NSDictionary *parseWithProblems(NSString *text, NSArray **problems) {
-    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.conf"];
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.toml"];
+    [TOMLFixture(text) writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+    return [Config settingsFromFile:path problems:problems];
+}
+
+static NSDictionary *parseRawTOML(NSString *text, NSArray **problems) {
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"mg-check.toml"];
     [text writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL];
     return [Config settingsFromFile:path problems:problems];
 }
@@ -167,6 +234,37 @@ int main(void) {
         NSUInteger CMD = kCGEventFlagMaskCommand | NX_DEVICELCMDKEYMASK;
         NSUInteger SHIFT = kCGEventFlagMaskShift | NX_DEVICELSHIFTKEYMASK;
         NSUInteger CTRL = kCGEventFlagMaskControl | NX_DEVICELCTLKEYMASK;
+
+        NSArray *tomlProblems = nil;
+        NSDictionary *tomlSettings = parseRawTOML(
+            @"[MOUSE]\n\nhold-right-tap-left = \"cmd+shift+a\"\n\n"
+             @"[TRACKPAD.\"Final Cut Pro\"]\n\n"
+             @"three-finger-tap = { action = \"url:example://a/#section\", defer = true }\n",
+            &tomlProblems);
+        if (tomlSettings == nil || [tomlProblems count] != 0)
+            fail(@"standard TOML loads", @"settings without problems",
+                 tomlSettings ?: tomlProblems);
+        NSDictionary *tomlAppBinding = bindingForApplication(
+            tomlSettings, @"TrackpadCommands", @"Final Cut Pro", @"Three-Finger Tap");
+        if (![[tomlAppBinding objectForKey:@"OpenURL"] isEqualToString:@"example://a/#section"] ||
+            ![[tomlAppBinding objectForKey:@"Defer"] boolValue])
+            fail(@"TOML application table and inline options",
+                 @"a deferred URL binding", tomlAppBinding ?: @"missing");
+
+        tomlSettings = parseRawTOML(@"[MOUSE]\nhold-right-tap-left = return\n",
+                                    &tomlProblems);
+        if (tomlSettings != nil || [tomlProblems count] != 1)
+            fail(@"unquoted TOML string rejects reload",
+                 @"no settings and one problem", tomlSettings ?: tomlProblems);
+
+        tomlSettings = parseRawTOML(@"[GENERAL]\nenable-mouse = \"yes\"\n",
+                                    &tomlProblems);
+        if ([[tomlSettings objectForKey:@"enMMAll"] intValue] != 1 ||
+            [tomlProblems count] != 1)
+            fail(@"TOML booleans require boolean values",
+                 @"default enabled and one problem",
+                 [NSString stringWithFormat:@"%@; %@", [tomlSettings objectForKey:@"enMMAll"],
+                                                    tomlProblems]);
 
         NSString *bypassingRecognizer =
             @"static void recognizer(void) {\n"
@@ -327,13 +425,11 @@ int main(void) {
                               @"two-finger-click = return\n"
                               @"[general]\nexperimental-mouse-click-gestures = true\n",
                               &unterminatedProblems);
-        if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") == nil ||
-            [unterminatedProblems count] != 1)
-            fail(@"unterminated expanded binding stops at the next section",
-                 @"mouse binding loaded and one problem",
+        if (s != nil || [unterminatedProblems count] != 1)
+            fail(@"invalid TOML rejects the whole reload",
+                 @"no settings and one problem",
                  [NSString stringWithFormat:@"%@; %lu problems",
-                  bindingFor(s, @"MagicMouseCommands", @"Two-Finger Click") ?: @"missing",
-                  (unsigned long)[unterminatedProblems count]]);
+                  s ?: @"no settings", (unsigned long)[unterminatedProblems count]]);
 
         NSArray *expandedProblems = nil;
         s = parseWithProblems(@"[trackpad]\nthree-finger-tap { action = escape }\n",
@@ -388,17 +484,20 @@ int main(void) {
             fail(@"app property override can disable global deferral",
                  @"immediate binding", g ?: @"missing");
 
-        s = parse(@"[mouse]\ntwo-finger-click = return\n"
-                  @"[mouse]\ntwo-finger-click = escape\n"
-                  @"[general]\nexperimental-mouse-click-gestures = true\n");
-        if ([[s objectForKey:@"BindingCount"] integerValue] != 1)
-            fail(@"binding count reports the effective repeated-scope result",
-                 @1, [s objectForKey:@"BindingCount"] ?: @"missing");
+        NSArray *duplicateTableProblems = nil;
+        s = parseWithProblems(@"[mouse]\ntwo-finger-click = return\n"
+                              @"[mouse]\ntwo-finger-click = escape\n",
+                              &duplicateTableProblems);
+        if (s != nil || [duplicateTableProblems count] != 1)
+            fail(@"TOML rejects a repeated table",
+                 @"no settings and one problem",
+                 [NSString stringWithFormat:@"%@; %lu problems",
+                  s ?: @"no settings", (unsigned long)[duplicateTableProblems count]]);
 
         NSArray *legacyProblems = nil;
         s = parseWithProblems(@"mouse.two-finger-tap = escape\n", &legacyProblems);
         if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap") != nil)
-            fail(@"device prefixes are not part of format 2", @"nothing", @"a binding");
+            fail(@"device prefixes are not part of TOML schema", @"nothing", @"a binding");
         s = parseWithProblems(@"[mouse]\ntwo-finger-tap.defer = escape\n", &legacyProblems);
         if (bindingFor(s, @"MagicMouseCommands", @"Two-Finger Tap") != nil)
             fail(@"defer is a binding property rather than a gesture suffix", @"nothing", @"a binding");
@@ -539,18 +638,13 @@ int main(void) {
         if (bindingFor(s, @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap") != nil)
             fail(@"unknown key is skipped", @"nothing", @"a binding");
 
-        // Each accepted boolean spelling must parse.
-        NSArray *truthy = @[@"true", @"yes", @"on", @"1"];
-        for (NSString *v in truthy) {
-            s = parse([NSString stringWithFormat:@"[general]\nenable-mouse = %@\n", v]);
-            if ([[s objectForKey:@"enMMAll"] intValue] != 1)
-                fail([@"boolean " stringByAppendingString:v], @1, [s objectForKey:@"enMMAll"]);
-        }
-        for (NSString *v in @[@"false", @"no", @"off", @"0"]) {
-            s = parse([NSString stringWithFormat:@"[general]\nenable-mouse = %@\n", v]);
-            if ([[s objectForKey:@"enMMAll"] intValue] != 0)
-                fail([@"boolean " stringByAppendingString:v], @0, [s objectForKey:@"enMMAll"]);
-        }
+        // TOML has one boolean spelling for each value.
+        s = parse(@"[general]\nenable-mouse = true\n");
+        if ([[s objectForKey:@"enMMAll"] intValue] != 1)
+            fail(@"boolean true", @1, [s objectForKey:@"enMMAll"]);
+        s = parse(@"[general]\nenable-mouse = false\n");
+        if ([[s objectForKey:@"enMMAll"] intValue] != 0)
+            fail(@"boolean false", @0, [s objectForKey:@"enMMAll"]);
 
         s = parse(@"[general]\nhaptic-feedback = true\n");
         if ([[s objectForKey:@"HapticFeedback"] intValue] != 1)
@@ -594,10 +688,10 @@ int main(void) {
                 fail(@"invalid general setting is reported", @"a problem", @"none");
         }
 
-        // Format 2 is explicit in new files and implicit while the app is in alpha.
+        // Format 3 is explicit in new files and implicit while the app is in alpha.
         // An older or newer format rejects the whole file.
-        if (parse(@"[general]\nconfig-version = 2\n") == nil)
-            fail(@"configuration format 2", @"settings", @"nothing");
+        if (parse(@"[general]\nconfig-version = 3\n") == nil)
+            fail(@"configuration format 3", @"settings", @"nothing");
         if (parse(@"[general]\nenable-mouse = true\n") == nil)
             fail(@"missing configuration version means current format", @"settings", @"nothing");
         NSArray *versionProblems = nil;
@@ -605,9 +699,9 @@ int main(void) {
         if (s != nil)
             fail(@"unsupported configuration format rejects file", @"nothing", @"settings");
         NSString *versionProblem = [versionProblems count] > 0 ? [versionProblems objectAtIndex:0] : @"";
-        if ([versionProblem rangeOfString:@"this version reads format 2"].location == NSNotFound)
+        if ([versionProblem rangeOfString:@"this version reads format 3"].location == NSNotFound)
             fail(@"unsupported configuration format explains rejection",
-                 @"format 2 explanation", versionProblem);
+                 @"format 3 explanation", versionProblem);
 
         // Comments and blank lines must not produce bindings. A # without
         // preceding whitespace is ordinary value content, as URL fragments need.

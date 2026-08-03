@@ -416,7 +416,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
     NSString *path = [Config resolvedPath];
     if (path == nil) {
         [self reportFailure:@"No configuration file found."
-                     detail:[NSString stringWithFormat:@"Expected it at %@/config.txt. Nothing changed.",
+                     detail:[NSString stringWithFormat:@"Expected it at %@/config.toml. Nothing changed.",
                              [Config configDirectory]]];
         return;
     }
@@ -519,7 +519,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
     NSString *body = [lastConfigProblems componentsJoinedByString:@"\n\n"];
     NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:[NSString stringWithFormat:@"%lu line%@ skipped in config.txt",
+    [alert setMessageText:[NSString stringWithFormat:@"%lu line%@ skipped in config.toml",
                            (unsigned long)[lastConfigProblems count],
                            [lastConfigProblems count] == 1 ? @"" : @"s"]];
     [alert setInformativeText:[NSString stringWithFormat:@"%@\n\nEverything else was applied.", body]];
@@ -897,7 +897,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     if (MGTraceIsActive()) return;
     if (!enMMAll) {
         [self reportFailure:@"Magic Mouse gestures are turned off."
-                     detail:@"Turn them on in config.txt before starting a trace session. Nothing changed."];
+                     detail:@"Turn them on in config.toml before starting a trace session. Nothing changed."];
         return;
     }
     NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:
@@ -1154,9 +1154,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
                                                ofType:[name pathExtension]];
     };
 
-    NSString *configPath = [dir stringByAppendingPathComponent:@"config.txt"];
+    NSString *configPath = [dir stringByAppendingPathComponent:@"config.toml"];
     if (![fm fileExistsAtPath:configPath]) {
-        NSString *configSource = source(@"config.default.txt");
+        NSString *configSource = source(@"config.default.toml");
         if (configSource != nil && [fm fileExistsAtPath:configSource] &&
             ![fm copyItemAtPath:configSource toPath:configPath error:&error])
             return error;
@@ -1327,12 +1327,27 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSString *path = [Config resolvedPath];
     if (path == nil) {
         [self reportFailure:@"Can't find the Magic Gestures configuration."
-                     detail:[NSString stringWithFormat:@"Expected it at %@/config.txt.", [Config configDirectory]]];
+                     detail:[NSString stringWithFormat:@"Expected it at %@/config.toml.", [Config configDirectory]]];
         return;
     }
 
-    if (![[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]])
-        [self reportFailure:@"Can't open the Magic Gestures configuration." detail:path];
+    NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+    if ([workspace openURL:[NSURL fileURLWithPath:path]])
+        return;
+
+    // Launch Services may not have an association for .toml on a fresh or
+    // customized system. TextEdit is part of macOS and can edit plain text.
+    NSURL *textEditURL = [workspace URLForApplicationWithBundleIdentifier:@"com.apple.TextEdit"];
+    if (textEditURL != nil) {
+        NSURL *fileURL = [NSURL fileURLWithPath:path];
+        [workspace openURLs:@[fileURL]
+ withApplicationAtURL:textEditURL
+           configuration:[NSWorkspaceOpenConfiguration configuration]
+       completionHandler:nil];
+        return;
+    }
+
+    [self reportFailure:@"Can't open the Magic Gestures configuration." detail:path];
 }
 
 - (void)quit:(id)sender {
@@ -1445,7 +1460,7 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
     NSError *seedError = [self seedConfigDirectory];
     if (seedError != nil)
         [self reportFailure:@"Can't create the settings folder."
-                     detail:[NSString stringWithFormat:@"%@\n\nGestures run with built-in defaults until %@/config.txt exists.",
+                     detail:[NSString stringWithFormat:@"%@\n\nGestures run with built-in defaults until %@/config.toml exists.",
                              [seedError localizedDescription], [Config configDirectory]]];
 
     [self enableLoginItemOnFirstLaunch];

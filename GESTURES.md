@@ -1,10 +1,11 @@
 # Gesture reference
 
-Everything you can write in `config.txt`. Each device has its own table, and a
-name from one table does nothing on the other.
+Everything you can write in `config.toml`. The file uses TOML, with quoted
+strings and `#` comments. Each device has its own table, and a name from one
+table does nothing on the other.
 
-The recognizers are compiled in. A name that is not listed here is skipped
-without an error.
+The recognizers are compiled in. Reload Settings reports and skips a name that
+is not listed here.
 
 Gestures that hold one finger still are named by where the fingers sit, not by
 which finger does what. `hold-left-tap-right` means hold a finger and tap to its
@@ -36,7 +37,7 @@ Physical clicks ignore narrow contacts at either side and palm contacts at the
 rear. Counted fingertips must form one connected cluster; a recognized thumb
 does not count toward the gesture. They are disabled by default while
 recognition is calibrated across natural grips and hardware. Set
-`experimental-mouse-click-gestures = true` under `[general]` to opt in.
+`experimental-mouse-click-gestures = true` under `[GENERAL]` to opt in.
 
 ## Magic Trackpad
 
@@ -77,20 +78,21 @@ tap, or different gesture will not also run until every finger lifts.
 
 Put an application name or exact bundle identifier in a device heading:
 
-    [trackpad "Final Cut Pro"]
-    three-finger-click = escape
-    four-finger-tap = off
+    [TRACKPAD."Final Cut Pro"]
+
+    three-finger-click = "escape"
+    four-finger-tap = "off"
 
 The application section overrides global bindings for the same gesture. `off`
-excludes a global binding in that application. Sections may repeat, which lets
-related application bindings stay together without requiring device prefixes.
+excludes a global binding in that application. TOML tables cannot repeat, so
+keep an application's bindings together under its one device table.
 
 ## Binding options
 
 Use braces when a binding needs options. Separate properties with commas; line
 breaks are optional:
 
-    three-finger-tap {
+    three-finger-tap = {
       action = "ctrl+cmd+a",
       defer = true,
       haptic = false
@@ -98,8 +100,9 @@ breaks are optional:
 
 An application-specific block may omit `action` to inherit the global action:
 
-    [trackpad "Final Cut Pro"]
-    three-finger-tap { haptic = false }
+    [TRACKPAD."Final Cut Pro"]
+
+    three-finger-tap = { haptic = false }
 
 `haptic` is valid only for trackpad bindings. It overrides the global
 `haptic-feedback` setting for that binding.
@@ -109,7 +112,7 @@ An application-specific block may omit `action` to inherit the global action:
 Set `defer = true` when the first tap also begins a double-tap gesture in macOS
 or another application:
 
-    two-finger-tap { action = "ctrl+cmd+a", defer = true }
+    two-finger-tap = { action = "ctrl+cmd+a", defer = true }
 
 Magic Gestures waits through the Mac's double-click interval before sending the
 single-tap action. A second matching tap on the same device cancels it. This
@@ -126,10 +129,10 @@ A keystroke, a built-in action, a URL, or an executable script.
 
 Modifiers, then one key. These four are the same binding:
 
-    cmd+shift+a
-    command-shift-a
-    ⌘⇧A
-    Cmd Shift A
+    "cmd+shift+a"
+    "command-shift-a"
+    "⌘⇧A"
+    "Cmd Shift A"
 
 | Modifier | Write any of |
 |---|---|
@@ -169,19 +172,19 @@ Prefix an absolute URL with `url:`. macOS opens it in the application registered
 for its scheme. A URL binding can open a web URL or an app deep link that targets
 a specific place or action in Raycast, Obsidian, Things, or another app:
 
-    hold-right-tap-left = url:raycast://extensions/raycast/raycast-ai/ai-chat
-    three-finger-tap = url:obsidian://daily
-    four-finger-tap = url:https://example.com/page#section
+    hold-right-tap-left = "url:raycast://extensions/raycast/raycast-ai/ai-chat"
+    three-finger-tap = "url:obsidian://daily"
+    four-finger-tap = "url:https://example.com/page#section"
 
 The URL must include a scheme followed by `:`. Reload Settings reports malformed
 URLs, unencoded spaces, and malformed percent escapes. It does not require an
 application for the scheme to be installed; macOS resolves the handler when the
 gesture fires.
 
-A `#` starts a comment only at the start of a line or after whitespace. This
-keeps URL fragments intact. Add whitespace before a trailing comment:
+TOML treats `#` outside a quoted string as a comment. URL fragments stay inside
+the quoted value. A trailing comment follows the closing quote:
 
-    three-finger-tap = url:obsidian://daily # Open today's daily note
+    three-finger-tap = "url:obsidian://daily" # Open today's daily note
 
 #### Substitutions
 
@@ -195,8 +198,8 @@ A URL binding can contain substitutions that resolve when its gesture fires:
 
 For example:
 
-    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
-    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
+    four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"
+    four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}"
 
 Use `urlencode` for clipboard text placed in a query parameter. It escapes
 characters such as spaces, `&`, `=`, `/`, and `?` so the clipboard cannot change
@@ -213,7 +216,7 @@ expanded clipboard contents.
 
 Prefix an executable path with `script:`:
 
-    hold-right-tap-left = script: ~/.config/magic-gestures/scripts/capture-selection
+    hold-right-tap-left = "script:~/.config/magic-gestures/scripts/capture-selection"
 
 The path may begin with `~` or be absolute. It must exist and be executable when
 the settings reload. Magic Gestures launches it directly through its shebang,
@@ -225,7 +228,7 @@ interactive shell profile. Console records launch failures and nonzero exits.
 
 | Setting | Value |
 |---|---|
-| `config-version` | Configuration format used by this file, currently `2` |
+| `config-version` | Configuration format used by this file, currently `3` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `dominant-hand` | `left` or `right`; mirrors positional recognition for left-handed use, default `right` |
@@ -234,7 +237,7 @@ interactive shell profile. Console records launch failures and nonzero exits.
 | `experimental-mouse-click-gestures` | `true` enables posture-sensitive Magic Mouse physical-click bindings, default `false` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
-Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
+Booleans are `true` or `false`, following TOML.
 
 Hiding the menu bar icon is not a setting here either. Use System Settings >
 Menu Bar; gestures keep working without it.

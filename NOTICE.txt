@@ -17,6 +17,11 @@ This repository does not vendor any files from MiddleClick.
 Gesture tuning and compatibility investigation for modern macOS behavior were informed by reviewing:
 - https://github.com/artginzburg/MiddleClick
 
+This repository vendors tomlc17 under `third_party/tomlc17`:
+- Copyright (c) 2024-2026 CK Tan
+- Original project: https://github.com/cktan/tomlc17
+- Licensed under the MIT License included beside the vendored source
+
 The configuration layer, the build and packaging scripts, the documentation, and
 the Magic Mouse and Magic Trackpad gesture adaptations were added for the
 MagicGestures project in 2026.

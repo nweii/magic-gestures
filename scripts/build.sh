@@ -51,6 +51,7 @@ clang \
   -fno-objc-arc \
   -I"$SRC_ROOT" \
   -I"$ROOT/src" \
+  -I"$ROOT/third_party/tomlc17" \
   -isysroot "$SDKROOT" \
   -F"$SDKROOT/System/Library/PrivateFrameworks" \
   -framework Cocoa \
@@ -71,6 +72,7 @@ clang \
   "$ROOT/src/TraceRecorder.m" \
   "$ROOT/src/TraceSessionModel.m" \
   "$ROOT/src/TrackpadInteraction.m" \
+  "$ROOT/third_party/tomlc17/tomlc17.c" \
   "$SRC_ROOT/JitouchAppDelegate.m" \
   "$SRC_ROOT/Settings.m" \
   "$SRC_ROOT/Gesture.m" \
@@ -84,7 +86,7 @@ clang \
 
 # The bundle carries its own seed files so a copied app can create the
 # configuration folder without the source tree beside it.
-cp "$ROOT/config.default.txt" "$RES_DIR/config.default.txt"
+cp "$ROOT/config.default.toml" "$RES_DIR/config.default.toml"
 cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
 
 # The installed app analyzes its redacted export without depending on source files.

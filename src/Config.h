@@ -4,7 +4,7 @@
 //
 //  Copyright 2026 Nathan Cheng. All rights reserved.
 //
-//  Reads the text configuration file and produces the settings dictionary the
+//  Reads the TOML configuration file and produces the settings dictionary the
 //  vendored engine already consumes, so nothing downstream needs to know the
 //  configuration stopped being a plist.
 //
@@ -13,7 +13,7 @@
 
 @interface Config : NSObject
 
-// ~/.config/magic-gestures/config.txt, or the path in MAGICGESTURES_CONFIG.
+// ~/.config/magic-gestures/config.toml, or the path in MAGICGESTURES_CONFIG.
 // Returns nil when no configuration file exists.
 + (NSString *)resolvedPath;
 
@@ -21,13 +21,12 @@
 + (NSString *)configDirectory;
 
 // Parses the file at `path` into a settings dictionary shaped like the plist
-// that Settings loadSettings2: expects. Returns nil if the file cannot be read.
-// Unparseable lines are skipped rather than failing the whole file.
+// that Settings loadSettings2: expects. Returns nil if the file cannot be read
+// or is invalid TOML. Schema errors are reported and skipped individually.
 + (NSDictionary *)settingsFromFile:(NSString *)path;
 
-// As above, and fills outProblems with a description of every line that was
-// skipped. Lines are skipped rather than failing the file, so this is the only
-// way a caller learns a binding did not take.
+// As above, and fills outProblems with TOML or schema diagnostics. Invalid TOML
+// returns nil; recognized schema errors are reported while valid bindings load.
 + (NSDictionary *)settingsFromFile:(NSString *)path problems:(NSArray **)outProblems;
 
 // Resolves the supported substitutions in a URL binding. Explicit clipboard

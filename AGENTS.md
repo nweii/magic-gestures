@@ -74,7 +74,7 @@ a link to the repository.
   `~/.config/magic-gestures/manage-with-agent.command` and opens it, starting
   that agent in the configuration folder with the running app path and a prompt
   pointing at the installed instructions.
-- Edit Settings, which opens `config.txt` in the user's editor.
+- Edit Settings, which opens `config.toml` in the user's editor.
 - Reload Settings, which rereads the file into the running engine.
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
@@ -95,10 +95,10 @@ because the config is the only interface anyone depends on. Before 1.0, a minor
 release may intentionally change that alpha interface and must carry a migration
 note. After 1.0:
 
-- **Patch** — a fix that leaves every existing `config.txt` working.
+- **Patch** — a fix that leaves every existing `config.toml` working.
 - **Minor** — new gestures, keys, actions, or settings. An existing config keeps
   working, since unknown names are reported and skipped rather than failing.
-- **Major** — a rename or removal that makes an existing `config.txt` behave
+- **Major** — a rename or removal that makes an existing `config.toml` behave
   differently. The positional gesture rename would have been one.
 
 To cut a release:
@@ -137,35 +137,36 @@ docs; it cannot catch a name that used to exist.
 
 ## Configuration model
 
-`src/Config.m` reads `~/.config/magic-gestures/config.txt` and returns the
+`src/Config.m` reads `~/.config/magic-gestures/config.toml` and returns the
 settings dictionary the engine consumed when it was a plist, so nothing
 downstream knows the format changed. `MAGICGESTURES_CONFIG` overrides the path.
 `resolvedPath` returns nil when no file exists.
 
-The folder is seeded from two files at the project root: `config.default.txt`
-becomes the user-owned `config.txt`, and `config-notes.default.md` becomes the
+The folder is seeded from two files at the project root: `config.default.toml`
+becomes the user-owned `config.toml`, and `config-notes.default.md` becomes the
 app-managed `AGENTS.md`. `start.sh`, `install-login-agent.sh`, and the app create
-`config.txt` only when missing and atomically refresh `AGENTS.md` from the running
+`config.toml` only when missing and atomically refresh `AGENTS.md` from the running
 version. An optional user-owned `AGENTS.local.md` survives updates.
 
-Compact bindings are `gesture = value`. A `#` at the start of a line or after
-whitespace starts a comment. `[mouse]` and `[trackpad]` group bindings. Sections
-may repeat; repeated scopes merge and the last declaration for the same gesture
-wins. General settings belong in `[general]`. Device prefixes are not part of
-the format.
+The file is TOML, parsed by the vendored `tomlc17` parser pinned under
+`third_party/tomlc17`. Strings are quoted and comments begin with `#` outside a
+string. `[MOUSE]` and `[TRACKPAD]` group bindings; general settings belong in
+`[GENERAL]`. TOML tables and keys cannot repeat. Device prefixes are not part of
+the format. Invalid TOML rejects the reload rather than applying a partial file.
 
-`[mouse "Application"]` and `[trackpad "Application"]` limit the bindings below
-them to one application. The quoted selector may be its display name or exact
-bundle identifier. Application bindings override the device-global binding for
-the same gesture. `off` excludes a global binding in that application.
+`[MOUSE."Application"]` and `[TRACKPAD."Application"]` limit the bindings
+below them to one application. The quoted selector may be its display name or
+exact bundle identifier. Application bindings override the device-global
+binding for the same gesture. `"off"` excludes a global binding in that
+application.
 
-An expanded binding uses braces around `action`, `defer`, and `haptic`
-properties. Commas separate properties and line breaks are optional. `action` is
-required globally and may be omitted in an application scope to inherit the
-global action. `defer` is valid only for tap gestures. `haptic` is valid only for
-trackpad bindings and overrides `haptic-feedback` for that binding.
+An expanded binding is a TOML inline table: `gesture = { action = "escape",
+haptic = false }`. `action` is required globally and may be omitted in an
+application scope to inherit the global action. `defer` is valid only for tap
+gestures. `haptic` is valid only for trackpad bindings and overrides
+`haptic-feedback` for that binding.
 
-`config-version` identifies the file format and is currently `2`. A missing
+`config-version` identifies the file format and is currently `3`. A missing
 version means the current format while the project is in alpha. An unsupported
 value rejects the entire reload so another format cannot be partially
 reinterpreted.
@@ -204,7 +205,7 @@ URL binding that opens a specific place or action in an app. A **URL scheme** is
 the protocol name at the start, such as `raycast`, `obsidian`, or `things`. Do
 not use URI in user-facing copy; it adds no useful distinction here.
 
-An unparseable line is skipped rather than failing the file.
+Unknown schema keys are skipped and reported after TOML parsing succeeds.
 
 `mouseGestureSlugs` and `trackpadGestureSlugs` hold the gesture vocabulary. One
 slug may bind several engine names that differ only by how far apart two fingers
@@ -272,12 +273,12 @@ It keeps the settings folder unless called with `--all`, and prints the two
 steps that cannot be scripted.
 
 The project writes two things outside its own directory: the launchd plist, and
-`~/.config/magic-gestures/`, which holds `config.txt`, `AGENTS.md`, and
+`~/.config/magic-gestures/`, which holds `config.toml`, `AGENTS.md`, and
 `manage-with-agent.command`.
 
 ## Logging
 
-Set `verbose-logging = true` in `config.txt` for per-gesture and per-keystroke
+Set `verbose-logging = true` in `config.toml` for per-gesture and per-keystroke
 logging:
 
 ```bash

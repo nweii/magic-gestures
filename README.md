@@ -20,8 +20,8 @@ with a menu bar item and does not affect normal clicks or existing gestures.
 - **Flexible gestures for each device.** Configure taps, swipes, and hold
   gestures independently for a Magic Mouse and Magic Trackpad. A binding can
   apply everywhere, only in named applications, or everywhere except them.
-- **Simple text configuration.** All bindings and settings live in one readable
-  text file that is easy to inspect, edit, and back up.
+- **Simple TOML configuration.** All bindings and settings live in one readable
+  file that is easy to inspect, edit, and back up.
 - **Agent-native configuration.** Detects installed coding agents such as Claude
   Code and Codex and opens one with editing guidance and your configuration. The
   agent can tailor bindings to your workflow, construct deeplinks, and manage
@@ -84,7 +84,7 @@ and encode their parameters.
 Paste this into Claude Code, or any coding agent:
 
 ```text
-Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/magic-gestures/config.txt, and tell me what I have to approve in System Settings.
+Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/magic-gestures/config.toml, and tell me what I have to approve in System Settings.
 ```
 
 For a zip install, you need to complete the Gatekeeper steps yourself. Building
@@ -104,25 +104,30 @@ Choose **Edit Settings** from the menu bar item, or edit the configuration
 directly:
 
 ```
-~/.config/magic-gestures/config.txt
+~/.config/magic-gestures/config.toml
 ```
 
 The folder also contains an `AGENTS.md` that explains the format to coding
 agents. The configuration looks like this:
 
-```
-[mouse]
-hold-right-tap-left = return
-two-finger-tap = middle-click
+```toml
+[MOUSE]
 
-[trackpad]
-hold-left-tap-right = cmd+shift+a
-three-finger-tap = url:obsidian://daily
-four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
+hold-right-tap-left = "return"
+two-finger-tap = "middle-click"
 
-[trackpad "Final Cut Pro"]
-three-finger-tap { haptic = false }
-four-finger-tap = off
+
+[TRACKPAD]
+
+hold-left-tap-right = "cmd+shift+a"
+three-finger-tap = "url:obsidian://daily"
+four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"
+
+
+[TRACKPAD."Final Cut Pro"]
+
+three-finger-tap = { haptic = false }
+four-finger-tap = "off"
 ```
 
 Pick **Reload Settings** from the menu bar to apply a change. No rebuild is
@@ -178,9 +183,9 @@ not in the set it listens for.
 Touch data stays in memory during ordinary use.
 
 Outside its own folder, Magic Gestures writes to two places. It creates
-`~/.config/magic-gestures/` on first run and puts your `config.txt` and an
+`~/.config/magic-gestures/` on first run and puts your `config.toml` and an
 `AGENTS.md` describing the installed version there. The app refreshes that file
-when it starts and preserves `config.txt`. Picking a coding agent under **Manage
+when it starts and preserves `config.toml`. Picking a coding agent under **Manage
 with Agent** adds a `manage-with-agent.command` script to that same folder and
 runs it. Turning on Open at Login writes one launchd plist to
 `~/Library/LaunchAgents`.
@@ -213,7 +218,7 @@ The gesture recognizers come from
 [Jitouch](https://github.com/JitouchApp/Jitouch), which reads raw touch data
 from the private `MultitouchSupport.framework`. This project keeps that engine,
 removes its preference pane, and runs the result as a background agent that
-reads a text configuration file.
+reads a TOML configuration file.
 
 `AGENTS.md` covers the build, the configuration model, and the local changes to
 the engine.

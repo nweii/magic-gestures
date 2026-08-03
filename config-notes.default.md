@@ -7,19 +7,19 @@ This folder holds the configuration for Magic Gestures, a macOS background app
 that turns Magic Mouse and Magic Trackpad gestures into shortcuts, actions,
 custom URLs, or executable scripts.
 
-- `config.txt` is the only file it reads. Edit it here.
+- `config.toml` is the only file it reads. Edit it here.
 - Save the file, then pick **Reload Settings** in the menu bar to apply it.
 - The menu reports loaded bindings and skipped lines. **Diagnostics** can copy
   the running state or open recent logs while troubleshooting.
 
 ## Preserve the installation
 
-- Treat `config.txt` as user-owned. Change only what the user requested and
+- Treat `config.toml` as user-owned. Change only what the user requested and
   preserve every unrelated binding and setting.
 - Keep the application at its installed path during an update.
 - Preview release notes and get approval before replacing the application or
   migrating its configuration.
-- Validate `config.txt` before and after an edit or update. Finish when the
+- Validate `config.toml` before and after an edit or update. Finish when the
   requested behavior is represented by a valid binding and unrelated bindings
   are unchanged.
 
@@ -27,23 +27,24 @@ Source and full documentation: https://github.com/nweii/magic-gestures
 
 ## Format
 
-`setting = value`, one per line. A `#` at the start of a line or after whitespace
-starts a comment. Unknown or malformed lines are skipped and reported when you
-pick Reload Settings.
+The file is TOML. Strings are quoted, booleans are `true` or `false`, and `#`
+starts a comment outside a string. Invalid TOML rejects the reload. Unknown
+settings and gestures are skipped and reported when you pick Reload Settings.
 
-`[mouse]`, `[trackpad]`, and `[general]` headers set what the lines below them
-apply to. A section may appear more than once; repeated sections merge and the
-last value for the same gesture wins. General settings belong in `[general]`.
+`[MOUSE]`, `[TRACKPAD]`, and `[GENERAL]` headers set what the lines below them
+apply to. TOML tables cannot repeat. General settings belong in `[GENERAL]`.
 
 Most bindings use the compact form:
 
-    [mouse]
-    two-finger-tap = ctrl+cmd+a
+    [MOUSE]
+
+    two-finger-tap = "ctrl+cmd+a"
 
 Use an expanded binding when it needs options:
 
-    [mouse]
-    two-finger-tap { action = "ctrl+cmd+a", defer = true }
+    [MOUSE]
+
+    two-finger-tap = { action = "ctrl+cmd+a", defer = true }
 
 The single-tap action waits through the Mac's double-click interval. A second
 matching tap on the same device cancels it, preserving the double-tap gesture at
@@ -52,16 +53,18 @@ the cost of latency on the single tap. `defer` is valid only for tap gestures.
 An application name or exact bundle identifier in a device heading limits the
 bindings below it to that application:
 
-    [trackpad "Final Cut Pro"]
-    three-finger-click = escape
-    four-finger-tap = off
+    [TRACKPAD."Final Cut Pro"]
+
+    three-finger-click = "escape"
+    four-finger-tap = "off"
 
 Application bindings override global bindings for the same gesture. `off`
 excludes a global binding. An expanded application binding may omit `action` to
 inherit the global action and change one option:
 
-    [trackpad "Final Cut Pro"]
-    three-finger-click { haptic = false }
+    [TRACKPAD."Final Cut Pro"]
+
+    three-finger-click = { haptic = false }
 
 Expanded properties are separated by commas, so a binding may occupy one line
 or several. `haptic` is valid only for trackpad bindings and overrides the
@@ -77,10 +80,10 @@ A value is a keystroke, a built-in action, a URL, or an executable script.
 
 Keystrokes are modifiers plus one key. These are equivalent:
 
-    cmd+shift+a
-    command-shift-a
-    ⌘⇧A
-    Cmd Shift A
+    "cmd+shift+a"
+    "command-shift-a"
+    "⌘⇧A"
+    "Cmd Shift A"
 
 | Modifier | Accepted spellings |
 |---|---|
@@ -92,7 +95,7 @@ Keystrokes are modifiers plus one key. These are equivalent:
 Modifiers default to the left-side key. Prefix a written name with `left-` or
 `right-` when an application distinguishes the two sides:
 
-    right-control+space
+    "right-control+space"
 
 The prefix works with every written alias, including `right-ctrl`, `right-cmd`,
 and `right-alt`. Modifier symbols use the default left side.
@@ -110,13 +113,13 @@ Prefix an absolute URL with `url:`. macOS opens it in the application registered
 for its scheme. This includes web URLs and app deep links that target a specific
 place or action in Raycast, Obsidian, Things, or another app:
 
-    hold-right-tap-left = url:raycast://extensions/raycast/raycast-ai/ai-chat
-    three-finger-tap = url:obsidian://daily
-    four-finger-tap = url:https://example.com/page#section
+    hold-right-tap-left = "url:raycast://extensions/raycast/raycast-ai/ai-chat"
+    three-finger-tap = "url:obsidian://daily"
+    four-finger-tap = "url:https://example.com/page#section"
 
 Reload Settings reports malformed URLs, unencoded spaces, and malformed percent
 escapes. It does not require an application for the scheme to be installed. A
-URL fragment can contain `#`; add whitespace before a trailing comment.
+URL fragment remains part of the quoted string; comments follow its closing quote.
 
 A URL binding can contain substitutions that resolve when its gesture fires:
 
@@ -128,8 +131,8 @@ A URL binding can contain substitutions that resolve when its gesture fires:
 
 Examples:
 
-    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}
-    four-finger-tap = url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}
+    four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"
+    four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}"
 
 Use `urlencode` for clipboard text in a query parameter. Raw clipboard text must
 already be safe in its position. Reload Settings reports malformed substitution
@@ -138,7 +141,7 @@ logging expanded clipboard contents.
 
 Prefix an executable path with `script:`:
 
-    hold-right-tap-left = script: ~/.config/magic-gestures/scripts/capture-selection
+    hold-right-tap-left = "script:~/.config/magic-gestures/scripts/capture-selection"
 
 The path may begin with `~` or be absolute. It must exist and be executable when
 the settings reload. Magic Gestures launches it directly through its shebang,
@@ -157,7 +160,7 @@ Mouse: `hold-left-tap-right` `hold-right-tap-left` `one-finger-tap`
 `three-finger-swipe-right` `three-finger-swipe-up` `three-finger-swipe-down`
 
 Magic Mouse physical clicks are experimental and disabled by default. Set
-`experimental-mouse-click-gestures = true` under `[general]` to test them. They
+`experimental-mouse-click-gestures = true` under `[GENERAL]` to test them. They
 may miss depending on hand placement and how quickly contacts lift.
 
 Trackpad: `hold-left-tap-right` `hold-right-tap-left` `hold-slide`
@@ -185,7 +188,7 @@ assuming a motion is free.
 
 | Setting | Value |
 |---|---|
-| `config-version` | Configuration format used by this file, currently `2` |
+| `config-version` | Configuration format used by this file, currently `3` |
 | `enable-mouse` | `true` or `false` |
 | `enable-trackpad` | `true` or `false` |
 | `dominant-hand` | `left` or `right`; mirrors positional recognition for left-handed use, default `right` |
@@ -194,7 +197,7 @@ assuming a motion is free.
 | `experimental-mouse-click-gestures` | `true` enables posture-sensitive Magic Mouse physical-click bindings, default `false` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
-Booleans accept `true/false`, `yes/no`, `on/off`, and `1/0`.
+Booleans are `true` or `false`, following TOML.
 
 Hiding the menu bar icon is not a setting here either. Use System Settings >
 Menu Bar; gestures keep working without it.
@@ -211,7 +214,7 @@ and restarts the app.
 
 A copied release app currently updates by replacing the app with a newer release
 at the same path. Show the release notes and get approval before replacement.
-Keep `config.txt`; the updated app refreshes this file when it starts.
+Keep `config.toml`; the updated app refreshes this file when it starts.
 
 ## Hotkey compatibility
 

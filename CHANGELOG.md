@@ -2,6 +2,22 @@
 
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Replaced the custom configuration grammar with TOML. Settings now live in
+  `~/.config/magic-gestures/config.toml`; actions, shortcuts, URLs, scripts, and
+  exclusions are quoted strings.
+- Changed application-specific table headings to TOML nested tables such as
+  `[TRACKPAD."Final Cut Pro"]`.
+- Made duplicate tables, duplicate keys, unquoted strings, and malformed TOML
+  reject the reload while preserving the running configuration. Unknown Magic
+  Gestures settings and bindings continue to be reported individually.
+
+This changes the alpha configuration interface from version 2 to version 3.
+Version 2 files must be converted before updating.
+
 ## 0.5.1
 
 Released 2026-08-02.

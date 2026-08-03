@@ -12,16 +12,18 @@ clang \
   -fobjc-exceptions \
   -fno-objc-arc \
   -I"$ROOT/src" \
+  -I"$ROOT/third_party/tomlc17" \
   -isysroot "$SDKROOT" \
   -framework Foundation \
   -framework ApplicationServices \
   -framework Carbon \
   "$ROOT/src/Config.m" \
   "$ROOT/src/ConfigCheck.m" \
+  "$ROOT/third_party/tomlc17/tomlc17.c" \
   -o "$OUT" 2>/dev/null
 
 "$OUT" \
-  "$ROOT/config.default.txt" \
+  "$ROOT/config.default.toml" \
   "$ROOT/config-notes.default.md" \
   "$ROOT/GESTURES.md" \
   "$ROOT/src/jitouch/Jitouch/Gesture.m"
@@ -208,7 +210,7 @@ fail() {
 
 managed_fail() {
   echo "managed installation files drift: $1" >&2
-  echo "  config.txt is create-only, AGENTS.md is atomically refreshed, and" >&2
+  echo "  config.toml is create-only, AGENTS.md is atomically refreshed, and" >&2
   echo "  AGENTS.local.md remains user-owned across every installation path." >&2
   exit 1
 }
@@ -235,7 +237,7 @@ done
 grep -q "<string>Interactive</string>" "$APP_SRC"    || fail "the app's plist does not set ProcessType to Interactive"
 grep -q "<string>Interactive</string>" "$INSTALL_SH" || fail "install-login-agent.sh's plist does not set ProcessType to Interactive"
 
-# The application owns AGENTS.md while config.txt and AGENTS.local.md remain
+# The application owns AGENTS.md while config.toml and AGENTS.local.md remain
 # user-owned. Every installation path must preserve that boundary.
 grep -q 'mv -f "$AGENT_TMP" "$CONFIG_DIR/AGENTS.md"' "$ROOT/scripts/start.sh" || managed_fail "start.sh does not atomically refresh AGENTS.md"
 grep -q 'mv -f "$AGENT_TMP" "$CONFIG_DIR/AGENTS.md"' "$INSTALL_SH" || managed_fail "install-login-agent.sh does not atomically refresh AGENTS.md"
@@ -295,9 +297,9 @@ for token in turnOffMagicMouse turnOffTrackpad MTUnregisterContactFrameCallback 
     wake_fail "Gesture reload is missing $token"
 done
 
-grep -q 'config-version' "$ROOT/config.default.txt" || managed_fail "the default config has no format version"
+grep -q 'config-version' "$ROOT/config.default.toml" || managed_fail "the default config has no format version"
 grep -q 'config-version' "$ROOT/GESTURES.md" || managed_fail "GESTURES.md does not document the format version"
-for f in "$ROOT/config.default.txt" "$ROOT/config-notes.default.md" "$ROOT/GESTURES.md"; do
+for f in "$ROOT/config.default.toml" "$ROOT/config-notes.default.md" "$ROOT/GESTURES.md"; do
   grep -q 'defer = true' "$f" || managed_fail "$f does not document deferred tap bindings"
   grep -q 'script:' "$f" || managed_fail "$f does not document script bindings"
   grep -q 'haptic-feedback' "$f" || managed_fail "$f does not document haptic feedback"

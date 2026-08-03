@@ -10,9 +10,15 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <IOKit/hidsystem/IOLLEvent.h>
 #import <math.h>
+#import "tomlc17.h"
 
 // The tables accept common alternative spellings because people and coding
 // agents may use different names for the same value.
+
+@interface Config ()
++ (NSDictionary *)settingsFromLegacyText:(NSString *)text
+                                 problems:(NSMutableArray *)problems;
+@end
 
 @implementation Config
 
@@ -232,7 +238,16 @@ static NSString *stripQuotes(NSString *s) {
     if ([s length] >= 2) {
         unichar first = [s characterAtIndex:0];
         unichar last = [s characterAtIndex:[s length] - 1];
-        if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
+        if (first == '"' && last == '"') {
+            NSString *array = [NSString stringWithFormat:@"[%@]", s];
+            NSData *data = [array dataUsingEncoding:NSUTF8StringEncoding];
+            NSArray *decoded = data == nil ? nil :
+                [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+            if ([decoded isKindOfClass:[NSArray class]] && [decoded count] == 1 &&
+                [[decoded firstObject] isKindOfClass:[NSString class]])
+                return [decoded firstObject];
+        }
+        if (first == '\'' && last == '\'')
             return [s substringWithRange:NSMakeRange(1, [s length] - 2)];
     }
     return s;
@@ -565,7 +580,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     if ([override length] > 0)
         return [override stringByStandardizingPath];
 
-    NSString *path = [[self configDirectory] stringByAppendingPathComponent:@"config.txt"];
+    NSString *path = [[self configDirectory] stringByAppendingPathComponent:@"config.toml"];
     if ([[NSFileManager defaultManager] fileExistsAtPath:path])
         return path;
     return nil;
@@ -575,7 +590,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     return [@"~/.config/magic-gestures" stringByStandardizingPath];
 }
 
-// Setting names accepted in [general]. A name outside this set is reported
+// Setting names accepted in [GENERAL]. A name outside this set is reported
 // rather than ignored, which catches a misspelling that would otherwise leave
 // the default in place with no sign anything was wrong.
 static NSSet *knownSettingNames(void) {
@@ -625,6 +640,145 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
     return NSNotFound;
 }
 
+// tomlc17 owns syntax, escaping, comments, and table construction. This adapter
+// serializes the small typed schema that the gesture validation below consumes.
+static NSString *TOMLString(toml_datum_t datum) {
+    if (datum.type != TOML_STRING || datum.u.s == NULL)
+        return nil;
+    return [NSString stringWithUTF8String:datum.u.s];
+}
+
+static NSString *quotedConfigString(NSString *value) {
+    NSData *data = [NSJSONSerialization dataWithJSONObject:@[value] options:0 error:NULL];
+    NSString *array = data == nil ? nil :
+        [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+    if ([array length] < 2)
+        return @"\"\"";
+    return [[array substringWithRange:NSMakeRange(1, [array length] - 2)]
+        stringByReplacingOccurrencesOfString:@"\\/" withString:@"/"];
+}
+
+static NSString *legacyScalar(toml_datum_t datum) {
+    switch (datum.type) {
+        case TOML_STRING:
+            return quotedConfigString(TOMLString(datum));
+        case TOML_BOOLEAN:
+            return datum.u.boolean ? @"true" : @"false";
+        case TOML_INT64:
+            return [NSString stringWithFormat:@"%lld", (long long)datum.u.int64];
+        case TOML_FP64:
+            return [NSString stringWithFormat:@"%.17g", datum.u.fp64];
+        default:
+            return nil;
+    }
+}
+
+static NSString *legacyInlineTable(toml_datum_t table) {
+    if (table.type != TOML_TABLE || !(table.flag & TOML_FLAG_INLINED))
+        return nil;
+    NSMutableArray *properties = [NSMutableArray array];
+    for (int i = 0; i < table.u.tab.size; i++) {
+        NSString *key = [NSString stringWithUTF8String:table.u.tab.key[i]];
+        NSString *value = legacyScalar(table.u.tab.value[i]);
+        if (value == nil)
+            value = @"\"<unsupported TOML value>\"";
+        [properties addObject:[NSString stringWithFormat:@"%@ = %@", key, value]];
+    }
+    return [NSString stringWithFormat:@"{ %@ }", [properties componentsJoinedByString:@", "]];
+}
+
+static void appendLegacyLine(NSMutableString *output, NSInteger *currentLine,
+                             NSInteger sourceLine, NSString *line) {
+    while (*currentLine < MAX(1, sourceLine)) {
+        [output appendString:@"\n"];
+        (*currentLine)++;
+    }
+    [output appendFormat:@"%@\n", line];
+    (*currentLine)++;
+}
+
+static void appendTOMLTable(NSMutableString *output, NSInteger *currentLine,
+                            NSString *section, NSString *application,
+                            toml_datum_t table) {
+    NSString *header = application == nil
+        ? [NSString stringWithFormat:@"[%@]", [section lowercaseString]]
+        : [NSString stringWithFormat:@"[%@ %@]", [section lowercaseString],
+                                           quotedConfigString(application)];
+    appendLegacyLine(output, currentLine, table.lineno, header);
+    for (int i = 0; i < table.u.tab.size; i++) {
+        toml_datum_t value = table.u.tab.value[i];
+        if (value.type == TOML_TABLE && !(value.flag & TOML_FLAG_INLINED))
+            continue;
+        NSString *key = [NSString stringWithUTF8String:table.u.tab.key[i]];
+        NSString *rendered = value.type == TOML_TABLE
+            ? legacyInlineTable(value) : legacyScalar(value);
+        if ([section isEqualToString:@"GENERAL"] && application == nil) {
+            NSSet *booleans = [NSSet setWithArray:@[
+                @"enable-mouse", @"enable-trackpad", @"haptic-feedback",
+                @"verbose-logging", @"experimental-mouse-click-gestures"]];
+            BOOL wrongType = ([booleans containsObject:key] && value.type != TOML_BOOLEAN) ||
+                ([key isEqualToString:@"config-version"] && value.type != TOML_INT64) ||
+                ([key isEqualToString:@"dominant-hand"] && value.type != TOML_STRING) ||
+                ([key isEqualToString:@"tap-speed"] &&
+                 value.type != TOML_INT64 && value.type != TOML_FP64);
+            if (wrongType)
+                rendered = @"\"<wrong TOML type>\"";
+        }
+        if (rendered == nil)
+            rendered = @"\"<unsupported TOML value>\"";
+        NSString *line = value.type == TOML_TABLE
+            ? [NSString stringWithFormat:@"%@ %@", key, rendered]
+            : [NSString stringWithFormat:@"%@ = %@", key, rendered];
+        appendLegacyLine(output, currentLine, value.lineno, line);
+    }
+}
+
+static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems) {
+    NSMutableString *output = [NSMutableString string];
+    NSInteger currentLine = 1;
+    for (int i = 0; i < root.u.tab.size; i++) {
+        NSString *section = [NSString stringWithUTF8String:root.u.tab.key[i]];
+        toml_datum_t table = root.u.tab.value[i];
+        if (table.type != TOML_TABLE) {
+            [problems addObject:[NSString stringWithFormat:
+                @"line %d:  %@\n          settings must be inside [GENERAL], [MOUSE], or [TRACKPAD]",
+                table.lineno, section]];
+            continue;
+        }
+        if (![@[@"GENERAL", @"MOUSE", @"TRACKPAD"] containsObject:section]) {
+            [problems addObject:[NSString stringWithFormat:
+                @"line %d:  [%@]\n          no section named \"%@\"; TOML table names are case-sensitive",
+                table.lineno, section, section]];
+            continue;
+        }
+        appendTOMLTable(output, &currentLine, section, nil, table);
+        if ([section isEqualToString:@"MOUSE"] || [section isEqualToString:@"TRACKPAD"]) {
+            for (int j = 0; j < table.u.tab.size; j++) {
+                toml_datum_t application = table.u.tab.value[j];
+                if (application.type != TOML_TABLE ||
+                    (application.flag & TOML_FLAG_INLINED))
+                    continue;
+                NSString *name = [NSString stringWithUTF8String:table.u.tab.key[j]];
+                appendTOMLTable(output, &currentLine, section, name, application);
+                for (int k = 0; k < application.u.tab.size; k++) {
+                    toml_datum_t nested = application.u.tab.value[k];
+                    if (nested.type == TOML_TABLE && !(nested.flag & TOML_FLAG_INLINED))
+                        [problems addObject:[NSString stringWithFormat:
+                            @"line %d:  nested application tables are not supported", nested.lineno]];
+                }
+            }
+        } else {
+            for (int j = 0; j < table.u.tab.size; j++) {
+                toml_datum_t nested = table.u.tab.value[j];
+                if (nested.type == TOML_TABLE && !(nested.flag & TOML_FLAG_INLINED))
+                    [problems addObject:[NSString stringWithFormat:
+                        @"line %d:  [GENERAL] does not contain nested tables", nested.lineno]];
+            }
+        }
+    }
+    return output;
+}
+
 + (NSDictionary *)settingsFromFile:(NSString *)path {
     return [Config settingsFromFile:path problems:NULL];
 }
@@ -633,11 +787,31 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
     NSMutableArray *problems = [NSMutableArray array];
     if (outProblems != NULL)
         *outProblems = problems;
-
-    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:NULL];
-    if (text == nil)
+    NSData *data = [NSData dataWithContentsOfFile:path];
+    if (data == nil)
         return nil;
+    NSString *text = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+    if (text == nil) {
+        [problems addObject:@"config.toml must be valid UTF-8"];
+        return nil;
+    }
+    toml_result_t parsed = toml_parse_named(
+        [text UTF8String], (int)[text lengthOfBytesUsingEncoding:NSUTF8StringEncoding],
+        [path UTF8String]);
+    if (!parsed.ok) {
+        [problems addObject:[NSString stringWithUTF8String:parsed.errmsg]];
+        toml_free(parsed);
+        return nil;
+    }
+    NSString *legacy = legacyTextFromTOML(parsed.toptab, problems);
+    toml_free(parsed);
+    NSDictionary *settings = [Config settingsFromLegacyText:legacy problems:problems];
+    if (outProblems != NULL)
+        *outProblems = problems;
+    return settings;
+}
 
++ (NSDictionary *)settingsFromLegacyText:(NSString *)text problems:(NSMutableArray *)problems {
     NSMutableArray *mouse = [NSMutableArray array];
     NSMutableArray *trackpad = [NSMutableArray array];
     NSMutableDictionary *mouseScopes = [NSMutableDictionary dictionaryWithObject:mouse
@@ -664,16 +838,24 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
     for (NSString *rawLine in [text componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]) {
         physicalLineNumber++;
         NSString *line = rawLine;
-        // A comment begins at the start of a line or after whitespace. This
-        // leaves URL fragments such as #section intact.
+        // The TOML parser already handled comments. This second pass only
+        // supports the canonical text consumed by the legacy semantic layer;
+        // keep # characters inside the adapter's quoted strings intact.
+        BOOL quoted = NO;
+        BOOL escaped = NO;
         for (NSUInteger i = 0; i < [line length]; i++) {
-            if ([line characterAtIndex:i] != '#')
-                continue;
-            if (i == 0 || [[NSCharacterSet whitespaceCharacterSet]
-                           characterIsMember:[line characterAtIndex:i - 1]]) {
+            unichar character = [line characterAtIndex:i];
+            if (character == '"' && !escaped)
+                quoted = !quoted;
+            if (character == '#' && !quoted &&
+                (i == 0 || [[NSCharacterSet whitespaceCharacterSet]
+                            characterIsMember:[line characterAtIndex:i - 1]])) {
                 line = [line substringToIndex:i];
                 break;
             }
+            escaped = character == '\\' && !escaped;
+            if (character != '\\')
+                escaped = NO;
         }
         line = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         if ([line length] == 0)
@@ -745,7 +927,7 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
                     [selector characterAtIndex:0] != '"' ||
                     [selector characterAtIndex:[selector length] - 1] != '"' ||
                     [[selector substringWithRange:NSMakeRange(1, [selector length] - 2)] length] == 0) {
-                    report(line, @"section must be [general], [mouse], [trackpad], or a device followed by a quoted application");
+                    report(line, @"section must be [GENERAL], [MOUSE], [TRACKPAD], or a device application table");
                     section = @"invalid";
                     continue;
                 }
@@ -918,9 +1100,9 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
                 report(line, [NSString stringWithFormat:@"no setting named \"%@\"", key]);
                 continue;
             }
-            if ([key isEqualToString:@"config-version"] && ![stripQuotes(value) isEqualToString:@"2"]) {
+            if ([key isEqualToString:@"config-version"] && ![stripQuotes(value) isEqualToString:@"3"]) {
                 report(line, [NSString stringWithFormat:
-                    @"configuration format \"%@\" is not supported; this version reads format 2",
+                    @"configuration format \"%@\" is not supported; this version reads format 3",
                     value]);
                 unsupportedVersion = YES;
             }
@@ -983,7 +1165,7 @@ static NSUInteger unquotedClosingBraceLocation(NSString *text) {
                 if (![reportedBindings containsObject:sourceKey]) {
                     [reportedBindings addObject:sourceKey];
                     [problems addObject:[NSString stringWithFormat:
-                        @"line %@:  %@\n          requires experimental-mouse-click-gestures = true in [general]",
+                        @"line %@:  %@\n          requires experimental-mouse-click-gestures = true in [GENERAL]",
                         [binding objectForKey:@"SourceLine"], [binding objectForKey:@"SourceText"]]];
                 }
                 [bindings removeObjectAtIndex:(NSUInteger)i];
