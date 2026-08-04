@@ -41,7 +41,8 @@ int main(void) {
         NSString *root = [NSTemporaryDirectory() stringByAppendingPathComponent:
             [NSString stringWithFormat:@"MGTraceCheck-%@", [[NSUUID UUID] UUIDString]]];
         require(MGTraceStart(root, &problem), @"trace session did not start");
-        MGTraceBeginStep(@"normal-r1", @"two-finger-click", @"Two-Finger Click", 1, @"Click once");
+        MGTraceBeginStep(@"normal-r1", @"two-finger-click", @"Two-Finger Click", 1,
+                         @"Click once", YES, NO);
         require(![[MGTraceStatus() objectForKey:@"saw_mouse_up"] boolValue],
                 @"new segment inherited a mouse-up marker");
         dispatch_group_t producers = dispatch_group_create();
@@ -67,6 +68,7 @@ int main(void) {
         for (int i = 0; i < 12000; i++)
             MGTraceRecordMouseFrame((void *)0x1, 1.0 + i, i, contacts, 1);
         MGTraceRecordDispatch(@"Two-Finger Click", @"global", @"built-in", @"suppressed-for-trace");
+        MGTraceRecordDispatch(@"Three-Finger Click", @"global", @"built-in", @"suppressed-for-trace");
         MGTraceRecordCGEvent(@"mouse-up", 0.0, 0, 0, @"observed");
         require([[MGTraceStatus() objectForKey:@"saw_mouse_up"] boolValue],
                 @"mouse-up was not exposed to guided timing cues");
@@ -102,6 +104,40 @@ int main(void) {
             previous = sequence;
         }
         require(previous > 0, @"capture wrote no events");
+
+        NSString *manualRoot = [NSTemporaryDirectory() stringByAppendingPathComponent:
+            [NSString stringWithFormat:@"MGTraceManualCheck-%@", [[NSUUID UUID] UUIDString]]];
+        require(MGTraceStart(manualRoot, &problem), @"manual trace session did not start");
+        MGTraceBeginStep(@"ambient", @"ordinary-mouse-use", @"*", 0,
+                         @"Use the mouse normally", NO, NO);
+        MGTraceRecordDispatch(@"Two-Finger Tap", @"global", @"keystroke",
+                              @"suppressed-for-trace");
+        MGTraceRecordDispatch(@"Middle-Fix Index-Far-Tap", @"global", @"keystroke",
+                              @"suppressed-for-trace");
+        require([[MGTraceStatus() objectForKey:@"observed_dispatch_count"] unsignedIntegerValue] == 2,
+                @"ambient trace did not count every configured gesture dispatch");
+        require(!MGTraceAuditsGestureCatalog(), @"ordinary trace enabled catalog auditing");
+        MGTraceRecordMouseFrame((void *)0x2, 1.0, 1, contacts, 1);
+        MGTraceRecordMouseFrame((void *)0x2, 2.0, 2, NULL, 0);
+        usleep(900000);
+        require([[MGTraceStatus() objectForKey:@"capturing"] boolValue] &&
+                ![[MGTraceStatus() objectForKey:@"awaiting_label"] boolValue],
+                @"manual trace closed after an ordinary full lift");
+        MGTraceFinishOpenStep(@"ambient");
+        MGTraceStop();
+        require(!MGTraceIsActive(), @"trace recorder remained active after stopping");
+
+        NSString *catalogRoot = [NSTemporaryDirectory() stringByAppendingPathComponent:
+            [NSString stringWithFormat:@"MGTraceCatalogCheck-%@", [[NSUUID UUID] UUIDString]]];
+        require(MGTraceStart(catalogRoot, &problem), @"catalog trace session did not start");
+        MGTraceBeginStep(@"catalog", @"gesture-catalog-audit", @"*", 0,
+                         @"Use the mouse normally", NO, YES);
+        require(MGTraceAuditsGestureCatalog(), @"catalog trace did not enable shadow auditing");
+        MGTraceRecordCandidate(@"Three-Finger Tap", @"shadow-recognized", @"catalog-audit");
+        require([[MGTraceStatus() objectForKey:@"catalog_candidate_count"] unsignedIntegerValue] == 1,
+                @"catalog trace did not count a shadow recognition");
+        MGTraceFinishOpenStep(@"ambient");
+        MGTraceStop();
 
         if (failures == 0) {
             printf("trace recorder: all checks passed\n");

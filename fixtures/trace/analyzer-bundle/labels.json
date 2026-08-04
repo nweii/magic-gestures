@@ -3,7 +3,8 @@
   "labels": [
     {"segment": 1, "step": "positive", "requested": "two-finger-tap", "observed_gesture": "Two-Finger Tap", "expected_dispatch_count": 1, "human": "clean"},
     {"segment": 2, "step": "negative", "requested": "ordinary-click", "observed_gesture": "Two-Finger Tap", "expected_dispatch_count": 0, "human": "clean"},
-    {"segment": 3, "step": "rapid", "requested": "two-finger-click-pair", "observed_gesture": "Two-Finger Click", "expected_dispatch_count": 2, "human": "clean"}
+    {"segment": 3, "step": "rapid", "requested": "two-finger-click-pair", "observed_gesture": "Two-Finger Click", "expected_dispatch_count": 2, "human": "clean"},
+    {"segment": 4, "step": "ambient", "requested": "ordinary-mouse-use", "observed_gesture": "*", "expected_dispatch_count": 0, "human": "ambient"}
   ],
   "schema": 1
 }

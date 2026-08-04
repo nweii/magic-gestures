@@ -161,7 +161,8 @@ Mouse: `hold-left-tap-right` `hold-right-tap-left` `one-finger-tap`
 
 Magic Mouse physical clicks are experimental and disabled by default. Set
 `experimental-mouse-click-gestures = true` under `[GENERAL]` to test them. They
-may miss depending on hand placement and how quickly contacts lift.
+may miss depending on hand placement and how quickly contacts lift. The normal
+click is not suppressed when the configured action fires.
 
 Trackpad: `hold-left-tap-right` `hold-right-tap-left` `hold-slide`
 `two-finger-tap` `three-finger-tap` `four-finger-tap` `five-finger-tap` `three-finger-click`

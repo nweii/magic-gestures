@@ -170,6 +170,12 @@ grep -q '"true_negative" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
   { echo "trace analyzer changed the synthetic negative classification" >&2; exit 1; }
 grep -q '"under" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
   { echo "trace analyzer stopped detecting an under-dispatched rapid pair" >&2; exit 1; }
+grep -q '"observed_dispatch_count" : 2' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
+  { echo "trace analyzer stopped counting all ambient gesture dispatches" >&2; exit 1; }
+grep -q '"Three-Finger Tap" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
+  { echo "trace analyzer stopped counting catalog shadow recognitions" >&2; exit 1; }
+grep -q '"available" : 1' "$TRACE_ANALYZER_FIXTURE/analysis.json" ||
+  { echo "trace analyzer stopped reporting mouse-down eligibility" >&2; exit 1; }
 MALFORMED_TRACE="$(mktemp -d)/malformed-bundle"
 if "$TRACE_ANALYZER_OUT" "$MALFORMED_TRACE" >/dev/null 2>&1; then
   echo "trace analyzer accepted a malformed bundle" >&2

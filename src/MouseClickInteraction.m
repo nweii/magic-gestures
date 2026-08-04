@@ -28,6 +28,17 @@ void MGMouseClickInteractionInitialize(MGMouseClickInteraction *interaction) {
     interaction->cumulativeDeltaX = 0;
     interaction->cumulativeDeltaY = 0;
     interaction->mouseDownTime = -1;
+    interaction->rawFrameGeneration = 0;
+    interaction->eligibleFrameGeneration = 0;
+    interaction->rawContactCount = 0;
+    os_unfair_lock_unlock(&interaction->lock);
+}
+
+void MGMouseClickInteractionObserveRawContacts(MGMouseClickInteraction *interaction,
+                                               int rawContactCount) {
+    os_unfair_lock_lock(&interaction->lock);
+    interaction->rawFrameGeneration++;
+    interaction->rawContactCount = rawContactCount;
     os_unfair_lock_unlock(&interaction->lock);
 }
 
@@ -36,6 +47,7 @@ int MGMouseClickInteractionObserveContacts(MGMouseClickInteraction *interaction,
                                            double timestamp) {
     os_unfair_lock_lock(&interaction->lock);
     interaction->currentContactCount = eligibleContactCount;
+    interaction->eligibleFrameGeneration = interaction->rawFrameGeneration;
     BOOL withinGrace = timestamp >= interaction->mouseDownTime &&
         timestamp - interaction->mouseDownTime <= kMouseClickContactArrivalGrace;
     if (interaction->active && withinGrace &&
@@ -58,6 +70,27 @@ int MGMouseClickInteractionObserveContacts(MGMouseClickInteraction *interaction,
     }
     os_unfair_lock_unlock(&interaction->lock);
     return 0;
+}
+
+MGMouseClickEligibilitySnapshot MGMouseClickInteractionEligibilitySnapshot(
+    MGMouseClickInteraction *interaction) {
+    os_unfair_lock_lock(&interaction->lock);
+    MGMouseClickEligibilitySnapshot snapshot = {
+        .stage = MGMouseClickEligibilityNoRawContacts,
+        .rawContactCount = interaction->rawContactCount,
+        .eligibleContactCount = interaction->currentContactCount,
+    };
+    if (interaction->rawContactCount > 0 &&
+        interaction->eligibleFrameGeneration != interaction->rawFrameGeneration) {
+        snapshot.stage = MGMouseClickEligibilityFilterPending;
+    } else if (interaction->currentContactCount == 2 ||
+               interaction->currentContactCount == 3) {
+        snapshot.stage = MGMouseClickEligibilityAvailable;
+    } else if (interaction->rawContactCount > 0) {
+        snapshot.stage = MGMouseClickEligibilityFilteredOut;
+    }
+    os_unfair_lock_unlock(&interaction->lock);
+    return snapshot;
 }
 
 void MGMouseClickInteractionBegin(MGMouseClickInteraction *interaction,

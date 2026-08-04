@@ -16,6 +16,28 @@ int main(void) {
     @autoreleasepool {
         MGMouseClickInteraction interaction;
         MGMouseClickInteractionInitialize(&interaction);
+
+        MGMouseClickInteractionObserveRawContacts(&interaction, 2);
+        MGMouseClickEligibilitySnapshot eligibility =
+            MGMouseClickInteractionEligibilitySnapshot(&interaction);
+        require(eligibility.stage == MGMouseClickEligibilityFilterPending,
+                @"raw contacts awaiting filtering were not distinguished at mouse-down");
+        MGMouseClickInteractionObserveContacts(&interaction, 2, 9.0);
+        eligibility = MGMouseClickInteractionEligibilitySnapshot(&interaction);
+        require(eligibility.stage == MGMouseClickEligibilityAvailable &&
+                    eligibility.rawContactCount == 2 && eligibility.eligibleContactCount == 2,
+                @"eligible contacts were not available to the mouse-down snapshot");
+        MGMouseClickInteractionObserveRawContacts(&interaction, 2);
+        MGMouseClickInteractionObserveContacts(&interaction, 0, 9.1);
+        eligibility = MGMouseClickInteractionEligibilitySnapshot(&interaction);
+        require(eligibility.stage == MGMouseClickEligibilityFilteredOut,
+                @"filtered contacts were mistaken for late contacts");
+        MGMouseClickInteractionObserveRawContacts(&interaction, 0);
+        MGMouseClickInteractionObserveContacts(&interaction, 0, 9.2);
+        eligibility = MGMouseClickInteractionEligibilitySnapshot(&interaction);
+        require(eligibility.stage == MGMouseClickEligibilityNoRawContacts,
+                @"an empty contact frame was not reported distinctly");
+
         MGMouseClickInteractionBegin(&interaction, 10.0);
         MGMouseClickInteractionObserveContacts(&interaction, 2, 10.06);
         require(MGMouseClickInteractionFinish(&interaction) == 2,

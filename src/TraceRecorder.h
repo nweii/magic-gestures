@@ -17,12 +17,15 @@ BOOL MGTraceStart(NSString *bundlePath, NSString **problem);
 BOOL MGTraceIsActive(void);
 BOOL MGTraceIsCapturing(void);
 BOOL MGTraceSuppressesActions(void);
+BOOL MGTraceAuditsGestureCatalog(void);
 NSString *MGTraceBundlePath(void);
 NSDictionary *MGTraceStatus(void);
 void MGTraceBeginStep(NSString *step, NSString *requested,
                       NSString *observedGesture, NSUInteger expectedDispatchCount,
-                      NSString *instruction);
+                      NSString *instruction, BOOL closesOnFullLift,
+                      BOOL auditsGestureCatalog);
 void MGTraceMarkStep(NSString *label);
+void MGTraceFinishOpenStep(NSString *label);
 void MGTraceStop(void);
 
 void MGTraceRecordMouseFrame(const void *device, double hardwareTimestamp,
@@ -33,6 +36,8 @@ void MGTraceRecordFilterDecision(int identifier, NSString *reason, BOOL kept,
                                  double majorAxis, double minorAxis);
 void MGTraceRecordCGEvent(NSString *event, double pressure,
                           int64_t axis1, int64_t axis2, NSString *disposition);
+void MGTraceRecordClickEligibility(NSString *stage, int rawContactCount,
+                                   int eligibleContactCount);
 void MGTraceRecordCandidate(NSString *gesture, NSString *phase,
                             NSString *reason);
 void MGTraceRecordOwnership(NSString *requested, NSString *previous,

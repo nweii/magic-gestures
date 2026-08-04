@@ -5,8 +5,11 @@
 #import <mach/mach_time.h>
 #import <os/lock.h>
 
+#include <stdatomic.h>
+
 static const NSUInteger kTraceMaximumPendingEvents = 4096;
 static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
+static atomic_bool traceActive = ATOMIC_VAR_INIT(false);
 
 @interface MGTraceState : NSObject {
 @public
@@ -16,6 +19,8 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
     BOOL awaitingLabel;
     BOOL sawContactsInSegment;
     BOOL sawMouseUpInSegment;
+    BOOL closesOnFullLift;
+    BOOL auditsGestureCatalog;
     BOOL liftScheduled;
     BOOL stopping;
     NSString *session;
@@ -24,6 +29,7 @@ static const unsigned long long kTraceMaximumBytes = 50ULL * 1024ULL * 1024ULL;
     NSString *observedGesture;
     NSUInteger expectedDispatchCount;
     NSUInteger observedDispatchCount;
+    NSUInteger catalogCandidateCount;
     NSString *bundlePath;
     NSFileHandle *eventsHandle;
     dispatch_queue_t writer;
@@ -151,6 +157,8 @@ static NSString *ephemeralDeviceName(const void *device) {
 
 static void enqueue(NSString *source, NSString *event, NSString *device,
                     NSDictionary *data) {
+    if (!atomic_load_explicit(&traceActive, memory_order_relaxed))
+        return;
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
     BOOL guideEvent = [source isEqualToString:@"guide"];
@@ -277,17 +285,17 @@ BOOL MGTraceStart(NSString *path, NSString **problem) {
     [state->labels removeAllObjects];
     [state->devices removeAllObjects];
     os_unfair_lock_unlock(&state->lock);
+    atomic_store_explicit(&traceActive, true, memory_order_relaxed);
     enqueue(@"guide", @"session-start", nil, @{@"requested": @"setup"});
     return YES;
 }
 
 BOOL MGTraceIsActive(void) {
-    MGTraceState *state = traceState();
-    os_unfair_lock_lock(&state->lock); BOOL active = state->active; os_unfair_lock_unlock(&state->lock);
-    return active;
+    return atomic_load_explicit(&traceActive, memory_order_relaxed);
 }
 
 BOOL MGTraceIsCapturing(void) {
+    if (!MGTraceIsActive()) return NO;
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
     BOOL capturing = state->capturing;
@@ -296,6 +304,15 @@ BOOL MGTraceIsCapturing(void) {
 }
 
 BOOL MGTraceSuppressesActions(void) { return MGTraceIsActive(); }
+
+BOOL MGTraceAuditsGestureCatalog(void) {
+    if (!MGTraceIsActive()) return NO;
+    MGTraceState *state = traceState();
+    os_unfair_lock_lock(&state->lock);
+    BOOL audits = state->active && state->capturing && state->auditsGestureCatalog;
+    os_unfair_lock_unlock(&state->lock);
+    return audits;
+}
 
 NSString *MGTraceBundlePath(void) {
     MGTraceState *state = traceState();
@@ -312,6 +329,7 @@ NSDictionary *MGTraceStatus(void) {
                               @"saw_mouse_up": @(state->sawMouseUpInSegment),
                               @"expected_dispatch_count": @(state->expectedDispatchCount),
                               @"observed_dispatch_count": @(state->observedDispatchCount),
+                              @"catalog_candidate_count": @(state->catalogCandidateCount),
                               @"step": state->step ?: @"idle",
                               @"segment": @(state->segment), @"pending": @(state->pendingEvents),
                               @"dropped": @(state->droppedEvents), @"bytes": @(state->writtenBytes)} retain];
@@ -321,7 +339,8 @@ NSDictionary *MGTraceStatus(void) {
 
 void MGTraceBeginStep(NSString *step, NSString *requested,
                       NSString *observedGesture, NSUInteger expectedDispatchCount,
-                      NSString *instruction) {
+                      NSString *instruction, BOOL closesOnFullLift,
+                      BOOL auditsGestureCatalog) {
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
     if (!state->active) { os_unfair_lock_unlock(&state->lock); return; }
@@ -330,10 +349,13 @@ void MGTraceBeginStep(NSString *step, NSString *requested,
     [state->observedGesture release]; state->observedGesture = [observedGesture copy];
     state->expectedDispatchCount = expectedDispatchCount;
     state->observedDispatchCount = 0;
+    state->catalogCandidateCount = 0;
     state->capturing = NO;
     state->awaitingLabel = NO;
     state->sawContactsInSegment = NO;
     state->sawMouseUpInSegment = NO;
+    state->closesOnFullLift = closesOnFullLift;
+    state->auditsGestureCatalog = auditsGestureCatalog;
     state->liftScheduled = NO;
     state->liftGeneration++;
     NSUInteger segment = ++state->segment;
@@ -342,6 +364,7 @@ void MGTraceBeginStep(NSString *step, NSString *requested,
             @{@"requested": requested ?: @"none",
               @"observed_gesture": observedGesture ?: @"unknown",
               @"expected_dispatch_count": @(expectedDispatchCount),
+              @"catalog_audit": @(auditsGestureCatalog),
               @"instruction": instruction ?: @""});
     os_unfair_lock_lock(&state->lock);
     if (state->active && state->segment == segment) state->capturing = YES;
@@ -367,6 +390,27 @@ void MGTraceMarkStep(NSString *label) {
     enqueue(@"guide", @"human-label", nil, @{@"label": label});
 }
 
+void MGTraceFinishOpenStep(NSString *label) {
+    MGTraceState *state = traceState();
+    os_unfair_lock_lock(&state->lock);
+    if (!state->active || !state->capturing) {
+        os_unfair_lock_unlock(&state->lock);
+        return;
+    }
+    NSDictionary *entry = @{ @"segment": @(state->segment), @"step": state->step ?: @"idle",
+                             @"requested": state->requested ?: @"none",
+                             @"observed_gesture": state->observedGesture ?: @"unknown",
+                             @"expected_dispatch_count": @(state->expectedDispatchCount),
+                             @"human": label ?: @"unsure" };
+    [state->labels addObject:entry];
+    state->capturing = NO;
+    state->awaitingLabel = NO;
+    state->liftScheduled = NO;
+    state->liftGeneration++;
+    os_unfair_lock_unlock(&state->lock);
+    enqueue(@"guide", @"capture-window-finished", nil, @{@"label": label ?: @"unsure"});
+}
+
 void MGTraceStop(void) {
     MGTraceState *state = traceState();
     if (!MGTraceIsActive()) return;
@@ -385,6 +429,7 @@ void MGTraceStop(void) {
     state->awaitingLabel = NO;
     state->stopping = NO;
     os_unfair_lock_unlock(&state->lock);
+    atomic_store_explicit(&traceActive, false, memory_order_relaxed);
     NSDictionary *labelsDocument = @{@"schema": @1, @"labels": labelsCopy,
                                       @"dropped_events": @(dropped)};
     NSData *data = [NSJSONSerialization dataWithJSONObject:labelsDocument
@@ -408,7 +453,7 @@ void MGTraceRecordMouseFrame(const void *device, double hardwareTimestamp,
 
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
-    if (!state->active || !state->capturing) {
+    if (!state->active || !state->capturing || !state->closesOnFullLift) {
         os_unfair_lock_unlock(&state->lock);
         return;
     }
@@ -447,6 +492,7 @@ void MGTraceRecordMouseFrame(const void *device, double hardwareTimestamp,
 void MGTraceRecordFilterDecision(int identifier, NSString *reason, BOOL kept,
                                  double x, double y, double size,
                                  double majorAxis, double minorAxis) {
+    if (!MGTraceIsActive()) return;
     enqueue(@"filter", kept ? @"kept" : @"excluded", nil,
             @{@"id": @(identifier), @"reason": reason ?: @"none", @"x": @(x), @"y": @(y),
               @"size": @(size), @"major": @(majorAxis), @"minor": @(minorAxis)});
@@ -454,6 +500,7 @@ void MGTraceRecordFilterDecision(int identifier, NSString *reason, BOOL kept,
 
 void MGTraceRecordCGEvent(NSString *event, double pressure,
                           int64_t axis1, int64_t axis2, NSString *disposition) {
+    if (!MGTraceIsActive()) return;
     MGTraceState *state = traceState();
     if ([event isEqualToString:@"mouse-up"]) {
         os_unfair_lock_lock(&state->lock);
@@ -465,7 +512,23 @@ void MGTraceRecordCGEvent(NSString *event, double pressure,
                                   @"axis2": @(axis2), @"disposition": disposition ?: @"observed"});
 }
 
+void MGTraceRecordClickEligibility(NSString *stage, int rawContactCount,
+                                   int eligibleContactCount) {
+    if (!MGTraceIsActive()) return;
+    enqueue(@"click", @"mouse-down-eligibility", nil,
+            @{@"stage": stage ?: @"unknown", @"raw_contacts": @(rawContactCount),
+              @"eligible_contacts": @(eligibleContactCount)});
+}
+
 void MGTraceRecordCandidate(NSString *gesture, NSString *phase, NSString *reason) {
+    if (!MGTraceIsActive()) return;
+    if ([phase isEqualToString:@"shadow-recognized"]) {
+        MGTraceState *state = traceState();
+        os_unfair_lock_lock(&state->lock);
+        if (state->active && state->capturing && state->auditsGestureCatalog)
+            state->catalogCandidateCount++;
+        os_unfair_lock_unlock(&state->lock);
+    }
     enqueue(@"recognizer", @"candidate", nil,
             @{@"gesture": gesture ?: @"unknown", @"phase": phase ?: @"observed",
               @"reason": reason ?: @"none"});
@@ -473,6 +536,7 @@ void MGTraceRecordCandidate(NSString *gesture, NSString *phase, NSString *reason
 
 void MGTraceRecordOwnership(NSString *requested, NSString *previous,
                             NSString *result, BOOL accepted) {
+    if (!MGTraceIsActive()) return;
     enqueue(@"ownership", @"transition", nil,
             @{@"requested": requested ?: @"none", @"previous": previous ?: @"none",
               @"result": result ?: @"none", @"accepted": @(accepted)});
@@ -480,9 +544,12 @@ void MGTraceRecordOwnership(NSString *requested, NSString *previous,
 
 void MGTraceRecordDispatch(NSString *gesture, NSString *scope,
                            NSString *actionKind, NSString *outcome) {
+    if (!MGTraceIsActive()) return;
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock);
-    if (state->active && state->capturing)
+    if (state->active && state->capturing &&
+        (state->observedGesture == nil || [state->observedGesture isEqualToString:@"*"] ||
+         [gesture isEqualToString:state->observedGesture]))
         state->observedDispatchCount++;
     os_unfair_lock_unlock(&state->lock);
     enqueue(@"dispatch", @"result", nil,

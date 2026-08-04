@@ -307,8 +307,22 @@ ephemeral within one session. Its interface does not accept application names,
 configured values, keyboard details, clipboard contents, cursor positions, or
 persistent device identifiers.
 
-Diagnostics > Start Trace Session opens a persistent floating `NSPanel` inside
-the menu-bar app. The panel shows the whole protocol overview, current step,
+Diagnostics > Gesture testing offers guided calibration protocols and an
+open-ended normal-use capture. The latter records every configured Magic Mouse
+gesture that would dispatch while suppressing its action, so an intermittent
+false trigger can be identified from one ordinary-use session. The same submenu
+can enable a system tone immediately before any configured gesture action is
+dispatched.
+
+Audit Gesture Catalog is a separate open-ended capture that shadow-evaluates
+supported Magic Mouse recognizers absent from the user's configuration. Shadow
+recognitions never claim the contact sequence, dispatch an action, or suppress
+native scrolling. The exported report lists them under `catalog_candidates`.
+Keep this separate from configured dispatch counts because enabling every
+binding would create artificial conflicts.
+
+A trace opens a persistent floating `NSPanel` inside the menu-bar app. The
+panel shows the whole protocol overview, current step,
 progress, explicit phase, keyboard shortcuts, and an inert surface where native
 clicks have no UI effect. It remains visible throughout the session; the
 Diagnostics menu only reports status and brings it forward. Configured actions
@@ -341,9 +355,10 @@ private diagnostic material and do not belong in the repository.
 - **Check both conflict surfaces before binding.** macOS claims some motions,
   listed in `GESTURES.md`. The user's own hotkeys claim some chords, and a
   Caps Lock remapped to Cmd+Alt+Ctrl is a common one worth asking about.
-- **Hold gestures carry anything consequential.** Holding one finger still while
-  another taps or slides is unreachable by a resting hand, and macOS uses that
-  shape nowhere.
+- **Hold gestures carry anything consequential.** macOS does not claim the
+  hold-one-tap-one shape. On a Magic Mouse, its discrete tap contacts still use
+  fingertip-quality filtering because a narrow resting edge contact can imitate
+  the held finger.
 
 ## Hotkey compatibility
 
@@ -395,11 +410,12 @@ unbound family never suppresses scrolling. New recognizers that can share a
 contact sequence with an existing gesture must use one of these paths.
 
 `MouseContactFilter.m` rejects measured rear-palm and narrow side-edge contacts
-before physical click counting while retaining substantial fingertips in those
-regions. Counted fingertips must form a connected cluster;
+while retaining substantial fingertips in those regions. The filtered contact
+list feeds Magic Mouse one- and multi-finger taps, hold-one-tap-one recognition, and
+physical-click counting. Counted physical-click fingertips must form a connected cluster;
 `gestureMagicMouseThumb` identifies and excludes a thumb from that cluster.
-Apply these rules to physical clicks, not holds or swipes whose contact geometry
-has different meaning. This path runs only when
+Do not apply fingertip filtering blindly to swipes or positional gestures whose
+contact geometry has different meaning. Physical-click filtering runs only when
 `experimental-mouse-click-gestures` enables a configured Magic Mouse
 physical-click binding.
 

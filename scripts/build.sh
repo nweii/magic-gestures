@@ -57,6 +57,7 @@ clang \
   -framework Cocoa \
   -framework Carbon \
   -framework ApplicationServices \
+  -framework AudioToolbox \
   -framework IOKit \
   -framework ScriptingBridge \
   -framework MultitouchSupport \

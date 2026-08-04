@@ -69,6 +69,9 @@ int main(int argc, const char *argv[]) {
         if (![labels isKindOfClass:[NSArray class]]) fail(@"labels.json has no labels array");
 
         NSMutableDictionary *dispatchGesturesBySegment = [NSMutableDictionary dictionary];
+        NSMutableDictionary *dispatchGestureCounts = [NSMutableDictionary dictionary];
+        NSMutableDictionary *catalogCandidateCounts = [NSMutableDictionary dictionary];
+        NSMutableDictionary *mouseDownEligibility = [NSMutableDictionary dictionary];
         NSMutableDictionary *filters = [NSMutableDictionary dictionary];
         NSMutableDictionary *outcomes = [NSMutableDictionary dictionary];
         NSMutableDictionary *firstDown = [NSMutableDictionary dictionary];
@@ -99,7 +102,9 @@ int main(int argc, const char *argv[]) {
                     gestures = [NSMutableArray array];
                     dispatchGesturesBySegment[segment] = gestures;
                 }
-                [gestures addObject:[data objectForKey:@"gesture"] ?: @"unknown"];
+                NSString *gesture = [data objectForKey:@"gesture"] ?: @"unknown";
+                [gestures addObject:gesture];
+                dispatchGestureCounts[gesture] = @([dispatchGestureCounts[gesture] unsignedIntegerValue] + 1);
                 NSString *outcome = [data objectForKey:@"outcome"] ?: @"unknown";
                 outcomes[outcome] = @([outcomes[outcome] unsignedIntegerValue] + 1);
             } else if ([source isEqualToString:@"filter"]) {
@@ -108,9 +113,18 @@ int main(int argc, const char *argv[]) {
             } else if ([source isEqualToString:@"ownership"]) {
                 if ([[data objectForKey:@"accepted"] boolValue]) acceptedOwnership++;
                 else rejectedOwnership++;
-            } else if ([source isEqualToString:@"recognizer"] &&
-                       [[data objectForKey:@"phase"] isEqualToString:@"canceled"]) {
-                cancellations++;
+            } else if ([source isEqualToString:@"recognizer"]) {
+                NSString *phase = [data objectForKey:@"phase"];
+                if ([phase isEqualToString:@"canceled"]) {
+                    cancellations++;
+                } else if ([phase isEqualToString:@"shadow-recognized"]) {
+                    NSString *gesture = [data objectForKey:@"gesture"] ?: @"unknown";
+                    catalogCandidateCounts[gesture] = @([catalogCandidateCounts[gesture] unsignedIntegerValue] + 1);
+                }
+            } else if ([source isEqualToString:@"click"] &&
+                       [name isEqualToString:@"mouse-down-eligibility"]) {
+                NSString *stage = [data objectForKey:@"stage"] ?: @"unknown";
+                mouseDownEligibility[stage] = @([mouseDownEligibility[stage] unsignedIntegerValue] + 1);
             } else if ([source isEqualToString:@"cg"] && [name isEqualToString:@"mouse-down"]) {
                 if (firstDown[segment] == nil) firstDown[segment] = time;
             } else if ([source isEqualToString:@"cg"] && [name isEqualToString:@"mouse-up"]) {
@@ -187,9 +201,9 @@ int main(int argc, const char *argv[]) {
             } mutableCopy];
             NSUInteger observed = 0;
             for (NSString *gesture in dispatchGesturesBySegment[segment])
-                if (observedGesture != nil
+                if ([observedGesture isEqualToString:@"*"] || (observedGesture != nil
                     ? [gesture isEqualToString:observedGesture]
-                    : gestureMatchesLegacyRequestedGesture(gesture, requested)) observed++;
+                    : gestureMatchesLegacyRequestedGesture(gesture, requested))) observed++;
             NSString *human = [label objectForKey:@"human"] ?: @"unlabeled";
             humanCounts[human] = @([humanCounts[human] unsignedIntegerValue] + 1);
             BOOL excludedByHuman = [human isEqualToString:@"skip"] || [human isEqualToString:@"botched"];
@@ -240,6 +254,9 @@ int main(int argc, const char *argv[]) {
             @"ownership": @{@"accepted": @(acceptedOwnership), @"rejected": @(rejectedOwnership),
                              @"cancellations": @(cancellations)},
             @"dispatch_outcomes": outcomes,
+            @"dispatch_gestures": dispatchGestureCounts,
+            @"catalog_candidates": catalogCandidateCounts,
+            @"mouse_down_eligibility": mouseDownEligibility,
             @"likely_false_positive_segments": falsePositive,
             @"likely_false_negative_segments": falseNegative,
             @"interpretation": @"Requested intent, human label, recorded observation, and inferred classification remain separate. Likely errors are review candidates, not ground truth."
@@ -256,10 +273,14 @@ int main(int argc, const char *argv[]) {
              "## Dispatch count results\n\n"
              "| Exact | Under | Over |\n|---:|---:|---:|\n| %lu | %lu | %lu |\n\n"
              "## Review candidates\n\nLikely false positives: %@\n\nLikely false negatives: %@\n\n"
+             "## Configured gesture dispatches\n\n%@\n\n"
+             "## Catalog audit candidates\n\n%@\n\n"
+             "## Mouse-down eligibility\n\n%@\n\n"
              "## Interpretation\n\nRequested intent, human label, recorded observation, and analyzer inference are separate. Review candidate segments against the raw redacted events before changing recognition.\n",
             (unsigned long)[labels count], (unsigned long)[events count],
             (unsigned long)exactCount, (unsigned long)underCount, (unsigned long)overCount,
-            falsePositive, falseNegative];
+            falsePositive, falseNegative, dispatchGestureCounts, catalogCandidateCounts,
+            mouseDownEligibility];
         if (![report writeToFile:[root stringByAppendingPathComponent:@"report.md"] atomically:YES
                          encoding:NSUTF8StringEncoding error:&error])
             fail([error localizedDescription] ?: @"could not write report.md");

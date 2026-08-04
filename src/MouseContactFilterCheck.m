@@ -16,6 +16,9 @@ int main(void) {
         require(MGMagicMouseContactShouldBeExcluded(0.9620, 0.6574, 0.8750,
                                                     6.5800),
                 @"measured right-edge resting contact was retained");
+        require(MGMagicMouseContactShouldBeExcluded(0.9912, 0.6124, 0.1250,
+                                                    4.4900),
+                @"false-positive trace edge contact was eligible for a tap");
         require(MGMagicMouseContactDecisionForGeometry(0.9620, 0.6574, 0.8750, 6.5800) ==
                     MGMagicMouseContactExcludedSideNarrow,
                 @"side rejection did not preserve its trace reason");

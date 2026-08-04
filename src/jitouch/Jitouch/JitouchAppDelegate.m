@@ -53,6 +53,11 @@ static BOOL internalTraceDiagnosticsEnabled(void) {
         boolForKey:@"InternalTraceDiagnostics"];
 }
 
+static BOOL internalGestureDispatchToneEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults]
+        boolForKey:@"InternalGestureDispatchTone"];
+}
+
 static NSArray *magicMousePhysicalClickTraceProtocol(void) {
     static NSArray *steps = nil;
     static dispatch_once_t onceToken;
@@ -123,6 +128,32 @@ static NSArray *magicMouseTapCalibrationTraceProtocol(void) {
               @"instruction": @"Repeat the scroll with your usual resting edge finger present throughout."},
             @{@"id": @"resting-edge-touch-r1", @"requested": @"resting-edge-contact-plus-touch", @"expected": @0,
               @"instruction": @"Rest one finger in your usual edge position. Briefly touch and lift another finger without clicking or scrolling."},
+        ] retain];
+    });
+    return steps;
+}
+
+static NSArray *magicMouseAmbientGestureTraceProtocol(void) {
+    static NSArray *steps = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        steps = [@[
+            @{@"id": @"ambient-use", @"requested": @"ordinary-mouse-use", @"expected": @0,
+              @"manual_capture": @YES,
+              @"instruction": @"Use the mouse normally for up to two minutes. Click, scroll, and reposition as you usually would. Magic Gestures actions are suppressed while recording."},
+        ] retain];
+    });
+    return steps;
+}
+
+static NSArray *magicMouseGestureCatalogAuditProtocol(void) {
+    static NSArray *steps = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        steps = [@[
+            @{@"id": @"catalog-audit", @"requested": @"gesture-catalog-audit", @"expected": @0,
+              @"manual_capture": @YES, @"catalog_audit": @YES,
+              @"instruction": @"Use the mouse normally for up to two minutes. Click, scroll, reposition, and switch Spaces as usual. Do not intentionally perform a Magic Gestures gesture. Actions and native-scroll suppression are disabled for shadow recognitions."},
         ] retain];
     });
     return steps;
@@ -757,6 +788,13 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [self refreshMenu];
 }
 
+- (void)toggleGestureDispatchTone:(id)sender {
+    [[NSUserDefaults standardUserDefaults]
+        setBool:!internalGestureDispatchToneEnabled()
+         forKey:@"InternalGestureDispatchTone"];
+    [self refreshMenu];
+}
+
 static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSTextField *field = [[[NSTextField alloc] initWithFrame:frame] autorelease];
     [field setEditable:NO]; [field setSelectable:NO]; [field setBezeled:NO];
@@ -772,10 +810,13 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSUInteger count = [[traceSession steps] count];
     NSDictionary *step = index >= 0 && index < (NSInteger)count
         ? [[traceSession steps] objectAtIndex:index] : nil;
+    BOOL manualCapture = [[step objectForKey:@"manual_capture"] boolValue];
+    BOOL catalogAudit = [[step objectForKey:@"catalog_audit"] boolValue];
     NSArray *phaseNames = @[@"Overview", @"Preparing", @"Neutral countdown",
         @"Recording", @"Waiting for full lift", @"Ready for label", @"Complete"];
     [traceProgress setStringValue:phase == MGTraceSessionOverview
-        ? [NSString stringWithFormat:@"%lu steps · about 4 minutes", (unsigned long)count]
+        ? (manualCapture ? @"1 capture · up to 2 minutes" :
+            [NSString stringWithFormat:@"%lu steps · about 4 minutes", (unsigned long)count])
         : phase == MGTraceSessionComplete
             ? [NSString stringWithFormat:@"%lu of %lu complete", (unsigned long)count, (unsigned long)count]
         : [NSString stringWithFormat:@"Step %ld of %lu · %@", (long)index + 1,
@@ -795,14 +836,22 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         [traceHeading setStringValue:[step objectForKey:@"requested"] ?: @"Trace step"];
         NSDictionary *status = MGTraceStatus();
         NSString *stateInstruction = phase == MGTraceSessionPreparing
-            ? @"Place the pointer in the gray test surface, lift fully, then press Start countdown."
+            ? (manualCapture
+                ? @"Lift fully, then press Start countdown. After the tone, use the mouse in any app as you normally would."
+                : @"Place the pointer in the gray test surface, lift fully, then press Start countdown.")
             : phase == MGTraceSessionCountdown
                 ? [NSString stringWithFormat:@"Keep fully lifted and still. Recording begins in %ld…",
                     (long)[traceSession countdown]]
                 : phase == MGTraceSessionRecording
-                    ? ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] && traceHeldLiftCuePlayed
+                    ? (manualCapture
+                        ? [NSString stringWithFormat:@"%@: %@ observed so far. Keep using the mouse normally, then choose Stop and Export Partial.",
+                            [status objectForKey:catalogAudit ? @"catalog_candidate_count" : @"observed_dispatch_count"],
+                            [[status objectForKey:catalogAudit ? @"catalog_candidate_count" : @"observed_dispatch_count"] unsignedIntegerValue] == 1
+                                ? (catalogAudit ? @"potential gesture" : @"configured gesture")
+                                : (catalogAudit ? @"potential gestures" : @"configured gestures")]
+                        : ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] && traceHeldLiftCuePlayed
                         ? @"The second tone sounded. Lift both fingers now."
-                        : @"Perform the motion now.")
+                        : @"Perform the motion now."))
                 : phase == MGTraceSessionWaitingForLift
                     ? ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] && !traceHeldLiftCuePlayed
                         ? @"Keep both fingers touching. Lift only after the second tone."
@@ -834,13 +883,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)tracePoll:(NSTimer *)timer {
     if (!MGTraceIsActive() || traceSession == nil) return;
     NSDictionary *status = MGTraceStatus();
-    [traceSession observeCapturing:[[status objectForKey:@"capturing"] boolValue]
-                     awaitingLabel:[[status objectForKey:@"awaiting_label"] boolValue]
-                       sawContacts:[[status objectForKey:@"saw_contacts"] boolValue]];
     NSInteger index = [traceSession stepIndex];
     NSArray *steps = [traceSession steps];
     NSDictionary *step = index >= 0 && index < (NSInteger)[steps count]
         ? [steps objectAtIndex:index] : nil;
+    BOOL manualCapture = [[step objectForKey:@"manual_capture"] boolValue];
+    [traceSession observeCapturing:[[status objectForKey:@"capturing"] boolValue]
+                     awaitingLabel:[[status objectForKey:@"awaiting_label"] boolValue]
+                       sawContacts:manualCapture ? NO : [[status objectForKey:@"saw_contacts"] boolValue]];
     if ([[step objectForKey:@"lift_mode"] isEqualToString:@"held"] &&
         [[status objectForKey:@"capturing"] boolValue] &&
         [[status objectForKey:@"saw_mouse_up"] boolValue] && !traceHeldLiftCueScheduled) {
@@ -866,7 +916,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         MGTraceBeginStep([step objectForKey:@"id"], [step objectForKey:@"requested"],
                          traceObservedGestureForStep(step),
                          [[step objectForKey:@"expected"] unsignedIntegerValue],
-                         [step objectForKey:@"instruction"]);
+                         [step objectForKey:@"instruction"],
+                         ![[step objectForKey:@"manual_capture"] boolValue],
+                         [[step objectForKey:@"catalog_audit"] boolValue]);
         traceHeldLiftCueScheduled = NO;
         traceHeldLiftCuePlayed = NO;
         NSBeep();
@@ -953,18 +1005,29 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         return;
     }
     BOOL tapCalibration = [sender tag] == 1;
+    BOOL ambientCapture = [sender tag] == 2;
+    BOOL catalogAudit = [sender tag] == 3;
     [activeTraceProtocol release];
-    activeTraceProtocol = [(tapCalibration ? magicMouseTapCalibrationTraceProtocol() :
+    activeTraceProtocol = [(catalogAudit ? magicMouseGestureCatalogAuditProtocol() :
+        ambientCapture ? magicMouseAmbientGestureTraceProtocol() :
+        tapCalibration ? magicMouseTapCalibrationTraceProtocol() :
         magicMousePhysicalClickTraceProtocol()) retain];
     [activeTraceProtocolTitle release];
-    activeTraceProtocolTitle = [(tapCalibration ? @"Magic Mouse tap calibration" :
+    activeTraceProtocolTitle = [(catalogAudit ? @"Audit gesture catalog" :
+        ambientCapture ? @"Capture normal mouse use" :
+        tapCalibration ? @"Magic Mouse tap calibration" :
         @"Magic Mouse physical-click trace") copy];
     [activeTraceProtocolOverview release];
-    activeTraceProtocolOverview = [(tapCalibration
+    activeTraceProtocolOverview = [(catalogAudit
+        ? @"This shadow-audits every supported Magic Mouse recognizer during up to two minutes of ordinary use, including gestures absent from your configuration. It never fires actions, claims a gesture sequence, or suppresses native scrolling. Potential recognitions are listed in the exported report. Choose Stop, then Export Partial when finished."
+        : ambientCapture
+        ? @"This captures up to two minutes of ordinary Magic Mouse use so any unexpected configured gesture can be identified without guessing what motion caused it. Work normally after the countdown. Magic Gestures actions are suppressed, and the panel counts every would-be gesture dispatch. Choose Stop, then Export Partial when finished."
+        : tapCalibration
         ? @"This takes about 3 minutes. It compares deliberate two-finger taps, including taps near an edge, against your natural resting edge contact during ordinary clicks, scrolling, and a brief extra touch. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."
         : @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active.") copy];
     [activeTraceObservedGesture release];
-    activeTraceObservedGesture = [(tapCalibration ? @"Two-Finger Tap" : nil) copy];
+    activeTraceObservedGesture = [((ambientCapture || catalogAudit) ? @"*" :
+        tapCalibration ? @"Two-Finger Tap" : nil) copy];
     [traceSession release];
     traceSession = [[MGTraceSessionModel alloc] initWithSteps:currentTraceProtocol()];
     traceProtocolIndex = 0;
@@ -1007,9 +1070,15 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [alert addButtonWithTitle:@"Continue"];
     NSModalResponse choice = [alert runModal];
     if (choice == NSAlertThirdButtonReturn) return;
+    NSDictionary *step = traceProtocolIndex >= 0 &&
+        traceProtocolIndex < (NSInteger)[[traceSession steps] count]
+        ? [[traceSession steps] objectAtIndex:traceProtocolIndex] : nil;
+    if ([[step objectForKey:@"manual_capture"] boolValue])
+        MGTraceFinishOpenStep(@"ambient");
     [tracePollTimer invalidate]; tracePollTimer = nil;
     [completedTracePath release]; completedTracePath = [MGTraceBundlePath() copy];
     MGTraceStop();
+    [self showTraceCloseControl];
     traceProtocolIndex = -1;
     if (choice == NSAlertSecondButtonReturn) {
         [[NSFileManager defaultManager] removeItemAtPath:completedTracePath error:nil];
@@ -1028,6 +1097,12 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [completedTracePath release]; completedTracePath = nil;
     traceProtocolIndex = -1;
     [self refreshMenu];
+}
+
+- (void)showTraceCloseControl {
+    [traceStopButton setTitle:@"Close Esc"];
+    [traceStopButton setAction:@selector(closeTraceWindow:)];
+    [traceStopButton setEnabled:YES];
 }
 
 - (void)exportCompletedTrace:(id)sender {
@@ -1071,6 +1146,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
             [completedTracePath release]; completedTracePath = [destination copy];
             [traceDetail setStringValue:[NSString stringWithFormat:
                 @"Export complete.\n\nBundle: %@", destination]];
+            [self showTraceCloseControl];
             [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:
                 @[[NSURL fileURLWithPath:destination]]];
         }
@@ -1108,6 +1184,12 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         NSMenuItem *tap = [menu addItemWithTitle:@"Start Tap Calibration…"
                                             action:@selector(startTraceSession:) keyEquivalent:@""];
         [tap setTarget:self]; [tap setTag:1];
+        NSMenuItem *ambient = [menu addItemWithTitle:@"Capture Normal Mouse Use…"
+                                                action:@selector(startTraceSession:) keyEquivalent:@""];
+        [ambient setTarget:self]; [ambient setTag:2];
+        NSMenuItem *catalog = [menu addItemWithTitle:@"Audit Gesture Catalog…"
+                                                action:@selector(startTraceSession:) keyEquivalent:@""];
+        [catalog setTarget:self]; [catalog setTag:3];
         NSMenuItem *start = [menu addItemWithTitle:@"Start Physical Click Trace…"
                                             action:@selector(startTraceSession:) keyEquivalent:@""];
         [start setTarget:self];
@@ -1128,6 +1210,13 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
             [status objectForKey:@"dropped"]] action:NULL keyEquivalent:@""];
         [state setEnabled:NO];
     }
+    [menu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *tone = [menu addItemWithTitle:@"Gesture Dispatch Tone"
+                                       action:@selector(toggleGestureDispatchTone:)
+                                keyEquivalent:@""];
+    [tone setTarget:self];
+    [tone setState:internalGestureDispatchToneEnabled()
+        ? NSControlStateValueOn : NSControlStateValueOff];
 }
 
 - (void)showTraceWindow:(id)sender {

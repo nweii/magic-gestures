@@ -851,6 +851,13 @@ int main(void) {
                     fail(@"bound swipe families suppress native scrolling through sequence lift",
                          required, @"missing");
             }
+            for (NSString *required in @[
+                @"MGTraceRecordCandidate(gesture, @\"shadow-recognized\", @\"catalog-audit\")",
+                @"if (hasBinding) disableHorizontalScroll = 1",
+            ]) {
+                if ([engine rangeOfString:required].location == NSNotFound)
+                    fail(@"catalog audit preserves native behavior", required, @"missing");
+            }
 
             for (NSString *command in [[Config actionNames] allValues]) {
                 NSString *branch = [NSString stringWithFormat:@"isEqualToString:@\"%@\"", command];
@@ -859,7 +866,9 @@ int main(void) {
             }
 
             NSArray *invocations = @[
-                @"gestureMagicMouseThreeFingerTap(data, nFingers, timestamp, thumbPresent)",
+                @"gestureMagicMouseThreeFingerTap(tapData, tapContactCount, timestamp, 0)",
+                @"gestureMagicMouseOneFingerTap(tapData, tapContactCount, timestamp)",
+                @"gestureMagicMouseOneFixOneTap(tapData, tapContactCount, timestamp)",
                 @"gestureMagicMouseTwoFingerSwipe(data, nFingers, timestamp, thumbPresent)",
                 @"gestureTrackpadTwoFingerTap(data, nFingers,",
                 @"gestureTrackpadHoldSlide(data, nFingers)",
@@ -880,6 +889,27 @@ int main(void) {
             if ([mouseTwoFingerTap rangeOfString:@"step = 0;"].location != NSNotFound)
                 fail(@"rejected mouse two-finger tap waits for every finger to lift",
                      @"named rejection state", @"returned to idle during the touch sequence");
+
+            NSString *mouseCallback = section(engine,
+                @"static int magicMouseCallback", @"static void turnOffMagicMouse");
+            NSRange threeTapCall = [mouseCallback rangeOfString:
+                @"gestureMagicMouseThreeFingerTap(tapData, tapContactCount, timestamp, 0)"];
+            NSRange twoTapCall = [mouseCallback rangeOfString:
+                @"gestureMagicMouseTwoFingerTap(tapData, tapContactCount, timestamp, 0)"];
+            if (threeTapCall.location == NSNotFound || twoTapCall.location == NSNotFound ||
+                threeTapCall.location >= twoTapCall.location)
+                fail(@"mouse tap discriminator evaluates exact higher count first",
+                     @"filtered three-finger tap before filtered two-finger tap", @"missing or reversed");
+            for (NSString *required in @[
+                @"if (nFingers >= 3)", @"kTwoFingerTapRejectedUntilLift",
+                @"gesture = @\"Two-Finger Click\"", @"gesture = @\"Three-Finger Click\"",
+                @"customMagicMouseTapSuppressionUntil = CFAbsoluteTimeGetCurrent() + 0.18",
+                @"MGMouseClickInteractionMarkHandled",
+            ]) {
+                if ([engine rangeOfString:required].location == NSNotFound)
+                    fail(@"mouse tap and click four-way discriminator wiring",
+                         required, @"missing");
+            }
 
             if ([engine rangeOfString:@"objectForKey:@\"Defer\""] .location == NSNotFound ||
                 [engine rangeOfString:@"[NSEvent doubleClickInterval]"] .location == NSNotFound ||
