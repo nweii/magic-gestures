@@ -1,9 +1,9 @@
-# Magic Gestures configuration
+# Trickpad configuration
 
-This file is managed by Magic Gestures and refreshed when the app starts. If
+This file is managed by Trickpad and refreshed when the app starts. If
 `AGENTS.local.md` exists beside it, read that file for user-specific instructions.
 
-This folder holds the configuration for Magic Gestures, a macOS background app
+This folder holds the configuration for Trickpad, a macOS background app
 that turns Magic Mouse and Magic Trackpad gestures into shortcuts, actions,
 custom URLs, or executable scripts.
 
@@ -23,7 +23,7 @@ custom URLs, or executable scripts.
   requested behavior is represented by a valid binding and unrelated bindings
   are unchanged.
 
-Source and full documentation: https://github.com/nweii/magic-gestures
+Source and full documentation: https://github.com/nweii/trickpad
 
 ## Format
 
@@ -141,10 +141,10 @@ logging expanded clipboard contents.
 
 Prefix an executable path with `script:`:
 
-    hold-right-tap-left = "script:~/.config/magic-gestures/scripts/capture-selection"
+    hold-right-tap-left = "script:~/.config/trickpad/scripts/capture-selection"
 
 The path may begin with `~` or be absolute. It must exist and be executable when
-the settings reload. Magic Gestures launches it directly through its shebang,
+the settings reload. Trickpad launches it directly through its shebang,
 uses the script's folder as its working directory, and does not interpret shell
 commands, arguments, substitutions, or an interactive shell profile.
 

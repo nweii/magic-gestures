@@ -2,11 +2,12 @@
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
-APP_NAME="MagicGestures"
+APP_NAME="Trickpad"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
-CONFIG_DIR="$HOME/.config/magic-gestures"
+CONFIG_DIR="$HOME/.config/trickpad"
 
 mkdir -p "$ROOT/run"
+"$ROOT/scripts/migrate-legacy-config.sh"
 
 if [[ ! -x "$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]]; then
   "$ROOT/scripts/build.sh" >/dev/null

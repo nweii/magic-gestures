@@ -1,6 +1,6 @@
 //
 //  Config.h
-//  MagicGestures
+//  Trickpad
 //
 //  Copyright 2026 Nathan Cheng. All rights reserved.
 //
@@ -13,11 +13,12 @@
 
 @interface Config : NSObject
 
-// ~/.config/magic-gestures/config.toml, or the path in MAGICGESTURES_CONFIG.
+// ~/.config/trickpad/config.toml, or the path in TRICKPAD_CONFIG. The former
+// MAGICGESTURES_CONFIG name remains an undocumented pre-release fallback.
 // Returns nil when no configuration file exists.
 + (NSString *)resolvedPath;
 
-// ~/.config/magic-gestures, where the configuration and its agent notes live.
+// ~/.config/trickpad, where the configuration and its agent notes live.
 + (NSString *)configDirectory;
 
 // Parses the file at `path` into a settings dictionary shaped like the plist

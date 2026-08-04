@@ -1,14 +1,14 @@
 #!/bin/zsh
 set -euo pipefail
 
-# Removes Magic Gestures from the system. Settings are kept unless --all is
+# Removes Trickpad from the system. Settings are kept unless --all is
 # passed, since they are the only part a reinstall cannot recreate.
 
 ROOT="${0:A:h:h}"
-APP_NAME="MagicGestures"
-LABEL="fyi.nathancheng.magic-gestures.agent"
+APP_NAME="Trickpad"
+LABEL="fyi.thirdwind.trickpad.agent"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-CONFIG_DIR="$HOME/.config/magic-gestures"
+CONFIG_DIR="$HOME/.config/trickpad"
 GUI_DOMAIN="gui/$(id -u)"
 
 REMOVE_SETTINGS=0
@@ -47,6 +47,6 @@ cat <<'NOTE'
 Two things are left, because no script can do them:
 
   1. Open System Settings > Privacy & Security > Accessibility and remove
-     Magic Gestures from the list.
+     Trickpad from the list.
   2. Delete this project folder if you no longer want the source.
 NOTE

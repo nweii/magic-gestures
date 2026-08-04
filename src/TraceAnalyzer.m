@@ -268,7 +268,7 @@ int main(int argc, const char *argv[]) {
                                         options:NSDataWritingAtomic error:&error])
             fail([error localizedDescription] ?: @"could not write analysis.json");
         NSString *report = [NSString stringWithFormat:
-            @"# Magic Gestures trace analysis\n\n"
+            @"# Trickpad trace analysis\n\n"
              "Analyzed %lu labeled cases and %lu events.\n\n"
              "## Dispatch count results\n\n"
              "| Exact | Under | Over |\n|---:|---:|---:|\n| %lu | %lu | %lu |\n\n"

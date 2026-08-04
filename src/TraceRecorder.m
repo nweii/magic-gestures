@@ -53,7 +53,7 @@ static MGTraceState *traceState(void) {
     dispatch_once(&onceToken, ^{
         state = [[MGTraceState alloc] init];
         state->lock = OS_UNFAIR_LOCK_INIT;
-        state->writer = dispatch_queue_create("fyi.nathancheng.magic-gestures.trace", DISPATCH_QUEUE_SERIAL);
+        state->writer = dispatch_queue_create("fyi.thirdwind.trickpad.trace", DISPATCH_QUEUE_SERIAL);
         state->labels = [[NSMutableArray alloc] init];
         state->devices = [[NSMutableDictionary alloc] init];
     });

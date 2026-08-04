@@ -1,8 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-APP_NAME="MagicGestures"
-LABEL="fyi.nathancheng.magic-gestures.agent"
+APP_NAME="Trickpad"
+LABEL="fyi.thirdwind.trickpad.agent"
 GUI_DOMAIN="gui/$(id -u)"
 
 echo -n "app_process="

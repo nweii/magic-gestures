@@ -140,7 +140,7 @@ static NSArray *magicMouseAmbientGestureTraceProtocol(void) {
         steps = [@[
             @{@"id": @"ambient-use", @"requested": @"ordinary-mouse-use", @"expected": @0,
               @"manual_capture": @YES,
-              @"instruction": @"Use the mouse normally for up to two minutes. Click, scroll, and reposition as you usually would. Magic Gestures actions are suppressed while recording."},
+              @"instruction": @"Use the mouse normally for up to two minutes. Click, scroll, and reposition as you usually would. Trickpad actions are suppressed while recording."},
         ] retain];
     });
     return steps;
@@ -153,7 +153,7 @@ static NSArray *magicMouseGestureCatalogAuditProtocol(void) {
         steps = [@[
             @{@"id": @"catalog-audit", @"requested": @"gesture-catalog-audit", @"expected": @0,
               @"manual_capture": @YES, @"catalog_audit": @YES,
-              @"instruction": @"Use the mouse normally for up to two minutes. Click, scroll, reposition, and switch Spaces as usual. Do not intentionally perform a Magic Gestures gesture. Actions and native-scroll suppression are disabled for shadow recognitions."},
+              @"instruction": @"Use the mouse normally for up to two minutes. Click, scroll, reposition, and switch Spaces as usual. Do not intentionally perform a Trickpad gesture. Actions and native-scroll suppression are disabled for shadow recognitions."},
         ] retain];
     });
     return steps;
@@ -182,9 +182,56 @@ CGKeyCode keyMap[128]; // for dvorak support
 @synthesize window;
 
 // The launchd job that starts the app at login.
-static NSString *const kLoginAgentLabel = @"fyi.nathancheng.magic-gestures.agent";
-static NSString *const kLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist";
+static NSString *const kLoginAgentLabel = @"fyi.thirdwind.trickpad.agent";
+static NSString *const kLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.thirdwind.trickpad.agent.plist";
 static NSString *const kDidChooseLoginItem = @"DidChooseLoginItem";
+static NSString *const kLegacyDefaultsDomain = @"fyi.nathancheng.magic-gestures";
+static NSString *const kLegacyLoginAgentLabel = @"fyi.nathancheng.magic-gestures.agent";
+static NSString *const kLegacyLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist";
+static NSString *const kDidMigrateLegacyState = @"DidMigrateLegacyState";
+static BOOL runLaunchctl(NSArray *arguments);
+
+// Carries the user's pre-release settings into the renamed app once. A second
+// destination is never merged because choosing between two configs is unsafe.
+- (void)migrateLegacyStateIfNeeded {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if ([defaults boolForKey:kDidMigrateLegacyState])
+        return;
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *legacyConfig = [@"~/.config/magic-gestures" stringByStandardizingPath];
+    NSString *config = [Config configDirectory];
+    BOOL legacyConfigExists = [fm fileExistsAtPath:legacyConfig];
+    BOOL configExists = [fm fileExistsAtPath:config];
+    if (legacyConfigExists && !configExists) {
+        NSError *error = nil;
+        if (![fm moveItemAtPath:legacyConfig toPath:config error:&error])
+            NSLog(@"Could not migrate the legacy settings folder: %@", error);
+    } else if (legacyConfigExists && configExists) {
+        NSLog(@"Both legacy and Trickpad settings folders exist; using %@ without merging.", config);
+    }
+
+    NSDictionary *legacyDefaults = [defaults persistentDomainForName:kLegacyDefaultsDomain];
+    for (NSString *key in @[kDidChooseLoginItem, @"InternalTraceDiagnostics",
+                            @"InternalGestureDispatchTone"]) {
+        if ([defaults objectForKey:key] == nil && [legacyDefaults objectForKey:key] != nil)
+            [defaults setObject:[legacyDefaults objectForKey:key] forKey:key];
+    }
+
+    NSString *legacyTarget = [NSString stringWithFormat:@"gui/%d/%@", (int)getuid(),
+                              kLegacyLoginAgentLabel];
+    runLaunchctl(@[@"bootout", legacyTarget]);
+    runLaunchctl(@[@"disable", legacyTarget]);
+    NSString *legacyPlist = [kLegacyLoginAgentPlistPath stringByStandardizingPath];
+    if ([fm fileExistsAtPath:legacyPlist]) {
+        NSError *error = nil;
+        if (![fm removeItemAtPath:legacyPlist error:&error])
+            NSLog(@"Could not remove the legacy login item: %@", error);
+    }
+
+    [defaults setBool:YES forKey:kDidMigrateLegacyState];
+    [defaults synchronize];
+}
 
 // Removes the launchd job by label rather than plist path, so a job whose
 // plist has already been deleted still stops instead of being respawned by
@@ -392,7 +439,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
         @"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         @"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
         @"<!--\n"
-        @"  Magic Gestures maps Magic Mouse and Magic Trackpad gestures to keystrokes.\n"
+        @"  Trickpad maps Magic Mouse and Magic Trackpad gestures to keystrokes.\n"
         @"\n"
         @"  This file starts it at login and restarts it if it exits. It is written by\n"
         @"  the app's own Open at Login menu item. Deleting it stops the agent from\n"
@@ -610,7 +657,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
 }
 
 - (void)about:(id)sender {
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/nweii/magic-gestures"]];
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/nweii/trickpad"]];
 }
 
 - (void)openAccessibilitySettings:(id)sender {
@@ -724,7 +771,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
         objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"unknown";
     NSString *configPath = [Config resolvedPath] ?: @"missing";
     return [NSString stringWithFormat:
-        @"Magic Gestures %@\nmacOS %@\nAccessibility: %@\nConfiguration: %@\n"
+        @"Trickpad %@\nmacOS %@\nAccessibility: %@\nConfiguration: %@\n"
          "%ld binding%@ loaded\n%lu line%@ skipped\nGestures: %@\n"
          "Mouse: %@\nTrackpad: %@\nVerbose logging: %@\n",
         version,
@@ -752,7 +799,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
             NSPipe *output = [NSPipe pipe];
             [task setLaunchPath:@"/usr/bin/log"];
             [task setArguments:@[@"show", @"--style", @"compact", @"--last", @"15m",
-                                 @"--predicate", @"process == \"MagicGestures\""]];
+                                 @"--predicate", @"process == \"Trickpad\""]];
             [task setStandardOutput:output];
             [task setStandardError:output];
 
@@ -767,7 +814,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
             }
 
             NSString *path = [NSTemporaryDirectory()
-                stringByAppendingPathComponent:@"MagicGestures-Recent.log"];
+                stringByAppendingPathComponent:@"Trickpad-Recent.log"];
             NSError *error = nil;
             BOOL wrote = failure == nil &&
                 [data writeToFile:path options:NSDataWritingAtomic error:&error];
@@ -825,7 +872,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 
     if (phase == MGTraceSessionOverview) {
         [traceHeading setStringValue:activeTraceProtocolTitle ?: @"Magic Mouse trace session"];
-        [traceDetail setStringValue:activeTraceProtocolOverview ?: @"Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."];
+        [traceDetail setStringValue:activeTraceProtocolOverview ?: @"Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Trickpad actions are suppressed; native mouse behavior remains active."];
     } else if (phase == MGTraceSessionComplete) {
         [traceHeading setStringValue:@"Trace complete"];
         [traceDetail setStringValue:[NSString stringWithFormat:
@@ -944,7 +991,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     tracePanel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 720, 610)
         styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskUtilityWindow
         backing:NSBackingStoreBuffered defer:NO];
-    [tracePanel setTitle:@"Magic Gestures Diagnostics"];
+    [tracePanel setTitle:@"Trickpad Diagnostics"];
     [tracePanel setFloatingPanel:YES]; [tracePanel setHidesOnDeactivate:NO];
     NSView *content = [tracePanel contentView];
     traceProgress = [traceText(NSMakeRect(28, 565, 664, 22), 13, NO) retain];
@@ -998,7 +1045,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         return;
     }
     NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:
-        [NSString stringWithFormat:@"MagicGestures-Trace-%@", [[NSUUID UUID] UUIDString]]];
+        [NSString stringWithFormat:@"Trickpad-Trace-%@", [[NSUUID UUID] UUIDString]]];
     NSString *problem = nil;
     if (!MGTraceStart(path, &problem)) {
         [self reportFailure:@"Could not start the trace session." detail:problem];
@@ -1021,10 +1068,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     activeTraceProtocolOverview = [(catalogAudit
         ? @"This shadow-audits every supported Magic Mouse recognizer during up to two minutes of ordinary use, including gestures absent from your configuration. It never fires actions, claims a gesture sequence, or suppresses native scrolling. Potential recognitions are listed in the exported report. Choose Stop, then Export Partial when finished."
         : ambientCapture
-        ? @"This captures up to two minutes of ordinary Magic Mouse use so any unexpected configured gesture can be identified without guessing what motion caused it. Work normally after the countdown. Magic Gestures actions are suppressed, and the panel counts every would-be gesture dispatch. Choose Stop, then Export Partial when finished."
+        ? @"This captures up to two minutes of ordinary Magic Mouse use so any unexpected configured gesture can be identified without guessing what motion caused it. Work normally after the countdown. Trickpad actions are suppressed, and the panel counts every would-be gesture dispatch. Choose Stop, then Export Partial when finished."
         : tapCalibration
-        ? @"This takes about 3 minutes. It compares deliberate two-finger taps, including taps near an edge, against your natural resting edge contact during ordinary clicks, scrolling, and a brief extra touch. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active."
-        : @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Magic Gestures reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Magic Gestures actions are suppressed; native mouse behavior remains active.") copy];
+        ? @"This takes about 3 minutes. It compares deliberate two-finger taps, including taps near an edge, against your natural resting edge contact during ordinary clicks, scrolling, and a brief extra touch. Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Trickpad actions are suppressed; native mouse behavior remains active."
+        : @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Trickpad actions are suppressed; native mouse behavior remains active.") copy];
     [activeTraceObservedGesture release];
     activeTraceObservedGesture = [((ambientCapture || catalogAudit) ? @"*" :
         tapCalibration ? @"Two-Finger Tap" : nil) copy];
@@ -1244,14 +1291,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSString *dir = [Config configDirectory];
     NSError *error = [self seedConfigDirectory];
     if (error != nil) {
-        [self reportFailure:@"Can't set up the Magic Gestures settings folder."
+        [self reportFailure:@"Can't set up the Trickpad settings folder."
                      detail:[error localizedDescription]];
         return;
     }
 
     NSString *appPath = [[NSBundle mainBundle] bundlePath] ?: @"unknown";
     NSString *prompt = [NSString stringWithFormat:
-        @"Read AGENTS.md in this folder first. Help me manage Magic Gestures. "
+        @"Read AGENTS.md in this folder first. Help me manage Trickpad. "
         @"Ask what I want to do before changing settings or the application. "
         @"The running app is at %@.", appPath];
     NSString *scriptPath = [dir stringByAppendingPathComponent:@"manage-with-agent.command"];
@@ -1276,10 +1323,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 // edit the local configuration directly.
 - (void)copyAgentPrompt:(id)sender {
     NSString *prompt =
-        @"I use Magic Gestures, a macOS app configured through one plain-text file. "
+        @"I use Trickpad, a macOS app configured through one plain-text file. "
         @"Help me create a ready-to-paste configuration block. Read the syntax and "
         @"available gestures, actions, and settings here: "
-        @"https://github.com/nweii/magic-gestures/blob/main/GESTURES.md\n\n"
+        @"https://github.com/nweii/trickpad/blob/main/GESTURES.md\n\n"
         @"Ask what I want the gesture to do, which device it should use, and whether "
         @"it should be global or limited to an application. Do not invent gesture or "
         @"action names. Return the smallest valid block, tell me where to paste it, "
@@ -1327,7 +1374,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         NSString *agentPath = [dir stringByAppendingPathComponent:@"AGENTS.md"];
         if (instructions == nil ||
             ![instructions writeToFile:agentPath options:NSDataWritingAtomic error:&error])
-            return error ?: [NSError errorWithDomain:@"MagicGestures"
+            return error ?: [NSError errorWithDomain:@"Trickpad"
                                                  code:1
                                              userInfo:@{NSLocalizedDescriptionKey:
                                                  @"The installed AGENTS.md could not be refreshed."}];
@@ -1398,9 +1445,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)showIcon {
     // The menu outlives this method and is read back by tag on every refresh,
     // so it is owned here rather than left to the status item.
-    theMenu = [[NSMenu alloc] initWithTitle:@"Magic Gestures"];
+    theMenu = [[NSMenu alloc] initWithTitle:@"Trickpad"];
 
-    NSMenuItem *item = [theMenu addItemWithTitle:@"Turn Magic Gestures Off" action:@selector(switchChange:) keyEquivalent:@""];
+    NSMenuItem *item = [theMenu addItemWithTitle:@"Turn Trickpad Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
 
     item = [theMenu addItemWithTitle:@"Accessibility" action:NULL keyEquivalent:@""];
@@ -1432,7 +1479,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     item = [theMenu addItemWithTitle:@"Diagnostics" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagDiagnostics];
 
-    NSMenu *aboutMenu = [[[NSMenu alloc] initWithTitle:@"About Magic Gestures"] autorelease];
+    NSMenu *aboutMenu = [[[NSMenu alloc] initWithTitle:@"About Trickpad"] autorelease];
     NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
     NSMenuItem *versionItem = [aboutMenu addItemWithTitle:
         [NSString stringWithFormat:@"Version %@", version ?: @"unknown"]
@@ -1441,9 +1488,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     NSMenuItem *repoItem = [aboutMenu addItemWithTitle:@"GitHub..." action:@selector(about:) keyEquivalent:@""];
     [repoItem setTarget:self];
 
-    NSMenuItem *aboutItem = [theMenu addItemWithTitle:@"About Magic Gestures" action:NULL keyEquivalent:@""];
+    NSMenuItem *aboutItem = [theMenu addItemWithTitle:@"About Trickpad" action:NULL keyEquivalent:@""];
     [aboutItem setSubmenu:aboutMenu];
-    [theMenu addItemWithTitle:@"Quit Magic Gestures" action:@selector(quit:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Quit Trickpad" action:@selector(quit:) keyEquivalent:@""];
 
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
@@ -1468,7 +1515,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)updateIconImage {
     NSString *symbol = enAll ? @"hand.tap.fill" : @"hand.tap";
     NSImage *img = [NSImage imageWithSystemSymbolName:symbol
-                             accessibilityDescription:@"Magic Gestures"];
+                             accessibilityDescription:@"Trickpad"];
     [img setTemplate:YES];
     // NSStatusItem image methods have been deprecated since macOS 10.14, so the
     // image is set on its button.
@@ -1478,14 +1525,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 - (void)preferences:(id)sender  {
     NSError *error = [self seedConfigDirectory];
     if (error != nil) {
-        [self reportFailure:@"Can't set up the Magic Gestures settings folder."
+        [self reportFailure:@"Can't set up the Trickpad settings folder."
                      detail:[error localizedDescription]];
         return;
     }
 
     NSString *path = [Config resolvedPath];
     if (path == nil) {
-        [self reportFailure:@"Can't find the Magic Gestures configuration."
+        [self reportFailure:@"Can't find the Trickpad configuration."
                      detail:[NSString stringWithFormat:@"Expected it at %@/config.toml.", [Config configDirectory]]];
         return;
     }
@@ -1506,15 +1553,15 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         return;
     }
 
-    [self reportFailure:@"Can't open the Magic Gestures configuration." detail:path];
+    [self reportFailure:@"Can't open the Trickpad configuration." detail:path];
 }
 
 - (void)quit:(id)sender {
     if (![self isLoginItemInstalled]) {
         NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
         NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-        [alert setMessageText:@"Quit Magic Gestures?"];
-        [alert setInformativeText:@"Gestures stop until you start it again. Open at Login is off, so it will not come back by itself.\n\nStart it again by reopening Magic Gestures."];
+        [alert setMessageText:@"Quit Trickpad?"];
+        [alert setInformativeText:@"Gestures stop until you start it again. Open at Login is off, so it will not come back by itself.\n\nStart it again by reopening Trickpad."];
         [alert setAlertStyle:NSAlertStyleInformational];
         [alert addButtonWithTitle:@"Quit"];
         [alert addButtonWithTitle:@"Cancel"];
@@ -1545,7 +1592,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     }
     if (theItem) {
         NSMenuItem *toggle = [theMenu itemWithTag:kMenuTagToggle];
-        [toggle setTitle:enAll ? @"Turn Magic Gestures Off" : @"Turn Magic Gestures On"];
+        [toggle setTitle:enAll ? @"Turn Trickpad Off" : @"Turn Trickpad On"];
 
         NSMenuItem *login = [theMenu itemWithTag:kMenuTagLoginItem];
         [login setState:[self isLoginItemInstalled] ? NSControlStateValueOn : NSControlStateValueOff];
@@ -1614,6 +1661,8 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 */
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+    [self migrateLegacyStateIfNeeded];
+
     // A zip install has no start.sh or install script to seed the settings
     // folder, so the app seeds it here before resolving the configuration.
     NSError *seedError = [self seedConfigDirectory];
@@ -1667,7 +1716,7 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
     [[NSDistributedNotificationCenter defaultCenter] addObserver: self
                                                         selector: @selector(settingsUpdated:)
                                                             name: @"My Notification"
-                                                          object: @"fyi.nathancheng.magic-gestures.PrefpaneTarget"];
+                                                          object: @"fyi.thirdwind.trickpad.PrefpaneTarget"];
 
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(wokeUp:) name:NSWorkspaceDidWakeNotification object: NULL];
 

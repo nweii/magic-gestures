@@ -216,7 +216,8 @@ clang \
 # side stops being recognized or managed by the other.
 APP_SRC="$ROOT/src/jitouch/Jitouch/JitouchAppDelegate.m"
 INSTALL_SH="$ROOT/scripts/install-login-agent.sh"
-LABEL="fyi.nathancheng.magic-gestures.agent"
+LABEL="fyi.thirdwind.trickpad.agent"
+LEGACY_LABEL="fyi.nathancheng.magic-gestures.agent"
 
 fail() {
   echo "login item drift: $1" >&2
@@ -248,6 +249,24 @@ gesture_fail() {
 for f in "$APP_SRC" "$INSTALL_SH" "$ROOT/scripts/uninstall-login-agent.sh" "$ROOT/scripts/uninstall.sh"; do
   grep -q "$LABEL" "$f" || fail "$f does not contain the label $LABEL"
 done
+
+grep -q 'MAGICGESTURES_CONFIG' "$ROOT/src/Config.m" ||
+  managed_fail "the legacy configuration environment override is no longer accepted"
+grep -q "$LEGACY_LABEL" "$APP_SRC" ||
+  managed_fail "the app no longer retires the pre-release login item"
+grep -q 'migrate-legacy-config.sh' "$ROOT/scripts/start.sh" ||
+  managed_fail "start.sh can seed a new config before migrating the old one"
+grep -q 'migrate-legacy-config.sh' "$INSTALL_SH" ||
+  managed_fail "install-login-agent.sh can seed a new config before migrating the old one"
+
+MIGRATION_HOME="$(mktemp -d)"
+mkdir -p "$MIGRATION_HOME/.config/magic-gestures"
+printf '%s\n' 'config-version = 3' > "$MIGRATION_HOME/.config/magic-gestures/config.toml"
+HOME="$MIGRATION_HOME" "$ROOT/scripts/migrate-legacy-config.sh"
+[[ -f "$MIGRATION_HOME/.config/trickpad/config.toml" ]] ||
+  managed_fail "legacy configuration contents were not moved to Trickpad"
+[[ ! -e "$MIGRATION_HOME/.config/magic-gestures" ]] ||
+  managed_fail "the migrated legacy configuration folder remains in place"
 
 for key in RunAtLoad KeepAlive ProcessType; do
   grep -q "<key>$key</key>" "$APP_SRC"    || fail "the app's plist is missing <key>$key</key>"

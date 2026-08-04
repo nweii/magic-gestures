@@ -1,8 +1,8 @@
-# Magic Gestures
+# Trickpad
 
 # Lines without # are active. Save, then choose Reload Settings in the menu bar.
 # Choose Manage with Agent for help, or see the full reference:
-# https://github.com/nweii/magic-gestures/blob/main/GESTURES.md
+# https://github.com/nweii/trickpad/blob/main/GESTURES.md
 
 [GENERAL]
 
@@ -24,7 +24,7 @@ two-finger-tap = { action = "middle-click", defer = true }
 
 # three-finger-tap = "ctrl+cmd+a"
 # two-finger-tap = { action = "middle-click", defer = true }
-# three-finger-tap = "script:~/.config/magic-gestures/scripts/capture-selection"
+# three-finger-tap = "script:~/.config/trickpad/scripts/capture-selection"
 # front-right-tap = "url:raycast://extensions/raycast/raycast-ai/ai-chat"
 # two-finger-click = "right-ctrl+space"  # Experimental; enable the setting above. The normal click also occurs.
 

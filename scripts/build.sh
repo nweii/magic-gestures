@@ -1,8 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-APP_NAME="MagicGestures"
-BUNDLE_ID="fyi.nathancheng.magic-gestures"
+APP_NAME="Trickpad"
+BUNDLE_ID="fyi.thirdwind.trickpad"
 ROOT="${0:A:h:h}"
 SRC_ROOT="$ROOT/src/jitouch/Jitouch"
 BUILD_ROOT="$ROOT/build"
@@ -28,7 +28,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundleDisplayName</key>
-  <string>Magic Gestures</string>
+  <string>Trickpad</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

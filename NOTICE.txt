@@ -1,4 +1,4 @@
-MagicGestures
+Trickpad
 
 Copyright (c) 2026 Nathan Cheng
 
@@ -24,4 +24,4 @@ This repository vendors tomlc17 under `third_party/tomlc17`:
 
 The configuration layer, the build and packaging scripts, the documentation, and
 the Magic Mouse and Magic Trackpad gesture adaptations were added for the
-MagicGestures project in 2026.
+Trickpad project in 2026.

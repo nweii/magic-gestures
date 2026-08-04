@@ -5,16 +5,16 @@ STATUS=0
 
 cd "$ROOT"
 
-echo "Stopping MagicGestures..."
+echo "Starting Trickpad..."
 echo
 
-./scripts/stop.sh || STATUS=$?
+./scripts/start.sh || STATUS=$?
 
 echo
 if [[ $STATUS -eq 0 ]]; then
-  echo "MagicGestures has stopped."
+  echo "Trickpad is running."
 else
-  echo "MagicGestures failed with exit code $STATUS."
+  echo "Trickpad failed with exit code $STATUS."
 fi
 echo
 read '?Press Enter to close this window...'

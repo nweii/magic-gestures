@@ -3,7 +3,7 @@
 
 #import "ScriptRunner.h"
 
-static NSString *const MGScriptErrorDomain = @"MagicGesturesScript";
+static NSString *const MGScriptErrorDomain = @"TrickpadScript";
 
 static NSError *scriptError(NSInteger code, NSString *description) {
     return [NSError errorWithDomain:MGScriptErrorDomain

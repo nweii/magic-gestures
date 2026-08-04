@@ -1,8 +1,8 @@
-# Magic Gestures
+# Trickpad
 
 Trigger an action without taking your hand off the mouse.
 
-Magic Gestures turns finger gestures on a Magic Mouse or Magic Trackpad into
+Trickpad turns finger gestures on a Magic Mouse or Magic Trackpad into
 keyboard shortcuts, built-in actions, custom URLs, or executable scripts. Its
 gestures include taps, swipes, physical multi-finger clicks, and motions where
 you hold one finger still while another taps or slides.
@@ -35,21 +35,21 @@ with a menu bar item and does not affect normal clicks or existing gestures.
 
 ## Install
 
-Magic Gestures requires macOS 13 or later. The first time you run the app, macOS
+Trickpad requires macOS 13 or later. The first time you run the app, macOS
 asks for Accessibility permission so it can send keystrokes. Open System
-Settings > Privacy & Security > Accessibility and turn on Magic Gestures. The
+Settings > Privacy & Security > Accessibility and turn on Trickpad. The
 app starts automatically when you log in. Turn off **Open at Login** from the
 menu bar item if you do not want this.
 
 ### From the release zip
 
 Download the zip from the [Releases
-page](https://github.com/nweii/magic-gestures/releases), unzip it, and drag
-`MagicGestures.app` to Applications.
+page](https://github.com/nweii/trickpad/releases), unzip it, and drag
+`Trickpad.app` to Applications.
 
 The app is ad-hoc signed and not notarized, so macOS blocks it the first time
 you open it. Click **Done**, then open System Settings > Privacy & Security.
-Scroll to the message that MagicGestures was blocked, click **Open Anyway**,
+Scroll to the message that Trickpad was blocked, click **Open Anyway**,
 authenticate, and click **Open** in the final prompt.
 
 ### Build from source
@@ -84,7 +84,7 @@ and encode their parameters.
 Paste this into Claude Code, or any coding agent:
 
 ```text
-Set up https://github.com/nweii/magic-gestures for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/magic-gestures/config.toml, and tell me what I have to approve in System Settings.
+Set up https://github.com/nweii/trickpad for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/trickpad/config.toml, and tell me what I have to approve in System Settings.
 ```
 
 For a zip install, you need to complete the Gatekeeper steps yourself. Building
@@ -104,7 +104,7 @@ Choose **Edit Settings** from the menu bar item, or edit the configuration
 directly:
 
 ```
-~/.config/magic-gestures/config.toml
+~/.config/trickpad/config.toml
 ```
 
 The folder also contains an `AGENTS.md` that explains the format to coding
@@ -148,9 +148,9 @@ scripts, behavior settings, and motions already used by macOS.
 
 ### From a zip install
 
-Turn off **Open at Login** if it is enabled, then choose **Quit Magic Gestures**.
-Drag `MagicGestures.app` to the Trash. Delete `~/.config/magic-gestures` if you
-do not want your settings back later, and remove Magic Gestures from System
+Turn off **Open at Login** if it is enabled, then choose **Quit Trickpad**.
+Drag `Trickpad.app` to the Trash. Delete `~/.config/trickpad` if you
+do not want your settings back later, and remove Trickpad from System
 Settings > Privacy & Security > Accessibility.
 
 ### From a source checkout
@@ -160,16 +160,16 @@ Settings > Privacy & Security > Accessibility.
 ```
 
 This stops the app, removes the login item, and deletes the built app. Your
-settings in `~/.config/magic-gestures/` are kept; pass `--all` to remove those
+settings in `~/.config/trickpad/` are kept; pass `--all` to remove those
 too.
 
 The script cannot remove the Accessibility entry or the project folder. Remove
-Magic Gestures from System Settings > Privacy & Security > Accessibility, then
+Trickpad from System Settings > Privacy & Security > Accessibility, then
 delete the project folder if you no longer need it.
 
 ## Privacy
 
-Magic Gestures needs Accessibility permission because macOS requires it for
+Trickpad needs Accessibility permission because macOS requires it for
 apps that send keystrokes to other apps.
 
 The app has no telemetry, analytics, or crash reporting. It makes no network
@@ -182,8 +182,8 @@ not in the set it listens for.
 
 Touch data stays in memory during ordinary use.
 
-Outside its own folder, Magic Gestures writes to two places. It creates
-`~/.config/magic-gestures/` on first run and puts your `config.toml` and an
+Outside its own folder, Trickpad writes to two places. It creates
+`~/.config/trickpad/` on first run and puts your `config.toml` and an
 `AGENTS.md` describing the installed version there. The app refreshes that file
 when it starts and preserves `config.toml`. Picking a coding agent under **Manage
 with Agent** adds a `manage-with-agent.command` script to that same folder and
@@ -207,7 +207,7 @@ Jitouch is a full gesture app with a catalog of actions built in. It switches
 browser tabs, snaps windows, opens Mission Control, and recognizes letters you
 draw on the trackpad. You pick from that catalog in a preference pane.
 
-Magic Gestures keeps Jitouch's recognizers but lets each gesture send a
+Trickpad keeps Jitouch's recognizers but lets each gesture send a
 configurable keyboard shortcut, open a custom URL, or launch an executable
 script. Jitouch's built-in actions remain available, and a menu bar item
 replaces the preference pane.

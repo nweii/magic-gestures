@@ -1,4 +1,4 @@
-# magic-gestures
+# trickpad
 
 Maps Magic Mouse and Magic Trackpad multi-touch gestures to keystrokes, built-in
 actions, custom URLs, or executable scripts on macOS. Runs as a background agent
@@ -63,7 +63,7 @@ a link to the repository.
 
 `showIcon` in `JitouchAppDelegate.m` builds it. Top to bottom:
 
-- Turn Magic Gestures Off, which suspends recognition without quitting.
+- Turn Trickpad Off, which suspends recognition without quitting.
 - The Accessibility status, which opens the Privacy pane when access is missing.
 - The configuration status, which reports active bindings and skipped lines.
 - Current Gestures, a submenu listing the live bindings by device, each phrased
@@ -71,7 +71,7 @@ a link to the repository.
   exclusions appear as Off.
 - Manage with Agent, a submenu of the coding agents found through the
   user's login shell. Picking one writes
-  `~/.config/magic-gestures/manage-with-agent.command` and opens it, starting
+  `~/.config/trickpad/manage-with-agent.command` and opens it, starting
   that agent in the configuration folder with the running app path and a prompt
   pointing at the installed instructions.
 - Edit Settings, which opens `config.toml` in the user's editor.
@@ -82,7 +82,7 @@ a link to the repository.
 - Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
   or enable verbose logging for the current session. An internal preference can
   also reveal the guided Magic Mouse trace session described below.
-- About Magic Gestures and Quit Magic Gestures.
+- About Trickpad and Quit Trickpad.
 
 ## Releasing
 
@@ -110,7 +110,7 @@ To cut a release:
 git commit -am "Release X.Y.Z"
 git tag -a vX.Y.Z -m "X.Y.Z"
 git push origin main --tags
-gh release create vX.Y.Z --title "X.Y.Z" --notes "..." build/MagicGestures-X.Y.Z.zip
+gh release create vX.Y.Z --title "X.Y.Z" --notes "..." build/Trickpad-X.Y.Z.zip
 ```
 
 Every release carries the zip that `scripts/package.sh` produces, attached to
@@ -137,9 +137,9 @@ docs; it cannot catch a name that used to exist.
 
 ## Configuration model
 
-`src/Config.m` reads `~/.config/magic-gestures/config.toml` and returns the
+`src/Config.m` reads `~/.config/trickpad/config.toml` and returns the
 settings dictionary the engine consumed when it was a plist, so nothing
-downstream knows the format changed. `MAGICGESTURES_CONFIG` overrides the path.
+downstream knows the format changed. `TRICKPAD_CONFIG` overrides the path.
 `resolvedPath` returns nil when no file exists.
 
 The folder is seeded from two files at the project root: `config.default.toml`
@@ -260,7 +260,7 @@ ownership also fails the check.
 ## Login item
 
 `./scripts/install-login-agent.sh` writes a launchd plist to
-`~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist`, which
+`~/Library/LaunchAgents/fyi.thirdwind.trickpad.agent.plist`, which
 starts the agent at login and restarts it if it exits. The generated plist
 opens with a comment naming what it does and pointing back here, since a bare
 launchd label is easy to find and hard to identify.
@@ -273,7 +273,7 @@ It keeps the settings folder unless called with `--all`, and prints the two
 steps that cannot be scripted.
 
 The project writes two things outside its own directory: the launchd plist, and
-`~/.config/magic-gestures/`, which holds `config.toml`, `AGENTS.md`, and
+`~/.config/trickpad/`, which holds `config.toml`, `AGENTS.md`, and
 `manage-with-agent.command`.
 
 ## Logging
@@ -282,7 +282,7 @@ Set `verbose-logging = true` in `config.toml` for per-gesture and per-keystroke
 logging:
 
 ```bash
-/usr/bin/log show --style compact --last 5m --predicate 'process == "MagicGestures"'
+/usr/bin/log show --style compact --last 5m --predicate 'process == "Trickpad"'
 ```
 
 ## Guided traces
@@ -291,13 +291,13 @@ Guided traces are internal and absent from the menu by default. Reveal them for
 local development, then restart the app:
 
 ```bash
-defaults write fyi.nathancheng.magic-gestures InternalTraceDiagnostics -bool true
+defaults write fyi.thirdwind.trickpad InternalTraceDiagnostics -bool true
 ```
 
 Delete that preference to restore the release menu:
 
 ```bash
-defaults delete fyi.nathancheng.magic-gestures InternalTraceDiagnostics
+defaults delete fyi.thirdwind.trickpad InternalTraceDiagnostics
 ```
 
 `TraceRecorder.m` owns bounded hardware capture. It assigns monotonic sequence
@@ -363,11 +363,11 @@ private diagnostic material and do not belong in the repository.
 ## Hotkey compatibility
 
 Some applications watch the keyboard through a CGEventTap and require explicit
-modifier transitions instead of reading only the flags on one key event. Magic
-Gestures sends modifier key-down events, the key down and up with complete
+modifier transitions instead of reading only the flags on one key event. Trickpad
+sends modifier key-down events, the key down and up with complete
 modifier flags, then modifier key-up events. Aqua Voice and Wispr Flow accept
 this sequence. System Events may produce a different sequence, so its result
-does not predict whether a Magic Gestures binding will work. Test the actual
+does not predict whether a Trickpad binding will work. Test the actual
 gesture in the target application.
 
 ## Local modifications to the vendored engine

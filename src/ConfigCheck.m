@@ -1,6 +1,6 @@
 //
 //  ConfigCheck.m
-//  MagicGestures
+//  Trickpad
 //
 //  Copyright 2026 Nathan Cheng. All rights reserved.
 //

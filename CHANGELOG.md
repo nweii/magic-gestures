@@ -1,4 +1,4 @@
-<!-- Records user-visible Magic Gestures releases in reverse chronological order. -->
+<!-- Records user-visible Trickpad releases in reverse chronological order. -->
 
 # Changelog
 
@@ -31,7 +31,7 @@ Released 2026-08-03.
 ### Changed
 
 - Replaced the custom configuration grammar with TOML. Settings now live in
-  `~/.config/magic-gestures/config.toml`; actions, shortcuts, URLs, scripts, and
+  `~/.config/trickpad/config.toml`; actions, shortcuts, URLs, scripts, and
   exclusions are quoted strings.
 - Changed application-specific table headings to TOML nested tables such as
   `[TRACKPAD."Final Cut Pro"]`.

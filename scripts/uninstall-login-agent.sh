@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-LABEL="fyi.nathancheng.magic-gestures.agent"
+LABEL="fyi.thirdwind.trickpad.agent"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
 

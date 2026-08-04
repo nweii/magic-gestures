@@ -1,6 +1,6 @@
 //
 //  Config.m
-//  MagicGestures
+//  Trickpad
 //
 //  Copyright 2026 Nathan Cheng. All rights reserved.
 //
@@ -576,7 +576,10 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 #pragma mark - File loading
 
 + (NSString *)resolvedPath {
-    NSString *override = [[[NSProcessInfo processInfo] environment] objectForKey:@"MAGICGESTURES_CONFIG"];
+    NSDictionary *environment = [[NSProcessInfo processInfo] environment];
+    NSString *override = [environment objectForKey:@"TRICKPAD_CONFIG"];
+    if ([override length] == 0)
+        override = [environment objectForKey:@"MAGICGESTURES_CONFIG"];
     if ([override length] > 0)
         return [override stringByStandardizingPath];
 
@@ -587,7 +590,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 }
 
 + (NSString *)configDirectory {
-    return [@"~/.config/magic-gestures" stringByStandardizingPath];
+    return [@"~/.config/trickpad" stringByStandardizingPath];
 }
 
 // Setting names accepted in [GENERAL]. A name outside this set is reported

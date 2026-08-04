@@ -31,7 +31,7 @@ LOCAL="$(git rev-parse HEAD)"
 REMOTE="$(git rev-parse origin/main)"
 
 if [[ "$LOCAL" == "$REMOTE" ]]; then
-  echo "Magic Gestures is already up to date."
+  echo "Trickpad is already up to date."
   exit 0
 fi
 
@@ -40,7 +40,7 @@ if ! git merge-base --is-ancestor "$LOCAL" "$REMOTE"; then
   exit 1
 fi
 
-echo "Incoming Magic Gestures changes:"
+echo "Incoming Trickpad changes:"
 git log --oneline --no-decorate "$LOCAL..$REMOTE"
 
 if (( ! ASSUME_YES )); then
@@ -58,4 +58,4 @@ git merge --ff-only "$REMOTE"
 ./scripts/stop.sh
 ./scripts/start.sh
 
-echo "Magic Gestures updated successfully."
+echo "Trickpad updated successfully."

@@ -10,7 +10,7 @@
 
 #define kCurrentRevision 26
 #define kAcceptableOldestRevision 13
-#define appID CFSTR("fyi.nathancheng.magic-gestures")
+#define appID CFSTR("fyi.thirdwind.trickpad")
 
 extern NSMutableDictionary *settings;
 extern NSMutableDictionary *trackpadMap;

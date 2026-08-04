@@ -63,7 +63,7 @@ static int notSynchronize;
 + (void)noteSettingsUpdated2 {
     NSAutoreleasePool *autoreleasepool = [[NSAutoreleasePool alloc] init];
     [[NSDistributedNotificationCenter defaultCenter] postNotificationName: @"My Notification2"
-                                                                   object: @"fyi.nathancheng.magic-gestures.PrefpaneTarget2"
+                                                                   object: @"fyi.thirdwind.trickpad.PrefpaneTarget2"
                                                                  userInfo: @{
      @"enAll": [NSNumber numberWithInt:enAll]
      }

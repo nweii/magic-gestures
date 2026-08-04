@@ -2,14 +2,15 @@
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
-APP_NAME="MagicGestures"
+APP_NAME="Trickpad"
 APP_BUNDLE="$ROOT/build/$APP_NAME.app"
-CONFIG_DIR="$HOME/.config/magic-gestures"
-LABEL="fyi.nathancheng.magic-gestures.agent"
+CONFIG_DIR="$HOME/.config/trickpad"
+LABEL="fyi.thirdwind.trickpad.agent"
 PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
 
 mkdir -p "$ROOT/run" "$HOME/Library/LaunchAgents"
+"$ROOT/scripts/migrate-legacy-config.sh"
 
 if [[ ! -x "$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]]; then
   "$ROOT/scripts/build.sh" >/dev/null

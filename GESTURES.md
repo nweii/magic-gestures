@@ -114,7 +114,7 @@ or another application:
 
     two-finger-tap = { action = "ctrl+cmd+a", defer = true }
 
-Magic Gestures waits through the Mac's double-click interval before sending the
+Trickpad waits through the Mac's double-click interval before sending the
 single-tap action. A second matching tap on the same device cancels it. This
 preserves the double-tap gesture at the cost of latency on the single tap.
 
@@ -216,10 +216,10 @@ expanded clipboard contents.
 
 Prefix an executable path with `script:`:
 
-    hold-right-tap-left = "script:~/.config/magic-gestures/scripts/capture-selection"
+    hold-right-tap-left = "script:~/.config/trickpad/scripts/capture-selection"
 
 The path may begin with `~` or be absolute. It must exist and be executable when
-the settings reload. Magic Gestures launches it directly through its shebang,
+the settings reload. Trickpad launches it directly through its shebang,
 uses the script's folder as its working directory, and does not wait for it to
 finish. It does not interpret shell commands, arguments, substitutions, or an
 interactive shell profile. Console records launch failures and nonzero exits.
