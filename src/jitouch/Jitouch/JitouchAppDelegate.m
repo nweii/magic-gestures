@@ -193,10 +193,10 @@ static BOOL runLaunchctl(NSArray *arguments);
 
 // Carries the user's pre-release settings into the renamed app once. A second
 // destination is never merged because choosing between two configs is unsafe.
-- (void)migrateLegacyStateIfNeeded {
+- (BOOL)migrateLegacyStateIfNeeded {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults boolForKey:kDidMigrateLegacyState])
-        return;
+        return NO;
 
     NSFileManager *fm = [NSFileManager defaultManager];
     NSString *legacyConfig = [@"~/.config/magic-gestures" stringByStandardizingPath];
@@ -220,9 +220,10 @@ static BOOL runLaunchctl(NSArray *arguments);
 
     NSString *legacyTarget = [NSString stringWithFormat:@"gui/%d/%@", (int)getuid(),
                               kLegacyLoginAgentLabel];
+    NSString *legacyPlist = [kLegacyLoginAgentPlistPath stringByStandardizingPath];
+    BOOL legacyLoginItemWasInstalled = [fm fileExistsAtPath:legacyPlist];
     runLaunchctl(@[@"bootout", legacyTarget]);
     runLaunchctl(@[@"disable", legacyTarget]);
-    NSString *legacyPlist = [kLegacyLoginAgentPlistPath stringByStandardizingPath];
     if ([fm fileExistsAtPath:legacyPlist]) {
         NSError *error = nil;
         if (![fm removeItemAtPath:legacyPlist error:&error])
@@ -231,6 +232,7 @@ static BOOL runLaunchctl(NSArray *arguments);
 
     [defaults setBool:YES forKey:kDidMigrateLegacyState];
     [defaults synchronize];
+    return legacyLoginItemWasInstalled;
 }
 
 // Removes the launchd job by label rather than plist path, so a job whose
@@ -1661,7 +1663,7 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 */
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-    [self migrateLegacyStateIfNeeded];
+    BOOL legacyLoginItemWasInstalled = [self migrateLegacyStateIfNeeded];
 
     // A zip install has no start.sh or install script to seed the settings
     // folder, so the app seeds it here before resolving the configuration.
@@ -1671,6 +1673,11 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
                      detail:[NSString stringWithFormat:@"%@\n\nGestures run with built-in defaults until %@/config.toml exists.",
                              [seedError localizedDescription], [Config configDirectory]]];
 
+    if (legacyLoginItemWasInstalled) {
+        NSString *failure = [self setLoginItemInstalled:YES];
+        if (failure != nil)
+            [self reportFailure:@"Can't migrate Open at Login." detail:failure];
+    }
     [self enableLoginItemOnFirstLaunch];
 
     NSString *configPath = [Config resolvedPath];
