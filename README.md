@@ -9,7 +9,8 @@ you hold one finger still while another taps or slides.
 
 The default configuration gives a Magic Mouse a middle click and maps a
 hold-and-tap gesture on either device to Return. The app runs in the background
-with a menu bar item and does not affect normal clicks or existing gestures.
+with a menu bar item and leaves normal clicks and existing gestures alone unless
+an experimental Magic Mouse physical-click replacement is explicitly enabled.
 
 ## Features
 
@@ -41,11 +42,10 @@ Settings > Privacy & Security > Accessibility and turn on Trickpad. The
 app starts automatically when you log in. Turn off **Open at Login** from the
 menu bar item if you do not want this.
 
-### From the release zip
+### Official download
 
-Download the zip from the [Releases
-page](https://github.com/nweii/trickpad/releases), unzip it, and drag
-`Trickpad.app` to Applications.
+Official packaged builds are delivered with a purchase through Lemon Squeezy.
+Unzip the download and drag `Trickpad.app` to Applications.
 
 The app is ad-hoc signed and not notarized, so macOS blocks it the first time
 you open it. Click **Done**, then open System Settings > Privacy & Security.
@@ -84,11 +84,11 @@ and encode their parameters.
 Paste this into Claude Code, or any coding agent:
 
 ```text
-Set up https://github.com/nweii/trickpad for me. Install it from the latest release zip, or clone and build from source if that suits my machine better. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/trickpad/config.toml, and tell me what I have to approve in System Settings.
+Set up https://github.com/nweii/trickpad for me. Clone it and build it from source. Ask me what I want a gesture to do, then suggest gestures from the project's GESTURES.md that fit it. A binding can send a shortcut, run a built-in action, open a URL, or launch an executable script. Help me choose the simplest suitable form. If a URL binding fits my request, help construct the app deep link, including clipboard or date/time substitutions when useful. Then edit the settings file the app creates at ~/.config/trickpad/config.toml, and tell me what I have to approve in System Settings.
 ```
 
-For a zip install, you need to complete the Gatekeeper steps yourself. Building
-from source requires the Xcode Command Line Tools but skips those steps.
+An official packaged build requires the Gatekeeper steps above. Building from
+source requires the Xcode Command Line Tools but skips those steps.
 
 ## Default gestures
 
@@ -233,4 +233,5 @@ in two places.
 
 ## License
 
-GPL-3.0, inherited from Jitouch. See `NOTICE.txt` for attribution.
+GPL-3.0, inherited from Jitouch. See `NOTICE.txt` for attribution and
+`TRADEMARKS.md` for the names and app icon.

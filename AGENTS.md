@@ -110,13 +110,15 @@ To cut a release:
 git commit -am "Release X.Y.Z"
 git tag -a vX.Y.Z -m "X.Y.Z"
 git push origin main --tags
-gh release create vX.Y.Z --title "X.Y.Z" --notes "..." build/Trickpad-X.Y.Z.zip
+gh release create vX.Y.Z --title "X.Y.Z" --notes "..."
 ```
 
-Every release carries the zip that `scripts/package.sh` produces, attached to
-the GitHub release. That zip is the install path the README leads with:
-download, unzip, drag the app anywhere, clear Gatekeeper once through System
-Settings > Privacy & Security > Open Anyway.
+GitHub releases carry the tag, changelog, and automatic source archives without
+a packaged binary. The zip that `scripts/package.sh` produces is delivered
+through Lemon Squeezy and must not be attached to GitHub. Packaging refuses to
+reuse a version whose source tag already points at another commit and verifies
+that the app, license, notices, trademark notice, and exact-source link are all
+present in the archive.
 
 The release title is the bare version. The repository name sits above it on
 every page that shows a release, so repeating it adds nothing.
@@ -126,9 +128,10 @@ token already holds. Creating it through `gh api repos/OWNER/REPO/releases`
 works. Pass `--repo` to any `gh release` or `gh repo` command here, or it
 resolves to the `upstream` remote and reports the fork's releases instead.
 
-The app is ad-hoc signed rather than notarized, so anyone installing from the
-zip has to clear Gatekeeper by hand once. Notarizing would need a paid Apple
-Developer account. Building from source stays supported and skips that step.
+The app is ad-hoc signed rather than notarized, so anyone installing the
+official packaged build has to clear Gatekeeper by hand once. Notarizing would
+need a paid Apple Developer account. Building from source stays supported and
+skips that step.
 
 A rename or removal of a configuration name is the one change that needs a
 migration note in the release, because an existing file will silently stop
@@ -350,8 +353,10 @@ private diagnostic material and do not belong in the repository.
 
 - **Add, never replace.** A binding extends what the hardware does. Anything
   System Settings owns — tap-to-click, secondary click, the built-in swipes —
-  keeps behaving as the user configured it. `middle-click` is fair game on a
-  Magic Mouse, which has no middle button to override.
+  keeps behaving as the user configured it. Experimental Magic Mouse physical
+  clicks are the one explicit exception: a confidently recognized configured
+  click replaces the normal primary click. Ambiguous clicks remain native and
+  do not dispatch the binding.
 - **Check both conflict surfaces before binding.** macOS claims some motions,
   listed in `GESTURES.md`. The user's own hotkeys claim some chords, and a
   Caps Lock remapped to Cmd+Alt+Ctrl is a common one worth asking about.
@@ -414,6 +419,9 @@ while retaining substantial fingertips in those regions. The filtered contact
 list feeds Magic Mouse one- and multi-finger taps, hold-one-tap-one recognition, and
 physical-click counting. Counted physical-click fingertips must form a connected cluster;
 `gestureMagicMouseThumb` identifies and excludes a thumb from that cluster.
+A single narrow side contact may join a physical three-finger click only when
+two normal fingertips are already present and all three form one cluster. This
+does not make an ordinary click plus one resting edge contact a two-finger click.
 Do not apply fingertip filtering blindly to swipes or positional gestures whose
 contact geometry has different meaning. Physical-click filtering runs only when
 `experimental-mouse-click-gestures` enables a configured Magic Mouse
@@ -422,6 +430,9 @@ physical-click binding.
 `MouseClickInteraction.m` serializes the CG physical-click stream with Magic
 Mouse touch frames, which arrive on separate callback threads and in either
 order. It retains eligible two- or three-finger contact counts through a bounded
-mouse-up grace period, cancels on drag, and prevents immediate recognition from
-dispatching again on release. Keep this cross-stream lifetime separate from
-contact filtering and recognizer ownership.
+mouse-up grace period and prevents immediate recognition from dispatching again
+on release. A configured experimental click waits only when two or three raw
+contacts need one filtering frame. Confident clicks replace the native lifecycle;
+arbitrary actions dispatch on release, middle-click substitutes down/drag/up,
+and a native drag is restored once movement crosses the drag threshold. Keep
+this cross-stream lifetime separate from contact filtering and recognizer ownership.

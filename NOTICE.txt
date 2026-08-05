@@ -25,3 +25,7 @@ This repository vendors tomlc17 under `third_party/tomlc17`:
 The configuration layer, the build and packaging scripts, the documentation, and
 the Magic Mouse and Magic Trackpad gesture adaptations were added for the
 Trickpad project in 2026.
+
+Trickpad and Third Wind names and the Trickpad app icon are addressed separately
+in TRADEMARKS.md. That notice does not limit the GPLv3 permissions for covered
+material.
