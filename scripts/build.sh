@@ -3,6 +3,7 @@ set -euo pipefail
 
 APP_NAME="Trickpad"
 BUNDLE_ID="fyi.thirdwind.trickpad"
+MIN_MACOS_VERSION="14.0"
 ROOT="${0:A:h:h}"
 SRC_ROOT="$ROOT/src/jitouch/Jitouch"
 BUILD_ROOT="$ROOT/build"
@@ -26,7 +27,7 @@ plutil -remove features "$ICON_BUILD_SOURCE/icon.json" 2>/dev/null || true
 xcrun actool "$ICON_BUILD_SOURCE" \
   --compile "$RES_DIR" \
   --platform macosx \
-  --minimum-deployment-target 13.0 \
+  --minimum-deployment-target "$MIN_MACOS_VERSION" \
   --app-icon "$APP_NAME" \
   --output-partial-info-plist "$ICON_INFO" \
   --warnings \
@@ -61,7 +62,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key>
   <string>12</string>
   <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
+  <string>$MIN_MACOS_VERSION</string>
   <key>LSUIElement</key>
   <true/>
 </dict>
@@ -72,6 +73,7 @@ PLIST
 SDKROOT="$(xcrun --show-sdk-path)"
 
 clang \
+  -mmacosx-version-min="$MIN_MACOS_VERSION" \
   -fobjc-exceptions \
   -fno-objc-arc \
   -I"$SRC_ROOT" \
@@ -118,6 +120,7 @@ cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
 
 # The installed app analyzes its redacted export without depending on source files.
 clang \
+  -mmacosx-version-min="$MIN_MACOS_VERSION" \
   -fblocks \
   -fobjc-exceptions \
   -fno-objc-arc \
@@ -125,6 +128,14 @@ clang \
   -framework Foundation \
   "$ROOT/src/TraceAnalyzer.m" \
   -o "$RES_DIR/analyze-trace"
+
+# Keep the public compatibility claim tied to the binaries users receive.
+for binary in "$MACOS_DIR/$APP_NAME" "$RES_DIR/analyze-trace"; do
+  xcrun vtool -show-build "$binary" | grep -q "minos $MIN_MACOS_VERSION" || {
+    echo "Unexpected deployment target in $binary" >&2
+    exit 1
+  }
+done
 
 # A stable designated requirement lets macOS TCC associate Accessibility
 # permission with this bundle identifier across rebuilds.
