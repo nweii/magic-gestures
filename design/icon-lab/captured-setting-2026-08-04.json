@@ -1,0 +1,42 @@
+{
+  "description": "Trickpad icon settings captured before simplifying the color distribution controls.",
+  "canvas": 1024,
+  "background": {
+    "variant": "light",
+    "lightTop": "#DDE8F4",
+    "lightBottom": "#B4BECB",
+    "darkTop": "#2B3239",
+    "darkBottom": "#11171C"
+  },
+  "gamut": "display-p3",
+  "colorDistribution": {
+    "light": {
+      "frontHue": 213,
+      "frontSaturation": 60,
+      "frontLuminance": 92,
+      "saturationDepth": 37,
+      "luminanceDepth": 21,
+      "frontColorReach": 22
+    },
+    "dark": {
+      "frontHue": 213,
+      "frontSaturation": 52,
+      "frontLuminance": 86,
+      "saturationDepth": 30,
+      "luminanceDepth": 28,
+      "frontColorReach": 22
+    }
+  },
+  "shading": {
+    "surface": "linear",
+    "gradientDepth": 4,
+    "mouseDepth": 15,
+    "rimHighlight": 36
+  },
+  "layers": [
+    {"name": "Trackpad", "width": 762, "height": 600, "radius": 110, "rotation": -26, "opacity": 100},
+    {"name": "Transition 1", "width": 550, "height": 450, "radius": 104, "rotation": -18, "opacity": 100},
+    {"name": "Transition 2", "width": 350, "height": 370, "radius": 104, "rotation": -9, "opacity": 79},
+    {"name": "Mouse", "width": 210, "height": 310, "radius": 94, "rotation": 0, "opacity": 89}
+  ]
+}

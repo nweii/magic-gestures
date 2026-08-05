@@ -9,8 +9,29 @@ BUILD_ROOT="$ROOT/build"
 APP_BUNDLE="$BUILD_ROOT/$APP_NAME.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 RES_DIR="$APP_BUNDLE/Contents/Resources"
+ICON_SOURCE="$ROOT/Trickpad.icon"
+ICON_BUILD_SOURCE="$BUILD_ROOT/Trickpad.icon"
+ICON_INFO="$BUILD_ROOT/TrickpadIconInfo.plist"
 
 mkdir -p "$MACOS_DIR" "$RES_DIR"
+
+# Icon Composer 2.0 writes a top-level feature declaration that its renderer
+# understands but Xcode 26.6's asset compiler rejects. Compile a compatible
+# generated copy while retaining the authored document unchanged.
+ditto "$ICON_SOURCE" "$ICON_BUILD_SOURCE"
+plutil -remove features "$ICON_BUILD_SOURCE/icon.json" 2>/dev/null || true
+
+# Compile the Icon Composer document into the layered asset catalog macOS 26
+# uses, plus the flattened ICNS fallback for earlier supported releases.
+xcrun actool "$ICON_BUILD_SOURCE" \
+  --compile "$RES_DIR" \
+  --platform macosx \
+  --minimum-deployment-target 13.0 \
+  --app-icon "$APP_NAME" \
+  --output-partial-info-plist "$ICON_INFO" \
+  --warnings \
+  --notices \
+  --errors >/dev/null
 
 cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -28,6 +49,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundleDisplayName</key>
+  <string>Trickpad</string>
+  <key>CFBundleIconFile</key>
+  <string>Trickpad</string>
+  <key>CFBundleIconName</key>
   <string>Trickpad</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>

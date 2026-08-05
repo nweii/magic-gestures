@@ -1,0 +1,367 @@
+<!-- Standalone ephemeral lab for tuning the Trickpad icon geometry and palette. It runs without dependencies and exports its current values as Figma-friendly text. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trickpad icon lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111315;
+      color: #eef0f2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #111315; }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 100vh; }
+    .stage {
+      position: sticky; top: 0; height: 100vh; min-height: 640px;
+      display: grid; place-items: center; overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255,255,255,.055), transparent 42%),
+        #181b1e;
+    }
+    .preview-wrap { display: grid; justify-items: center; gap: 22px; }
+    .preview-grid { display: flex; align-items: center; justify-content: center; gap: 28px; }
+    .preview-case { display: grid; justify-items: center; gap: 10px; }
+    .preview-label { font-size: 11px; color: #8f979e; }
+    .preview-case[hidden] { display: none; }
+    .preview-grid.comparing .icon-shell { width: min(32vw, 430px); }
+    .icon-shell {
+      width: min(68vw, 680px); aspect-ratio: 1; position: relative;
+      filter: drop-shadow(0 34px 60px rgba(0,0,0,.34));
+    }
+    .icon {
+      width: 100%; height: 100%; position: relative; overflow: hidden;
+      border-radius: 22.5%;
+      background: linear-gradient(to bottom, var(--bg-top), var(--bg-bottom));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.15), inset 0 -1px 0 rgba(0,0,0,.2);
+    }
+    .shape {
+      position: absolute; left: 50%; top: 50%;
+      width: calc(var(--w) / 1024 * 100%); height: calc(var(--h) / 1024 * 100%);
+      border-radius: calc(var(--r) / 1024 * 100% / (var(--w) / 1024));
+      transform: translate(-50%, -50%) rotate(var(--rot));
+      opacity: var(--alpha);
+      background: var(--color-mid);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 0 0 .5px rgba(10,20,28,.12), inset 0 12px 24px rgba(255,255,255,.055), inset 0 -18px 30px rgba(0,0,0,.1);
+    }
+    .shape[data-surface="gradient"] {
+      background: linear-gradient(var(--gradient-angle), var(--color-high), var(--color-low));
+    }
+    .shape.mouse[data-surface="gradient"] {
+      background: linear-gradient(var(--gradient-angle), var(--mouse-high), var(--mouse-low));
+    }
+    .preview-meta { display: flex; gap: 8px; align-items: center; color: #aab0b6; font-size: 12px; }
+    .badge { border: 1px solid #3b4045; border-radius: 999px; padding: 6px 9px; background: #202428; }
+    .panel { border-left: 1px solid #292d31; background: #17191b; height: 100vh; overflow: auto; }
+    .panel-head { position: sticky; top: 0; z-index: 2; padding: 18px; background: rgba(23,25,27,.94); backdrop-filter: blur(16px); border-bottom: 1px solid #292d31; }
+    h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+    .subtitle { margin-top: 5px; font-size: 12px; color: #8e959b; line-height: 1.4; }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .btn { border: 1px solid #383d42; border-radius: 8px; background: #25292d; padding: 7px 10px; font-size: 12px; cursor: pointer; }
+    .btn:hover { background: #2c3136; }
+    .sections { padding: 8px 14px 28px; }
+    details { border-bottom: 1px solid #292d31; padding: 10px 4px; }
+    summary { cursor: pointer; list-style: none; font-size: 12px; font-weight: 620; color: #d9dde0; padding: 4px 0 8px; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; float: right; color: #747c83; }
+    details[open] summary::after { content: "−"; }
+    .control { display: grid; grid-template-columns: 92px 1fr 44px; gap: 9px; align-items: center; min-height: 31px; }
+    .control label { font-size: 11px; color: #9da4aa; }
+    .control output { font-size: 10px; color: #7f878e; text-align: right; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: #6e91a8; }
+    input[type="color"] { width: 100%; height: 24px; border: 0; padding: 0; background: none; }
+    select { width: 100%; color: #dce0e3; background: #22262a; border: 1px solid #363b40; border-radius: 6px; padding: 5px 7px; font-size: 11px; }
+    .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .swatch { display: grid; gap: 5px; font-size: 10px; color: #858d94; }
+    .versions { padding: 14px 18px 18px; border-top: 1px solid #292d31; display: grid; gap: 9px; }
+    .versions-title { font-size: 12px; font-weight: 620; }
+    .version-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .version-input { min-width: 0; color: #dce0e3; background: #22262a; border: 1px solid #363b40; border-radius: 7px; padding: 7px 9px; font-size: 11px; }
+    .version-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    dialog { width: min(720px, calc(100vw - 32px)); border: 1px solid #3a4046; border-radius: 12px; padding: 0; background: #171a1d; color: #eef0f2; box-shadow: 0 30px 90px rgba(0,0,0,.55); }
+    dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #2d3237; }
+    pre { margin: 0; padding: 16px; max-height: 62vh; overflow: auto; white-space: pre-wrap; color: #cdd5da; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .stage { position: relative; height: 68vh; min-height: 560px; }
+      .panel { height: auto; border-left: 0; border-top: 1px solid #292d31; }
+      .icon-shell { width: min(72vw, 430px); }
+      .preview-grid.comparing { gap: 12px; }
+      .preview-grid.comparing .icon-shell { width: min(43vw, 330px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <div class="preview-wrap">
+        <div class="preview-grid" id="previewGrid">
+          <div class="preview-case"><div class="icon-shell"><div class="icon" id="icon">
+            <div class="shape" data-layer="0"></div>
+            <div class="shape" data-layer="1"></div>
+            <div class="shape" data-layer="2"></div>
+            <div class="shape mouse" data-layer="3"></div>
+          </div></div><span class="preview-label">Current</span></div>
+          <div class="preview-case" id="compareCase" hidden><div class="icon-shell"><div class="icon" id="compareIcon">
+            <div class="shape" data-layer="0"></div>
+            <div class="shape" data-layer="1"></div>
+            <div class="shape" data-layer="2"></div>
+            <div class="shape mouse" data-layer="3"></div>
+          </div></div><span class="preview-label" id="compareLabel">Saved version</span></div>
+        </div>
+        <div class="preview-meta"><span class="badge" id="variantBadge">Light background</span><span class="badge" id="gamutBadge">Display P3</span><span>1024 × 1024</span></div>
+      </div>
+    </section>
+    <aside class="panel">
+      <header class="panel-head">
+        <h1>Trickpad icon lab</h1>
+        <div class="subtitle">Define the front color, then control how it eases backward through the stack.</div>
+        <div class="actions"><button class="btn" id="copyBtn">Copy values</button><button class="btn" id="copyModeBtn">Copy light → dark</button><button class="btn" id="restoreBtn">Restore captured</button><button class="btn" id="resetBtn">Reset</button></div>
+      </header>
+      <div class="sections" id="controls"></div>
+      <section class="versions">
+        <div class="versions-title">Versions</div>
+        <div class="version-row"><input class="version-input" id="versionName" placeholder="Version name"><button class="btn" id="saveVersionBtn">Save</button></div>
+        <select class="version-input" id="versionSelect"><option value="">Choose a saved version</option></select>
+        <div class="version-actions"><button class="btn" id="compareVersionBtn">Compare</button><button class="btn" id="loadVersionBtn">Load</button><button class="btn" id="deleteVersionBtn">Delete</button></div>
+      </section>
+    </aside>
+  </main>
+  <dialog id="exportDialog"><div class="dialog-head"><strong>Current values</strong><button class="btn" id="closeDialog">Close</button></div><pre id="exportText"></pre></dialog>
+  <script>
+    // The control model is deliberately plain data so every useful value can be copied directly into Figma or Icon Composer.
+    const capturedPreset = {
+      colorModelVersion: 5,
+      variant: 'light', gamut: 'p3',
+      palettes: {
+        light: {hue:213, saturation:60, luminance:92, saturationDepth:37, luminanceDepth:21, frontReach:22, backgroundGap:35},
+        dark: {hue:213, saturation:52, luminance:86, saturationDepth:30, luminanceDepth:28, frontReach:22, backgroundGap:35}
+      },
+      gradientRange: 4, mouseDepth: 15, backgroundGradientDepth: 6, surface: 'gradient',
+      bgLightTop: '#DDE8F4', bgLightBottom: '#B4BECB', bgDarkTop: '#2B3239', bgDarkBottom: '#11171C',
+      layers: [
+        {name:'Trackpad', w:762, h:600, r:110, rot:-26, alpha:100},
+        {name:'Transition 1', w:550, h:450, r:104, rot:-18, alpha:100},
+        {name:'Transition 2', w:350, h:370, r:104, rot:-9, alpha:79},
+        {name:'Mouse', w:210, h:310, r:94, rot:0, alpha:89}
+      ]
+    };
+    const defaults = structuredClone(capturedPreset);
+    let state = structuredClone(defaults);
+    const icon = document.querySelector('#icon');
+    const controls = document.querySelector('#controls');
+    const shapes = [...icon.querySelectorAll('.shape')];
+    const compareIcon = document.querySelector('#compareIcon');
+    const compareShapes = [...compareIcon.querySelectorAll('.shape')];
+    let versions = [];
+    try { versions = JSON.parse(localStorage.getItem('trickpad-icon-lab-versions') || '[]'); } catch {}
+    let compareId = '';
+
+    const schemas = [
+      {title:'Color distribution', open:true, fields:[
+        ['variant','Background','select',[['light','Light'],['dark','Dark']]],
+        ['gamut','Preview gamut','select',[['p3','Display P3'],['srgb','sRGB']]],
+        ['hue','Front hue','range',0,360,1,'°'],
+        ['saturation','Front saturation','range',0,100,1,'%'],
+        ['luminance','Front luminance','range',20,98,1,'%'],
+        ['saturationDepth','Saturation depth','range',0,80,1,'%'],
+        ['luminanceDepth','Luminance depth','range',0,60,1,'%'],
+        ['frontReach','Front color reach','range',0,100,1,'%'],
+        ['backgroundGap','Background gap','range',-150,150,1,'%']
+      ]},
+      {title:'Shading', open:false, fields:[
+        ['surface','Fill','select',[['flat','Flat'],['gradient','Gradient']]],
+        ['gradientRange','Gradient depth','range',0,18,1,'%'],
+        ['mouseDepth','Mouse gradient','range',0,32,1,'%'],
+        ['backgroundGradientDepth','Background shading','range',0,24,1,'%']
+      ]}
+    ];
+    const paletteKeys = new Set(['hue','saturation','luminance','saturationDepth','luminanceDepth','frontReach','backgroundGap']);
+    function fieldValue(schema, key) { return paletteKeys.has(key) ? state.palettes[state.variant][key] : state[key]; }
+    function setField(schema, key, value) {
+      if (paletteKeys.has(key)) state.palettes[state.variant][key] = value;
+      else state[key] = value;
+    }
+    function renderControls() {
+      controls.innerHTML = '';
+      schemas.forEach(schema => {
+        const details = document.createElement('details'); details.open = schema.open;
+        const summary = document.createElement('summary'); summary.textContent = schema.title; details.append(summary);
+        schema.fields.forEach(([key,label,type,min,max,step,suffix='']) => {
+          const row = document.createElement('div'); row.className = 'control';
+          const lab = document.createElement('label'); lab.textContent = label;
+          let input;
+          if (type === 'select') {
+            input = document.createElement('select');
+            min.forEach(([value,text]) => input.add(new Option(text,value)));
+          } else {
+            input = document.createElement('input'); input.type = type;
+            if (type === 'range') Object.assign(input,{min,max,step});
+          }
+          input.value = fieldValue(schema,key);
+          const output = document.createElement('output'); output.textContent = type==='color' ? '' : input.value + suffix;
+          input.addEventListener('input', () => {
+            const value = type==='range' ? Number(input.value) : input.value;
+            setField(schema,key,value);
+            if (key === 'variant') { renderControls(); update(); return; }
+            output.textContent = type==='color' ? '' : input.value + suffix; update();
+          });
+          row.append(lab,input,output); details.append(row);
+        });
+        controls.append(details);
+      });
+    }
+    function renderIcon(targetIcon, targetShapes, source, variant) {
+      const palette = source.palettes[variant];
+      const exponent = 4 * Math.pow(16, -palette.frontReach / 100);
+      const backSaturation = Math.max(0, palette.saturation - palette.saturationDepth);
+      const backLuminance = Math.max(0, palette.luminance - palette.luminanceDepth);
+      const color = (h,s,l) => source.gamut === 'p3'
+        ? `oklch(${Math.max(0,Math.min(100,l)).toFixed(2)}% ${(Math.max(0,Math.min(100,s))*0.0032).toFixed(4)} ${h})`
+        : `hsl(${h} ${Math.max(0,Math.min(100,s)).toFixed(2)}% ${Math.max(0,Math.min(100,l)).toFixed(2)}%)`;
+      const backgroundDistance = palette.backgroundGap / 100;
+      const backgroundSaturation = Math.max(0, backSaturation - palette.saturationDepth * Math.abs(backgroundDistance));
+      const backgroundLuminance = Math.max(0, backLuminance - palette.luminanceDepth * backgroundDistance);
+      targetIcon.style.setProperty('--bg-top', color(palette.hue,backgroundSaturation,backgroundLuminance+source.backgroundGradientDepth));
+      targetIcon.style.setProperty('--bg-bottom', color(palette.hue,backgroundSaturation,backgroundLuminance-source.backgroundGradientDepth));
+      targetShapes.forEach((shape,i) => {
+        const l = source.layers[i];
+        const t = i / (source.layers.length - 1);
+        const eased = Math.pow(t, exponent);
+        const saturation = backSaturation + (palette.saturation - backSaturation) * eased;
+        const lightness = backLuminance + (palette.luminance - backLuminance) * eased;
+        shape.dataset.surface = source.surface === 'flat' ? 'flat' : 'gradient';
+        shape.style.cssText = `--w:${l.w};--h:${l.h};--r:${l.r};--rot:${l.rot}deg;--gradient-angle:${180-l.rot}deg;--alpha:${l.alpha/100};--color-high:${color(palette.hue,saturation,lightness+source.gradientRange)};--color-mid:${color(palette.hue,saturation,lightness)};--color-low:${color(palette.hue,saturation,lightness-source.gradientRange)};--mouse-high:${color(palette.hue,saturation,lightness+source.mouseDepth)};--mouse-mid:${color(palette.hue,saturation,lightness)};--mouse-low:${color(palette.hue,saturation,lightness-source.mouseDepth)};`;
+      });
+    }
+    function update() {
+      const isLight = state.variant === 'light';
+      renderIcon(icon, shapes, state, state.variant);
+      document.querySelector('#variantBadge').textContent = `${isLight ? 'Light' : 'Dark'} background`;
+      const p3Supported = CSS.supports('color', 'color(display-p3 1 0 0)') && CSS.supports('color', 'oklch(70% .2 200)');
+      document.querySelector('#gamutBadge').textContent = state.gamut === 'p3' ? (p3Supported ? 'Display P3' : 'P3 unavailable') : 'sRGB';
+      document.querySelector('#copyModeBtn').textContent = isLight ? 'Copy light → dark' : 'Copy dark → light';
+      const compared = versions.find(version => version.id === compareId);
+      document.querySelector('#compareCase').hidden = !compared;
+      document.querySelector('#previewGrid').classList.toggle('comparing', Boolean(compared));
+      if (compared) {
+        renderIcon(compareIcon, compareShapes, compared.state, state.variant);
+        document.querySelector('#compareLabel').textContent = compared.name;
+      }
+      localStorage.setItem('trickpad-icon-lab', JSON.stringify(state));
+    }
+    function exportValues() {
+      const palette=state.palettes[state.variant];
+      const exponent=4*Math.pow(16,-palette.frontReach/100);
+      const backSaturation=Math.max(0,palette.saturation-palette.saturationDepth);
+      const backLuminance=Math.max(0,palette.luminance-palette.luminanceDepth);
+      const backgroundDistance=palette.backgroundGap/100;
+      const backgroundSaturation=Math.max(0,backSaturation-palette.saturationDepth*Math.abs(backgroundDistance));
+      const backgroundLuminance=Math.max(0,backLuminance-palette.luminanceDepth*backgroundDistance);
+      const rows = state.layers.map((l,i) => {
+        const t=i/(state.layers.length-1), eased=Math.pow(t,exponent);
+        const x=(1024-l.w)/2, y=(1024-l.h)/2;
+        const saturation=backSaturation+(palette.saturation-backSaturation)*eased;
+        const lightness=backLuminance+(palette.luminance-backLuminance)*eased;
+        const depth = i===3 ? state.mouseDepth : state.gradientRange;
+        const fill = state.surface === 'flat'
+          ? `flat: ${state.gamut} hue ${palette.hue}, saturation ${saturation.toFixed(1)}%, luminance ${lightness.toFixed(1)}%`
+          : `vertical linear: ${state.gamut} hue ${palette.hue}, saturation ${saturation.toFixed(1)}%, luminance ${(lightness+depth).toFixed(1)}% top → ${(lightness-depth).toFixed(1)}% bottom`;
+        return `${i+1}. ${l.name}\n   X ${x}, Y ${y}, W ${l.w}, H ${l.h}, radius ${l.r}, rotation ${l.rot}°, opacity ${l.alpha}%\n   ${fill}`;
+      }).join('\n\n');
+      return `TRICKPAD ICON — ${state.variant.toUpperCase()} / ${state.gamut.toUpperCase()}\nCanvas 1024 × 1024; all layers centered at 512, 512\nBackground extension: hue ${palette.hue}°, saturation ${backgroundSaturation.toFixed(1)}%, luminance ${backgroundLuminance.toFixed(1)}%, gap ${palette.backgroundGap}%, shading ±${state.backgroundGradientDepth}%\nFront color: hue ${palette.hue}°, saturation ${palette.saturation}%, luminance ${palette.luminance}%\nDepth from back to front: saturation ${palette.saturationDepth}%, luminance ${palette.luminanceDepth}%\nFront reach ${palette.frontReach}% (curve exponent ${exponent.toFixed(2)})\nShading: ${state.surface}, vertical top to bottom, gradient depth ±${state.gradientRange}%\n\n${rows}`;
+    }
+    document.querySelector('#copyBtn').addEventListener('click', async () => {
+      const text = exportValues();
+      try { await navigator.clipboard.writeText(text); document.querySelector('#copyBtn').textContent='Copied'; setTimeout(()=>document.querySelector('#copyBtn').textContent='Copy values',1200); }
+      catch { document.querySelector('#exportText').textContent=text; document.querySelector('#exportDialog').showModal(); }
+    });
+    document.querySelector('#copyModeBtn').addEventListener('click', () => {
+      const target = state.variant === 'light' ? 'dark' : 'light';
+      state.palettes[target] = structuredClone(state.palettes[state.variant]);
+      const button = document.querySelector('#copyModeBtn');
+      button.textContent = `Copied to ${target}`;
+      setTimeout(update, 1000);
+      localStorage.setItem('trickpad-icon-lab', JSON.stringify(state));
+    });
+    function persistVersions() {
+      localStorage.setItem('trickpad-icon-lab-versions', JSON.stringify(versions));
+      renderVersions();
+    }
+    function renderVersions() {
+      const select = document.querySelector('#versionSelect');
+      const selected = select.value || compareId;
+      select.innerHTML = '<option value="">Choose a saved version</option>';
+      versions.forEach(version => select.add(new Option(version.name, version.id)));
+      if (versions.some(version => version.id === selected)) select.value = selected;
+    }
+    document.querySelector('#saveVersionBtn').addEventListener('click', () => {
+      const input = document.querySelector('#versionName');
+      const name = input.value.trim() || `Version ${versions.length + 1}`;
+      const id = `${Date.now()}`;
+      versions.unshift({id,name,createdAt:new Date().toISOString(),state:structuredClone(state)});
+      input.value = '';
+      persistVersions();
+      document.querySelector('#versionSelect').value = id;
+    });
+    document.querySelector('#compareVersionBtn').addEventListener('click', () => {
+      const id = document.querySelector('#versionSelect').value;
+      compareId = compareId === id ? '' : id;
+      update();
+    });
+    document.querySelector('#loadVersionBtn').addEventListener('click', () => {
+      const version = versions.find(item => item.id === document.querySelector('#versionSelect').value);
+      if (!version) return;
+      state = structuredClone(version.state);
+      compareId = '';
+      renderControls(); update();
+    });
+    document.querySelector('#deleteVersionBtn').addEventListener('click', () => {
+      const id = document.querySelector('#versionSelect').value;
+      if (!id) return;
+      versions = versions.filter(version => version.id !== id);
+      if (compareId === id) compareId = '';
+      persistVersions(); update();
+    });
+    document.querySelector('#restoreBtn').addEventListener('click', () => { state=structuredClone(capturedPreset); renderControls(); update(); });
+    document.querySelector('#resetBtn').addEventListener('click', () => { state=structuredClone(defaults); renderControls(); update(); });
+    document.querySelector('#closeDialog').addEventListener('click', () => document.querySelector('#exportDialog').close());
+    const saved = localStorage.getItem('trickpad-icon-lab');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.colorModelVersion === 5 || parsed.colorModelVersion === 4) {
+          state = {...structuredClone(defaults), ...parsed, colorModelVersion:5};
+          state.palettes = {
+            light: {...defaults.palettes.light, ...(parsed.palettes?.light || {})},
+            dark: {...defaults.palettes.dark, ...(parsed.palettes?.dark || {})}
+          };
+          state.layers = defaults.layers.map((layer,i) => ({...layer, ...(parsed.layers?.[i] || {})}));
+          if (!['flat','gradient'].includes(state.surface)) state.surface = 'gradient';
+        } else if (parsed.colorModelVersion === 3) {
+          state = {...structuredClone(defaults), ...parsed, colorModelVersion:5, gamut:'p3'};
+          state.palettes = {
+            light: {
+              hue:parsed.hue ?? 213, saturation:parsed.saturation ?? 60, luminance:parsed.luminance ?? 92,
+              saturationDepth:parsed.saturationDepth ?? 37, luminanceDepth:parsed.luminanceDepth ?? 21,
+              frontReach:parsed.frontReach ?? 22, backgroundGap:35
+            },
+            dark: structuredClone(defaults.palettes.dark)
+          };
+          state.layers = defaults.layers.map((layer,i) => ({...layer, ...(parsed.layers?.[i] || {})}));
+          if (!['flat','gradient'].includes(state.surface)) state.surface = 'gradient';
+        } else {
+          state = structuredClone(capturedPreset);
+        }
+      } catch {}
+    }
+    renderControls(); renderVersions(); update();
+  </script>
+</body>
+</html>
