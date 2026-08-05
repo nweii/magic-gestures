@@ -2,6 +2,27 @@
 
 # Changelog
 
+## 0.7.0
+
+### Added
+
+- Added an experimental Magic Mouse two- or three-finger physical-click binding
+  that can replace the normal click when confidently recognized. It remains off
+  by default; ambiguous clicks and drags keep their native behavior.
+- Added universal Intel and Apple silicon builds for macOS 11 and later.
+
+### Changed
+
+- Renamed Magic Gestures to Trickpad, including its app bundle, login item, and
+  configuration folder. First launch moves an existing
+  `~/.config/magic-gestures` folder to `~/.config/trickpad` when the new folder
+  does not already exist.
+- Official packaged builds are delivered through Lemon Squeezy. GitHub releases
+  carry the source and changelog only.
+
+This changes the alpha installation and configuration location. Existing version
+3 configuration files are migrated automatically when no Trickpad folder exists.
+
 ## 0.6.1
 
 Released 2026-08-03.

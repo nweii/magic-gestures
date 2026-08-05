@@ -59,9 +59,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.6.1</string>
+  <string>0.7.0</string>
   <key>CFBundleVersion</key>
-  <string>12</string>
+  <string>13</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_MACOS_VERSION</string>
   <key>LSUIElement</key>
@@ -155,6 +155,7 @@ done
 # permission with this bundle identifier across rebuilds.
 codesign --force --deep --sign - \
   --requirements "=designated => identifier \"$BUNDLE_ID\"" \
-  "$APP_BUNDLE" >/dev/null 2>&1 || true
+  "$APP_BUNDLE" >/dev/null
+codesign --verify --deep --strict "$APP_BUNDLE" >/dev/null
 
 echo "$APP_BUNDLE"
