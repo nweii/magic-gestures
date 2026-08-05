@@ -27,7 +27,14 @@ int main(void) {
         require(eligibility.stage == MGMouseClickEligibilityAvailable &&
                     eligibility.rawContactCount == 2 && eligibility.eligibleContactCount == 2,
                 @"eligible contacts were not available to the mouse-down snapshot");
+        require(MGMouseClickReplacementContactCount(eligibility, YES, NO) == 2,
+                @"available two-finger replacement was not selected");
+        require(MGMouseClickReplacementContactCount(eligibility, NO, YES) == 0,
+                @"unconfigured two-finger replacement was selected");
         MGMouseClickInteractionObserveRawContacts(&interaction, 2);
+        eligibility = MGMouseClickInteractionEligibilitySnapshot(&interaction);
+        require(MGMouseClickReplacementContactCount(eligibility, YES, YES) == 0,
+                @"filter-pending contacts replaced a native click");
         MGMouseClickInteractionObserveContacts(&interaction, 0, 9.1);
         eligibility = MGMouseClickInteractionEligibilitySnapshot(&interaction);
         require(eligibility.stage == MGMouseClickEligibilityFilteredOut,
@@ -64,6 +71,8 @@ int main(void) {
         MGMouseClickInteractionObserveContacts(&interaction, 2, 40.04);
         MGMouseClickInteractionRecordDrag(&interaction, 1, 1);
         MGMouseClickInteractionRecordDrag(&interaction, -1, 0);
+        require(!MGMouseClickInteractionHasDragged(&interaction),
+                @"minor pointer jitter entered the drag lifecycle");
         require(MGMouseClickInteractionFinish(&interaction) == 2,
                 @"minor pointer jitter canceled a physical click action");
 
@@ -71,6 +80,8 @@ int main(void) {
         MGMouseClickInteractionObserveContacts(&interaction, 2, 45.04);
         MGMouseClickInteractionRecordDrag(&interaction, 3, 0);
         MGMouseClickInteractionRecordDrag(&interaction, 2, 0);
+        require(MGMouseClickInteractionHasDragged(&interaction),
+                @"movement beyond the threshold did not enter the drag lifecycle");
         require(MGMouseClickInteractionFinish(&interaction) == 0,
                 @"a physical drag completed a click action");
 

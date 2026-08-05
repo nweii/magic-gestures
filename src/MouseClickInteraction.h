@@ -40,9 +40,13 @@ int MGMouseClickInteractionObserveContacts(MGMouseClickInteraction *interaction,
                                            double timestamp);
 MGMouseClickEligibilitySnapshot MGMouseClickInteractionEligibilitySnapshot(
     MGMouseClickInteraction *interaction);
+int MGMouseClickReplacementContactCount(MGMouseClickEligibilitySnapshot snapshot,
+                                        BOOL hasTwoFingerBinding,
+                                        BOOL hasThreeFingerBinding);
 void MGMouseClickInteractionBegin(MGMouseClickInteraction *interaction,
                                   double timestamp);
 void MGMouseClickInteractionMarkHandled(MGMouseClickInteraction *interaction);
 void MGMouseClickInteractionRecordDrag(MGMouseClickInteraction *interaction,
                                        int deltaX, int deltaY);
+BOOL MGMouseClickInteractionHasDragged(MGMouseClickInteraction *interaction);
 int MGMouseClickInteractionFinish(MGMouseClickInteraction *interaction);

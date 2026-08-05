@@ -71,3 +71,27 @@ BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,
     }
     return YES;
 }
+
+int MGMagicMouseClusteredThirdFingerIndex(
+    const float *xs, const float *ys,
+    const MGMagicMouseContactDecision *decisions, int contactCount) {
+    if (contactCount != 3)
+        return -1;
+    int keptCount = 0;
+    int sideContactIndex = -1;
+    for (int i = 0; i < contactCount; i++) {
+        if (decisions[i] == MGMagicMouseContactKept)
+            keptCount++;
+        else if (decisions[i] == MGMagicMouseContactExcludedSideNarrow) {
+            if (sideContactIndex >= 0)
+                return -1;
+            sideContactIndex = i;
+        } else {
+            return -1;
+        }
+    }
+    if (keptCount != 2 || sideContactIndex < 0)
+        return -1;
+    return MGMagicMouseContactsFormClickCluster(xs, ys, contactCount)
+        ? sideContactIndex : -1;
+}

@@ -145,6 +145,8 @@ static MGMouseClickInteraction magicMouseClickInteraction = {0};
 static MGContactOnsetTracker magicMouseContactOnsets = {0};
 static int lastLoggedMagicMouseClickContactCount = -1;
 static BOOL trackpadRewritingSecondaryClick = NO;
+static CGEventRef pendingMagicMousePrimaryDown = NULL;
+static NSString *pendingMagicMouseClickGesture = nil;
 static MGGestureSequence magicMouseSequence = {0};
 static int autoScrollFlag;
 static int moveResizeFlag, shouldExitMoveResize;
@@ -155,6 +157,30 @@ static int trackpadTab4Step[2] = {0, 0};
 static BOOL fourFingerTapTriggered = FALSE;
 
 static int trigger = 0;
+
+// Candidate clicks may wait for one touch frame to finish filtering. Ordinary
+// one-contact clicks never take this path.
+static const useconds_t kMagicMouseClickClassificationWaitMicroseconds = 20000;
+static const useconds_t kMagicMouseClickClassificationPollMicroseconds = 500;
+static const int64_t kTrickpadReplayedMouseEvent = 0x545249434b504144;
+
+static void clearPendingMagicMouseClick(void) {
+    if (pendingMagicMousePrimaryDown != NULL) {
+        CFRelease(pendingMagicMousePrimaryDown);
+        pendingMagicMousePrimaryDown = NULL;
+    }
+    [pendingMagicMouseClickGesture release];
+    pendingMagicMouseClickGesture = nil;
+}
+
+static void replayPendingMagicMousePrimaryDown(void) {
+    if (pendingMagicMousePrimaryDown == NULL) return;
+    CGEventSetIntegerValueField(pendingMagicMousePrimaryDown,
+                               kCGEventSourceUserData,
+                               kTrickpadReplayedMouseEvent);
+    CGEventPost(kCGSessionEventTap, pendingMagicMousePrimaryDown);
+    clearPendingMagicMouseClick();
+}
 
 enum {
     kGestureOwnerPhysicalClick = 1,
@@ -324,6 +350,7 @@ static void turnOffMagicMouse() {
     MGGestureSequenceInitialize(&magicMouseSequence);
     MGMouseClickInteractionInitialize(&magicMouseClickInteraction);
     magicMouseContactOnsets = (MGContactOnsetTracker){0};
+    clearPendingMagicMouseClick();
     [cursorWindow orderOut:nil];
 }
 
@@ -1082,10 +1109,10 @@ static BOOL hasThreeFingerSwipeBinding(int device) {
 
 static void dispatchMagicMousePhysicalClickForContactCount(int contactCount) {
     NSString *gesture = nil;
-    if (contactCount == 2 && (MGTraceIsActive() ||
+    if (contactCount == 2 && (MGTraceObservesUnconfiguredGesture(@"Two-Finger Click") ||
         bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil))
         gesture = @"Two-Finger Click";
-    else if (contactCount == 3 && (MGTraceIsActive() ||
+    else if (contactCount == 3 && (MGTraceObservesUnconfiguredGesture(@"Three-Finger Click") ||
         bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil))
         gesture = @"Three-Finger Click";
     if (gesture != nil) {
@@ -3992,6 +4019,10 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
             hasThreeFingerSwipeBinding(MAGICMOUSE));
 
         float clickXs[8], clickYs[8];
+        float physicalXs[16], physicalYs[16];
+        MGMagicMouseContactDecision physicalDecisions[16];
+        int physicalIndexes[16];
+        int physicalContactCount = 0;
         Finger tapData[16];
         int tapContactCount = 0;
         int thumbIndex = thumbPresent - 1;
@@ -4004,7 +4035,16 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
                 traceQualityDecisions[i] = qualityDecision;
                 traceExcludedAsThumb[i] = excludedAsThumb;
             }
-            if (excludedAsThumb || excludedByQuality)
+            if (excludedAsThumb)
+                continue;
+            if (physicalContactCount < 16) {
+                physicalXs[physicalContactCount] = data[i].px;
+                physicalYs[physicalContactCount] = data[i].py;
+                physicalDecisions[physicalContactCount] = qualityDecision;
+                physicalIndexes[physicalContactCount] = i;
+                physicalContactCount++;
+            }
+            if (excludedByQuality)
                 continue;
             if (tapContactCount < 16)
                 tapData[tapContactCount++] = data[i];
@@ -4013,6 +4053,15 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
                 clickYs[eligibleClickContactCount] = data[i].py;
                 eligibleClickContactCount++;
             }
+        }
+        int rescuedPhysicalIndex = MGMagicMouseClusteredThirdFingerIndex(
+            physicalXs, physicalYs, physicalDecisions, physicalContactCount);
+        int rescuedDataIndex = rescuedPhysicalIndex >= 0
+            ? physicalIndexes[rescuedPhysicalIndex] : -1;
+        if (rescuedDataIndex >= 0 && eligibleClickContactCount < 8) {
+            clickXs[eligibleClickContactCount] = data[rescuedDataIndex].px;
+            clickYs[eligibleClickContactCount] = data[rescuedDataIndex].py;
+            eligibleClickContactCount++;
         }
         clickCluster = MGMagicMouseContactsFormClickCluster(
             clickXs, clickYs, eligibleClickContactCount);
@@ -4031,9 +4080,12 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
                 MGMagicMouseContactDecision qualityDecision = traceQualityDecisions[i];
                 BOOL excludedAsThumb = traceExcludedAsThumb[i];
                 BOOL excludedByQuality = qualityDecision != MGMagicMouseContactKept;
+                BOOL rescuedForClick = i == rescuedDataIndex;
                 MGTraceRecordFilterDecision(data[i].identifier,
-                    excludedAsThumb ? @"thumb-id" : MGMagicMouseContactDecisionName(qualityDecision),
-                    !(excludedAsThumb || excludedByQuality), data[i].px, data[i].py,
+                    excludedAsThumb ? @"thumb-id" : rescuedForClick
+                        ? @"side-narrow-clustered-third"
+                        : MGMagicMouseContactDecisionName(qualityDecision),
+                    rescuedForClick || !(excludedAsThumb || excludedByQuality), data[i].px, data[i].py,
                     data[i].size, data[i].majorAxis, data[i].minorAxis);
             }
             if (!clickCluster)
@@ -4235,13 +4287,39 @@ static void multitouchDeviceRemoved(void* refCon, io_iterator_t iterator) {
 #pragma mark - CGEventCallback
 
 static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
+    if (CGEventGetIntegerValueField(event, kCGEventSourceUserData) ==
+        kTrickpadReplayedMouseEvent)
+        return event;
     BOOL physicalMouseDown = type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown;
     MGMouseClickEligibilitySnapshot mouseDownEligibility = {0};
+    int replacementMagicMouseContactCount = 0;
+    BOOL hasConfiguredMagicMousePhysicalClick = NO;
     if (physicalMouseDown) {
         MGMouseClickInteractionBegin(&magicMouseClickInteraction,
                                      CFAbsoluteTimeGetCurrent());
         mouseDownEligibility =
             MGMouseClickInteractionEligibilitySnapshot(&magicMouseClickInteraction);
+        BOOL hasTwoFingerBinding =
+            bindingForGesture(@"Two-Finger Click", MAGICMOUSE) != nil;
+        BOOL hasThreeFingerBinding =
+            bindingForGesture(@"Three-Finger Click", MAGICMOUSE) != nil;
+        hasConfiguredMagicMousePhysicalClick =
+            hasTwoFingerBinding || hasThreeFingerBinding;
+        BOOL rawCandidate =
+            (mouseDownEligibility.rawContactCount == 2 && hasTwoFingerBinding) ||
+            (mouseDownEligibility.rawContactCount == 3 && hasThreeFingerBinding);
+        if (!MGTraceIsActive() && rawCandidate) {
+            useconds_t waited = 0;
+            while (mouseDownEligibility.stage == MGMouseClickEligibilityFilterPending &&
+                   waited < kMagicMouseClickClassificationWaitMicroseconds) {
+                usleep(kMagicMouseClickClassificationPollMicroseconds);
+                waited += kMagicMouseClickClassificationPollMicroseconds;
+                mouseDownEligibility =
+                    MGMouseClickInteractionEligibilitySnapshot(&magicMouseClickInteraction);
+            }
+            replacementMagicMouseContactCount = MGMouseClickReplacementContactCount(
+                mouseDownEligibility, hasTwoFingerBinding, hasThreeFingerBinding);
+        }
     }
     NSString *traceCGEvent = nil;
     if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown) traceCGEvent = @"mouse-down";
@@ -4338,11 +4416,21 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         }
         if (simulating) {   //simulating should be reset when mouseup, but sometimes mouseup doesn't get called
             simulating = 0; //so we have to reset it manually
+            clearPendingMagicMouseClick();
         }
         NSString *gesture = nil;
         int device = 0;
         NSUInteger mouseOwnerBeforeClick = magicMouseSequence.owner;
-        if (middleClickFlag && bindingForGesture(@"Middle Click", MAGICMOUSE) != nil) {
+        if (replacementMagicMouseContactCount == 2)
+            gesture = @"Two-Finger Click";
+        else if (replacementMagicMouseContactCount == 3)
+            gesture = @"Three-Finger Click";
+        if (gesture != nil) {
+            if (!MGGestureSequenceTryClaim(&magicMouseSequence, kGestureOwnerPhysicalClick))
+                gesture = nil;
+            else
+                device = MAGICMOUSE;
+        } else if (middleClickFlag && bindingForGesture(@"Middle Click", MAGICMOUSE) != nil) {
             gesture = @"Middle Click";
             device = MAGICMOUSE;
         }
@@ -4385,11 +4473,20 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
             } else if (command == nil) {
             } else { // command that will be done by this case must not create a new click event
                 simulating = IGNOREMOUSE;
-                dispatchCommand(gesture, device);
+                if (replacementMagicMouseContactCount > 0) {
+                    pendingMagicMousePrimaryDown = CGEventCreateCopy(event);
+                    pendingMagicMouseClickGesture = [gesture copy];
+                } else {
+                    dispatchCommand(gesture, device);
+                }
                 return NULL;
             }
             if (!MGTraceIsActive() && command != nil && logLevel >= LOG_LEVEL_INFO)
                 NSLog(@"Gesture \"%@\" -> \"%@\" for %@", gesture, command, deviceTypeName[device]);
+        } else if (!MGTraceIsActive() && hasConfiguredMagicMousePhysicalClick) {
+            // Once native mouse-down passes through, a later touch frame must not
+            // dispatch the configured action over an already-delivered click.
+            MGMouseClickInteractionMarkHandled(&magicMouseClickInteraction);
         }
 
 
@@ -4399,6 +4496,8 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         }
 
     } else if (type == kCGEventLeftMouseUp || type == kCGEventRightMouseUp) {
+        BOOL magicMouseClickDragged =
+            MGMouseClickInteractionHasDragged(&magicMouseClickInteraction);
         int lateMagicMouseClickContactCount =
             MGMouseClickInteractionFinish(&magicMouseClickInteraction);
         if (logLevel >= LOG_LEVEL_DEBUG)
@@ -4429,6 +4528,10 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
             simulating = 0;
             if (logLevel >= LOG_LEVEL_DEBUG) NSLog(@"Simulated CommandLeftMouseUp");
         } else if (simulating == IGNOREMOUSE) {
+            if (pendingMagicMouseClickGesture != nil && !magicMouseClickDragged)
+                dispatchExclusiveCommand(pendingMagicMouseClickGesture, MAGICMOUSE,
+                                         kGestureOwnerPhysicalClick);
+            clearPendingMagicMouseClick();
             simulating = 0;
             return NULL;
         }
@@ -4476,6 +4579,12 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         }
     } else if (type == kCGEventLeftMouseDragged || type == kCGEventRightMouseDragged) {
         if (simulating == IGNOREMOUSE) {
+            if (pendingMagicMousePrimaryDown != NULL &&
+                MGMouseClickInteractionHasDragged(&magicMouseClickInteraction)) {
+                replayPendingMagicMousePrimaryDown();
+                simulating = 0;
+                return event;
+            }
             return NULL;
         } else if (simulating == MIDDLEBUTTONDOWN) {
             CGEventSetIntegerValueField(event, kCGMouseEventButtonNumber, 2);

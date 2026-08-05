@@ -21,8 +21,8 @@ tapping. Either hand works, and either finger can play either part.
 | `one-finger-tap` | Tap with one finger |
 | `two-finger-tap` | Tap with two fingers |
 | `three-finger-tap` | Tap with three fingers |
-| `two-finger-click` | Experimental: physically click with two fingers touching |
-| `three-finger-click` | Experimental: physically click with three fingers touching |
+| `two-finger-click` | Experimental: physically click with two fingers touching; replaces the normal click |
+| `three-finger-click` | Experimental: physically click with three fingers touching; replaces the normal click |
 | `front-right-tap` | Tap the front right of the surface |
 | `one-finger-swipe-left` | Swipe left with one finger |
 | `one-finger-swipe-right` | Swipe right with one finger |
@@ -234,7 +234,7 @@ interactive shell profile. Console records launch failures and nonzero exits.
 | `dominant-hand` | `left` or `right`; mirrors positional recognition for left-handed use, default `right` |
 | `tap-speed` | Seconds a tap may last, default `0.25` |
 | `haptic-feedback` | `true` requests confirmation for configured trackpad gestures, default `true` |
-| `experimental-mouse-click-gestures` | `true` enables posture-sensitive Magic Mouse physical-click bindings, default `false` |
+| `experimental-mouse-click-gestures` | `true` enables posture-sensitive Magic Mouse physical-click replacements, default `false` |
 | `verbose-logging` | `true` logs every gesture and keystroke to Console |
 
 Booleans are `true` or `false`, following TOML.

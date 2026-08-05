@@ -93,6 +93,18 @@ MGMouseClickEligibilitySnapshot MGMouseClickInteractionEligibilitySnapshot(
     return snapshot;
 }
 
+int MGMouseClickReplacementContactCount(MGMouseClickEligibilitySnapshot snapshot,
+                                        BOOL hasTwoFingerBinding,
+                                        BOOL hasThreeFingerBinding) {
+    if (snapshot.stage != MGMouseClickEligibilityAvailable)
+        return 0;
+    if (snapshot.eligibleContactCount == 2 && hasTwoFingerBinding)
+        return 2;
+    if (snapshot.eligibleContactCount == 3 && hasThreeFingerBinding)
+        return 3;
+    return 0;
+}
+
 void MGMouseClickInteractionBegin(MGMouseClickInteraction *interaction,
                                   double timestamp) {
     os_unfair_lock_lock(&interaction->lock);
@@ -125,6 +137,13 @@ void MGMouseClickInteractionRecordDrag(MGMouseClickInteraction *interaction,
             kMouseClickDragThreshold * kMouseClickDragThreshold;
     }
     os_unfair_lock_unlock(&interaction->lock);
+}
+
+BOOL MGMouseClickInteractionHasDragged(MGMouseClickInteraction *interaction) {
+    os_unfair_lock_lock(&interaction->lock);
+    BOOL dragged = interaction->dragged;
+    os_unfair_lock_unlock(&interaction->lock);
+    return dragged;
 }
 
 int MGMouseClickInteractionFinish(MGMouseClickInteraction *interaction) {

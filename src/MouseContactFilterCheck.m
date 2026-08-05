@@ -65,6 +65,31 @@ int main(void) {
         require(!MGMagicMouseContactsFormClickCluster(threeXs, threeYs, 3),
                 @"isolated third contact joined a click cluster");
 
+        float clusteredThirdXs[] = {0.06, 0.34, 0.62};
+        float clusteredThirdYs[] = {0.68, 0.72, 0.75};
+        MGMagicMouseContactDecision clusteredThirdDecisions[] = {
+            MGMagicMouseContactExcludedSideNarrow,
+            MGMagicMouseContactKept,
+            MGMagicMouseContactKept,
+        };
+        require(MGMagicMouseClusteredThirdFingerIndex(
+                    clusteredThirdXs, clusteredThirdYs,
+                    clusteredThirdDecisions, 3) == 0,
+                @"connected side contact was not retained as a third click finger");
+        MGMagicMouseContactDecision ordinaryEdgeClick[] = {
+            MGMagicMouseContactExcludedSideNarrow,
+            MGMagicMouseContactKept,
+        };
+        require(MGMagicMouseClusteredThirdFingerIndex(
+                    clusteredThirdXs, clusteredThirdYs,
+                    ordinaryEdgeClick, 2) == -1,
+                @"ordinary click with one resting edge contact became a two-finger click");
+        float disconnectedThirdXs[] = {0.01, 0.62, 0.88};
+        require(MGMagicMouseClusteredThirdFingerIndex(
+                    disconnectedThirdXs, clusteredThirdYs,
+                    clusteredThirdDecisions, 3) == -1,
+                @"disconnected side contact was retained as a third click finger");
+
         NSLog(@"mouse contact filter: all checks passed");
     }
     return 0;

@@ -16,3 +16,6 @@ BOOL MGMagicMouseContactShouldBeExcluded(float x, float y, float size,
                                          float minorAxis);
 BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,
                                           int contactCount);
+int MGMagicMouseClusteredThirdFingerIndex(
+    const float *xs, const float *ys,
+    const MGMagicMouseContactDecision *decisions, int contactCount);

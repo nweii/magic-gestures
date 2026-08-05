@@ -26,7 +26,7 @@ two-finger-tap = { action = "middle-click", defer = true }
 # two-finger-tap = { action = "middle-click", defer = true }
 # three-finger-tap = "script:~/.config/trickpad/scripts/capture-selection"
 # front-right-tap = "url:raycast://extensions/raycast/raycast-ai/ai-chat"
-# two-finger-click = "right-ctrl+space"  # Experimental; enable the setting above. The normal click also occurs.
+# two-finger-click = "right-ctrl+space"  # Experimental; replaces the normal click when recognized.
 
 [TRACKPAD]
 
