@@ -12,6 +12,8 @@
 - Added universal Intel and Apple silicon builds for macOS 11 and later.
 - Added a configurable menu-bar icon. Use the bundled Trickpad mark or name an
   SF Symbol in `config.toml`; suspended gestures dim either choice.
+- Added a provider-independent Get Latest Version menu item that opens Trickpad's
+  stable download-retrieval page.
 
 ### Changed
 

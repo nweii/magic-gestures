@@ -323,6 +323,8 @@ for f in "$ROOT/config.default.toml" "$ROOT/config-notes.default.md"; do
 done
 grep -q 'https://thirdwind.fyi/trickpad.md' "$APP_SRC" ||
   managed_fail "Copy Prompt does not point agents to the website documentation"
+grep -q 'https://thirdwind.fyi/trickpad/download' "$APP_SRC" ||
+  managed_fail "Get Latest Version does not point to the stable retrieval page"
 for f in "$ROOT/config.default.toml" "$ROOT/config-notes.default.md" "$ROOT/GESTURES.md"; do
   grep -q 'defer = true' "$f" || managed_fail "$f does not document deferred tap bindings"
   grep -q 'script:' "$f" || managed_fail "$f does not document script bindings"

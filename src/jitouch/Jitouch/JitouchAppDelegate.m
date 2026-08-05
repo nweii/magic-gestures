@@ -598,6 +598,10 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://thirdwind.fyi/trickpad/"]];
 }
 
+- (void)getLatestVersion:(id)sender {
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://thirdwind.fyi/trickpad/download"]];
+}
+
 - (void)openAccessibilitySettings:(id)sender {
     NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"];
     [[NSWorkspace sharedWorkspace] openURL:url];
@@ -1434,6 +1438,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         [NSString stringWithFormat:@"Version %@", version ?: @"unknown"]
                                                   action:NULL keyEquivalent:@""];
     [versionItem setEnabled:NO];
+    NSMenuItem *downloadItem = [aboutMenu addItemWithTitle:@"Get Latest Version..."
+                                                    action:@selector(getLatestVersion:)
+                                             keyEquivalent:@""];
+    [downloadItem setTarget:self];
     NSMenuItem *websiteItem = [aboutMenu addItemWithTitle:@"Website..." action:@selector(about:) keyEquivalent:@""];
     [websiteItem setTarget:self];
 

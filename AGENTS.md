@@ -82,7 +82,8 @@ a link to the product website.
 - Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
   or enable verbose logging for the current session. An internal preference can
   also reveal the guided Magic Mouse trace session described below.
-- About Trickpad and Quit Trickpad.
+- About Trickpad, whose submenu shows the running version and opens the stable
+  product-owned website and latest-version retrieval page, then Quit Trickpad.
 
 ## Releasing
 
