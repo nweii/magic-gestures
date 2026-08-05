@@ -36,7 +36,8 @@ an experimental Magic Mouse physical-click replacement is explicitly enabled.
 
 ## Install
 
-Trickpad requires macOS 14 or later. The first time you run the app, macOS
+Trickpad requires macOS 11 or later and supports Intel and Apple silicon Macs.
+The first time you run the app, macOS
 asks for Accessibility permission so it can send keystrokes. Open System
 Settings > Privacy & Security > Accessibility and turn on Trickpad. The
 app starts automatically when you log in. Turn off **Open at Login** from the

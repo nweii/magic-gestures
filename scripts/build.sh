@@ -3,7 +3,8 @@ set -euo pipefail
 
 APP_NAME="Trickpad"
 BUNDLE_ID="fyi.thirdwind.trickpad"
-MIN_MACOS_VERSION="14.0"
+MIN_MACOS_VERSION="11.0"
+ARCHITECTURES=(x86_64 arm64)
 ROOT="${0:A:h:h}"
 SRC_ROOT="$ROOT/src/jitouch/Jitouch"
 BUILD_ROOT="$ROOT/build"
@@ -73,7 +74,10 @@ PLIST
 SDKROOT="$(xcrun --show-sdk-path)"
 
 clang \
+  -arch x86_64 \
+  -arch arm64 \
   -mmacosx-version-min="$MIN_MACOS_VERSION" \
+  -Werror=unguarded-availability-new \
   -fobjc-exceptions \
   -fno-objc-arc \
   -I"$SRC_ROOT" \
@@ -120,7 +124,10 @@ cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
 
 # The installed app analyzes its redacted export without depending on source files.
 clang \
+  -arch x86_64 \
+  -arch arm64 \
   -mmacosx-version-min="$MIN_MACOS_VERSION" \
+  -Werror=unguarded-availability-new \
   -fblocks \
   -fobjc-exceptions \
   -fno-objc-arc \
@@ -135,6 +142,13 @@ for binary in "$MACOS_DIR/$APP_NAME" "$RES_DIR/analyze-trace"; do
     echo "Unexpected deployment target in $binary" >&2
     exit 1
   }
+  built_architectures="$(lipo -archs "$binary")"
+  for architecture in "${ARCHITECTURES[@]}"; do
+    [[ " $built_architectures " == *" $architecture "* ]] || {
+      echo "Missing $architecture architecture in $binary" >&2
+      exit 1
+    }
+  done
 done
 
 # A stable designated requirement lets macOS TCC associate Accessibility
