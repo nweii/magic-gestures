@@ -64,4 +64,9 @@
         ? MGTraceSessionComplete : MGTraceSessionPreparing;
 }
 
+- (void)retryCurrentStep {
+    if (![self labelsEnabled]) return;
+    _phase = MGTraceSessionPreparing;
+}
+
 @end

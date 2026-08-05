@@ -357,23 +357,7 @@ static NSString *describeBinding(NSDictionary *g) {
     if ([[g objectForKey:@"IsAction"] boolValue])
         return [g objectForKey:@"Command"] ?: @"";
 
-    NSUInteger flags = [[g objectForKey:@"ModifierFlags"] unsignedIntegerValue];
-    NSMutableString *out = [NSMutableString string];
-    if (flags & kCGEventFlagMaskControl)   [out appendString:@"⌃"];
-    if (flags & kCGEventFlagMaskAlternate) [out appendString:@"⌥"];
-    if (flags & kCGEventFlagMaskShift)     [out appendString:@"⇧"];
-    if (flags & kCGEventFlagMaskCommand)   [out appendString:@"⌘"];
-
-    // Keys without a printed character use names instead of the glyphs returned
-    // by codeToChar.
-    CGKeyCode code = (CGKeyCode)[[g objectForKey:@"KeyCode"] unsignedIntValue];
-    NSDictionary *named = @{@36: @"Return", @53: @"Escape", @48: @"Tab",
-                            @49: @"Space", @51: @"Delete", @117: @"Forward Delete",
-                            @76: @"Enter", @123: @"Left", @124: @"Right",
-                            @125: @"Down", @126: @"Up"};
-    NSString *key = [named objectForKey:@(code)] ?: [KeyUtility codeToChar:code];
-    [out appendString:key ?: @""];
-    return out;
+    return [Config keystrokeDisplayNameForBinding:g];
 }
 
 // Two levels above the bundle, which is the project root when the app was built
@@ -886,8 +870,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         NSDictionary *status = MGTraceStatus();
         NSString *stateInstruction = phase == MGTraceSessionPreparing
             ? (manualCapture
-                ? @"Lift fully, then press Start countdown. After the tone, use the mouse in any app as you normally would."
-                : @"Place the pointer in the gray test surface, lift fully, then press Start countdown.")
+                ? @"Lift fully, then click the gray test surface or press Space. After the tone, use the mouse in any app as you normally would."
+                : @"Place the pointer in the gray test surface, lift fully, then click anywhere in the surface or press Space.")
             : phase == MGTraceSessionCountdown
                 ? [NSString stringWithFormat:@"Keep fully lifted and still. Recording begins in %ld…",
                     (long)[traceSession countdown]]
@@ -915,9 +899,9 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 
     BOOL overview = phase == MGTraceSessionOverview;
     BOOL preparing = phase == MGTraceSessionPreparing;
-    [tracePrimaryButton setHidden:!(overview || preparing)];
-    [tracePrimaryButton setTitle:overview ? @"Begin session ↩" : @"Start countdown Space"];
-    [tracePrimaryButton setKeyEquivalent:overview ? @"\r" : @" "];
+    [tracePrimaryButton setHidden:!overview];
+    [tracePrimaryButton setTitle:@"Begin session ↩"];
+    [tracePrimaryButton setKeyEquivalent:@"\r"];
     for (NSButton *button in traceLabelButtons) {
         [button setEnabled:[traceSession labelsEnabled]];
         [button setHidden:![traceSession labelsEnabled]];
@@ -988,6 +972,11 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [self updateTraceWindow];
 }
 
+- (void)traceSurfaceClicked:(id)sender {
+    if ([traceSession phase] == MGTraceSessionPreparing)
+        [self tracePrimary:sender];
+}
+
 - (void)buildTraceWindow {
     if (tracePanel != nil) return;
     tracePanel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 720, 610)
@@ -1002,7 +991,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [traceProgressBar setMaxValue:[[traceSession steps] count]];
     traceHeading = [traceText(NSMakeRect(28, 490, 664, 38), 24, YES) retain];
     traceDetail = [traceText(NSMakeRect(28, 375, 664, 105), 15, NO) retain];
-    traceSurface = [[NSView alloc] initWithFrame:NSMakeRect(28, 145, 664, 210)];
+    NSButton *surfaceButton = [[NSButton alloc] initWithFrame:NSMakeRect(28, 145, 664, 210)];
+    [surfaceButton setBordered:NO]; [surfaceButton setTitle:@""];
+    [surfaceButton setTarget:self]; [surfaceButton setAction:@selector(traceSurfaceClicked:)];
+    traceSurface = surfaceButton;
     [traceSurface setWantsLayer:YES];
     [[traceSurface layer] setBackgroundColor:[[NSColor colorWithWhite:0.18 alpha:1] CGColor]];
     [[traceSurface layer] setCornerRadius:12];
@@ -1072,8 +1064,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         : ambientCapture
         ? @"This captures up to two minutes of ordinary Magic Mouse use so any unexpected configured gesture can be identified without guessing what motion caused it. Work normally after the countdown. Trickpad actions are suppressed, and the panel counts every would-be gesture dispatch. Choose Stop, then Export Partial when finished."
         : tapCalibration
-        ? @"This takes about 3 minutes. It compares deliberate two-finger taps, including taps near an edge, against your natural resting edge contact during ordinary clicks, scrolling, and a brief extra touch. Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Trickpad actions are suppressed; native mouse behavior remains active."
-        : @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. After each label, the next three-second countdown starts automatically. Configured Trickpad actions are suppressed; native mouse behavior remains active.") copy];
+        ? @"This takes about 3 minutes. It compares deliberate two-finger taps, including taps near an edge, against your natural resting edge contact during ordinary clicks, scrolling, and a brief extra touch. Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. Botched retries the same step; the other labels advance. Configured Trickpad actions are suppressed; native mouse behavior remains active."
+        : @"This takes about 4 minutes. It compares natural, deliberately held, and immediate lifts, upper and lower contact positions, then checks drag, contact-shape, scroll, tap, and rapid-repeat conflicts. Trickpad reports detection automatically. You only label whether your physical attempt matched the instruction.\n\nUse Return, M, U, or K so the pointer can stay in the gray surface. Botched retries the same step; the other labels advance. Configured Trickpad actions are suppressed; native mouse behavior remains active.") copy];
     [activeTraceObservedGesture release];
     activeTraceObservedGesture = [((ambientCapture || catalogAudit) ? @"*" :
         tapCalibration ? @"Two-Finger Tap" : nil) copy];
@@ -1095,7 +1087,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     if (labelIndex < 0 || labelIndex >= (NSInteger)[labels count]) return;
     NSString *label = [labels objectAtIndex:labelIndex];
     MGTraceMarkStep(label);
-    [traceSession markCurrentStep];
+    if ([label isEqualToString:@"botched"])
+        [traceSession retryCurrentStep];
+    else
+        [traceSession markCurrentStep];
     traceProtocolIndex = [traceSession stepIndex];
     if ([traceSession phase] == MGTraceSessionComplete) {
         [tracePollTimer invalidate]; tracePollTimer = nil;

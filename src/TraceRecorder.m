@@ -314,6 +314,17 @@ BOOL MGTraceAuditsGestureCatalog(void) {
     return audits;
 }
 
+BOOL MGTraceObservesUnconfiguredGesture(NSString *gesture) {
+    if (!MGTraceIsActive() || gesture == nil) return NO;
+    MGTraceState *state = traceState();
+    os_unfair_lock_lock(&state->lock);
+    BOOL observes = state->active && state->capturing &&
+        ![state->observedGesture isEqualToString:@"*"] &&
+        [state->observedGesture isEqualToString:gesture];
+    os_unfair_lock_unlock(&state->lock);
+    return observes;
+}
+
 NSString *MGTraceBundlePath(void) {
     MGTraceState *state = traceState();
     os_unfair_lock_lock(&state->lock); NSString *path = [state->bundlePath copy]; os_unfair_lock_unlock(&state->lock);

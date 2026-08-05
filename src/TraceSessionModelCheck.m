@@ -30,6 +30,11 @@ int main(void) {
                 @"contact activity enabled labels before lift");
         [model observeCapturing:NO awaitingLabel:YES sawContacts:YES];
         require(model.labelsEnabled, @"closed scored window did not enable labels");
+        [model retryCurrentStep];
+        require(model.phase == MGTraceSessionPreparing && model.stepIndex == 0,
+                @"botched attempt did not prepare the same step for retry");
+        [model beginCountdown]; [model tickCountdown]; [model tickCountdown]; [model tickCountdown];
+        [model observeCapturing:NO awaitingLabel:YES sawContacts:YES];
         [model markCurrentStep];
         require(model.phase == MGTraceSessionPreparing && model.stepIndex == 1,
                 @"label did not advance exactly one step");

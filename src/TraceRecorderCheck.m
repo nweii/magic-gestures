@@ -43,6 +43,8 @@ int main(void) {
         require(MGTraceStart(root, &problem), @"trace session did not start");
         MGTraceBeginStep(@"normal-r1", @"two-finger-click", @"Two-Finger Click", 1,
                          @"Click once", YES, NO);
+        require(MGTraceObservesUnconfiguredGesture(@"Two-Finger Click"),
+                @"guided trace did not observe its requested unconfigured gesture");
         require(![[MGTraceStatus() objectForKey:@"saw_mouse_up"] boolValue],
                 @"new segment inherited a mouse-up marker");
         dispatch_group_t producers = dispatch_group_create();
@@ -110,6 +112,8 @@ int main(void) {
         require(MGTraceStart(manualRoot, &problem), @"manual trace session did not start");
         MGTraceBeginStep(@"ambient", @"ordinary-mouse-use", @"*", 0,
                          @"Use the mouse normally", NO, NO);
+        require(!MGTraceObservesUnconfiguredGesture(@"Two-Finger Click"),
+                @"ambient trace counted an unconfigured gesture");
         MGTraceRecordDispatch(@"Two-Finger Tap", @"global", @"keystroke",
                               @"suppressed-for-trace");
         MGTraceRecordDispatch(@"Middle-Fix Index-Far-Tap", @"global", @"keystroke",

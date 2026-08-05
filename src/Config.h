@@ -54,4 +54,8 @@
 // An engine gesture name phrased as a motion, for display.
 + (NSString *)humanNameForGesture:(NSString *)raw;
 
+// A configured keystroke phrased for the Current Gestures menu. Explicit left
+// or right modifier choices are named; unsided modifiers use macOS glyphs.
++ (NSString *)keystrokeDisplayNameForBinding:(NSDictionary *)binding;
+
 @end

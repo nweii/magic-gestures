@@ -160,6 +160,14 @@ static void expectKey(NSString *label, NSString *value, int keycode, NSUInteger 
         fail([label stringByAppendingString:@" flags"], @(flags), [g objectForKey:@"ModifierFlags"]);
 }
 
+static void expectKeyDisplay(NSString *label, NSString *value, NSString *display) {
+    NSString *conf = [NSString stringWithFormat:@"[mouse]\nhold-right-tap-left = %@\n", value];
+    NSDictionary *g = bindingFor(parse(conf), @"MagicMouseCommands", @"Middle-Fix Index-Near-Tap");
+    NSString *actual = g == nil ? nil : [Config keystrokeDisplayNameForBinding:g];
+    if (![actual isEqualToString:display])
+        fail(label, display, actual ?: @"none");
+}
+
 static NSArray *directDispatchLines(NSString *source) {
     NSMutableArray *lines = [NSMutableArray array];
     NSCharacterSet *whitespace = [NSCharacterSet whitespaceCharacterSet];
@@ -298,6 +306,11 @@ int main(void) {
                   kCGEventFlagMaskShift | NX_DEVICERSHIFTKEYMASK |
                   kCGEventFlagMaskAlternate | NX_DEVICERALTKEYMASK |
                   kCGEventFlagMaskCommand | NX_DEVICERCMDKEYMASK);
+        expectKeyDisplay(@"digit shortcut display", @"shift+cmd+4", @"⇧⌘4");
+        expectKeyDisplay(@"right modifier display", @"right-control+space",
+                         @"Right Control + Space");
+        expectKeyDisplay(@"mixed modifier side display", @"left-shift+right-command+4",
+                         @"Left Shift + Right Command + 4");
 
         NSDictionary *punctuation = @{
             @"[": @33, @"]": @30, @"-": @27, @"=": @24, @";": @41,

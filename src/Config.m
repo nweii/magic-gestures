@@ -232,6 +232,46 @@ static NSDictionary *modifierNames(void) {
     return m;
 }
 
+static NSString *keyDisplayName(NSString *token) {
+    NSDictionary *named = @{
+        @"return": @"Return", @"enter": @"Return",
+        @"escape": @"Escape", @"esc": @"Escape",
+        @"tab": @"Tab", @"space": @"Space", @"spacebar": @"Space",
+        @"delete": @"Delete", @"backspace": @"Delete", @"del": @"Delete",
+        @"forward-delete": @"Forward Delete", @"keypad-enter": @"Keypad Enter",
+        @"left": @"Left", @"right": @"Right", @"down": @"Down", @"up": @"Up",
+        @"home": @"Home", @"end": @"End",
+        @"page-up": @"Page Up", @"page-down": @"Page Down",
+    };
+    NSString *display = [named objectForKey:token];
+    if (display != nil)
+        return display;
+    if ([token length] == 1 && [[NSCharacterSet letterCharacterSet]
+        characterIsMember:[token characterAtIndex:0]])
+        return [token uppercaseString];
+    if ([token hasPrefix:@"f"] && [token length] <= 3)
+        return [token uppercaseString];
+    return token;
+}
+
+static void recordExplicitModifierSide(NSMutableDictionary *sides,
+                                       NSString *token) {
+    NSArray *parts = [token componentsSeparatedByString:@"-"];
+    if ([parts count] != 2 ||
+        ![@[@"left", @"right"] containsObject:[parts objectAtIndex:0]])
+        return;
+    NSString *name = [parts objectAtIndex:1];
+    NSDictionary *families = @{
+        @"ctrl": @"control", @"control": @"control",
+        @"opt": @"option", @"option": @"option", @"alt": @"option",
+        @"shift": @"shift",
+        @"cmd": @"command", @"command": @"command",
+    };
+    NSString *family = [families objectForKey:name];
+    if (family != nil)
+        [sides setObject:[parts objectAtIndex:0] forKey:family];
+}
+
 #pragma mark - Value parsing
 
 static NSString *stripQuotes(NSString *s) {
@@ -511,6 +551,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     }
 
     NSUInteger flags = 0;
+    NSMutableDictionary *explicitModifierSides = [NSMutableDictionary dictionary];
 
     // Leading modifier symbols have no separator and must be consumed first.
     while ([value length] > 0) {
@@ -542,6 +583,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
         NSString *t = [raw stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         if ([t length] == 0)
             continue;
+        NSString *modifierToken = t;
         NSNumber *flag = [modifierNames() objectForKey:t];
         if (flag == nil && ([t isEqualToString:@"left"] || [t isEqualToString:@"right"]) &&
             i + 1 < [tokens count]) {
@@ -549,11 +591,14 @@ static NSDictionary *parseBinding(NSString *rawValue) {
                 stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
             NSString *sidedModifier = [NSString stringWithFormat:@"%@-%@", t, next];
             flag = [modifierNames() objectForKey:sidedModifier];
-            if (flag != nil)
+            if (flag != nil) {
+                modifierToken = sidedModifier;
                 i++;
+            }
         }
         if (flag != nil) {
             flags |= [flag unsignedIntegerValue];
+            recordExplicitModifierSide(explicitModifierSides, modifierToken);
             continue;
         }
         // A value carries exactly one key. An unknown token, or a second key,
@@ -569,8 +614,49 @@ static NSDictionary *parseBinding(NSString *rawValue) {
     if (code == nil)
         return nil;
 
-    return @{@"Gesture": @"", @"Command": rawValue, @"IsAction": @NO,
-             @"ModifierFlags": @(flags), @"KeyCode": code, @"Enable": @YES};
+    NSMutableDictionary *binding = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"Gesture": @"", @"Command": rawValue, @"IsAction": @NO,
+        @"ModifierFlags": @(flags), @"KeyCode": code, @"Enable": @YES,
+        @"KeyDisplayName": keyDisplayName(keyToken),
+    }];
+    if ([explicitModifierSides count] > 0)
+        [binding setObject:explicitModifierSides forKey:@"ExplicitModifierSides"];
+    return binding;
+}
+
++ (NSString *)keystrokeDisplayNameForBinding:(NSDictionary *)binding {
+    NSUInteger flags = [[binding objectForKey:@"ModifierFlags"] unsignedIntegerValue];
+    NSString *key = [binding objectForKey:@"KeyDisplayName"];
+    if ([key length] == 0)
+        key = [NSString stringWithFormat:@"Key %@", [binding objectForKey:@"KeyCode"] ?: @"?"];
+    NSDictionary *sides = [binding objectForKey:@"ExplicitModifierSides"];
+    if ([sides count] == 0) {
+        NSMutableString *out = [NSMutableString string];
+        if (flags & kCGEventFlagMaskControl)   [out appendString:@"⌃"];
+        if (flags & kCGEventFlagMaskAlternate) [out appendString:@"⌥"];
+        if (flags & kCGEventFlagMaskShift)     [out appendString:@"⇧"];
+        if (flags & kCGEventFlagMaskCommand)   [out appendString:@"⌘"];
+        [out appendString:key];
+        return out;
+    }
+
+    NSMutableArray *parts = [NSMutableArray array];
+    NSArray *modifiers = @[
+        @[@"control", @"Control", @(kCGEventFlagMaskControl)],
+        @[@"option", @"Option", @(kCGEventFlagMaskAlternate)],
+        @[@"shift", @"Shift", @(kCGEventFlagMaskShift)],
+        @[@"command", @"Command", @(kCGEventFlagMaskCommand)],
+    ];
+    for (NSArray *modifier in modifiers) {
+        if (!(flags & [[modifier objectAtIndex:2] unsignedIntegerValue]))
+            continue;
+        NSString *side = [sides objectForKey:[modifier objectAtIndex:0]];
+        NSString *name = [modifier objectAtIndex:1];
+        [parts addObject:side == nil ? name :
+            [NSString stringWithFormat:@"%@ %@", [side capitalizedString], name]];
+    }
+    [parts addObject:key];
+    return [parts componentsJoinedByString:@" + "];
 }
 
 #pragma mark - File loading

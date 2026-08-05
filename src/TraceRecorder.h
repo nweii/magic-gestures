@@ -18,6 +18,7 @@ BOOL MGTraceIsActive(void);
 BOOL MGTraceIsCapturing(void);
 BOOL MGTraceSuppressesActions(void);
 BOOL MGTraceAuditsGestureCatalog(void);
+BOOL MGTraceObservesUnconfiguredGesture(NSString *gesture);
 NSString *MGTraceBundlePath(void);
 NSDictionary *MGTraceStatus(void);
 void MGTraceBeginStep(NSString *step, NSString *requested,

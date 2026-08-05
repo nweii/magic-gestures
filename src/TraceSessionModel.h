@@ -25,4 +25,5 @@ typedef NS_ENUM(NSInteger, MGTraceSessionPhase) {
 - (void)observeCapturing:(BOOL)capturing awaitingLabel:(BOOL)awaitingLabel
              sawContacts:(BOOL)sawContacts;
 - (void)markCurrentStep;
+- (void)retryCurrentStep;
 @end
