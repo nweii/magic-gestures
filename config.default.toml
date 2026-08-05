@@ -18,9 +18,7 @@ hold-right-tap-left = "escape"
 two-finger-tap = { action = "middle-click", defer = true }
 
 
-# --------------------------- MOUSE EXAMPLES ---------------------------
-
-# Remove # from an example to enable it.
+# Optional bindings. Remove # to enable one.
 
 # three-finger-tap = "ctrl+cmd+a"
 # two-finger-tap = { action = "middle-click", defer = true }
@@ -34,9 +32,7 @@ hold-left-tap-right = "return"
 hold-right-tap-left = "escape"
 
 
-# -------------------------- TRACKPAD EXAMPLES --------------------------
-
-# Remove # from an example to enable it.
+# Optional bindings. Remove # to enable one.
 
 # three-finger-tap = "cmd+shift+a"
 # four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"
