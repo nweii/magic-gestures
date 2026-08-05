@@ -664,8 +664,6 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 + (NSString *)resolvedPath {
     NSDictionary *environment = [[NSProcessInfo processInfo] environment];
     NSString *override = [environment objectForKey:@"TRICKPAD_CONFIG"];
-    if ([override length] == 0)
-        override = [environment objectForKey:@"MAGICGESTURES_CONFIG"];
     if ([override length] > 0)
         return [override stringByStandardizingPath];
 
@@ -685,7 +683,7 @@ static NSDictionary *parseBinding(NSString *rawValue) {
 static NSSet *knownSettingNames(void) {
     static NSSet *s = nil;
     if (s == nil) {
-        s = [[NSSet setWithArray:@[@"config-version", @"dominant-hand", @"enable-mouse", @"enable-trackpad", @"tap-speed",
+        s = [[NSSet setWithArray:@[@"config-version", @"dominant-hand", @"menu-bar-icon", @"enable-mouse", @"enable-trackpad", @"tap-speed",
                                    @"haptic-feedback", @"verbose-logging",
                                    @"experimental-mouse-click-gestures"]] retain];
     }
@@ -807,7 +805,7 @@ static void appendTOMLTable(NSMutableString *output, NSInteger *currentLine,
                 @"verbose-logging", @"experimental-mouse-click-gestures"]];
             BOOL wrongType = ([booleans containsObject:key] && value.type != TOML_BOOLEAN) ||
                 ([key isEqualToString:@"config-version"] && value.type != TOML_INT64) ||
-                ([key isEqualToString:@"dominant-hand"] && value.type != TOML_STRING) ||
+                (([key isEqualToString:@"dominant-hand"] || [key isEqualToString:@"menu-bar-icon"]) && value.type != TOML_STRING) ||
                 ([key isEqualToString:@"tap-speed"] &&
                  value.type != TOML_INT64 && value.type != TOML_FP64);
             if (wrongType)
@@ -1213,6 +1211,16 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
                 report(line, @"dominant-hand must be left or right");
                 continue;
             }
+            if ([key isEqualToString:@"menu-bar-icon"]) {
+                NSString *icon = [[stripQuotes(value) lowercaseString]
+                    stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                if ([icon length] == 0 ||
+                    (![icon isEqualToString:@"trickpad"] && ![icon hasPrefix:@"sf:"]) ||
+                    ([icon hasPrefix:@"sf:"] && [icon length] == 3)) {
+                    report(line, @"menu-bar-icon must be trickpad or sf: followed by an SF Symbol name");
+                    continue;
+                }
+            }
             [general setObject:value forKey:key];
         } else {
             report(line, [NSString stringWithFormat:@"no section or device named \"%@\"", device]);
@@ -1319,6 +1327,7 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
         @"ShowIcon": @1,
         @"BindingCount": @([activeBindingKeys count]),
         @"HapticFeedback": @(parseBoolean(str(@"haptic-feedback", @"true"), YES) ? 1 : 0),
+        @"MenuBarIcon": stripQuotes(str(@"menu-bar-icon", @"trickpad")),
         @"ExperimentalMouseClickGestures": @(parseBoolean(str(@"experimental-mouse-click-gestures", @"false"), NO) ? 1 : 0),
         @"LogLevel": @(parseBoolean(str(@"verbose-logging", @"false"), NO) ? 3 : 1),
         @"enTPAll": @(parseBoolean(str(@"enable-trackpad", @"true"), YES) ? 1 : 0),

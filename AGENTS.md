@@ -58,8 +58,8 @@ that `scripts/build.sh` pins. Keep both stable and the grant survives every rebu
 
 ## Menu bar item
 
-About opens a submenu carrying the version, read from the running bundle, and
-a link to the repository.
+About opens a submenu carrying the version, read from the running bundle, plus
+a link to the product website.
 
 `showIcon` in `JitouchAppDelegate.m` builds it. Top to bottom:
 
@@ -114,14 +114,35 @@ gh release create vX.Y.Z --title "X.Y.Z" --notes "..."
 ```
 
 GitHub releases carry the tag, changelog, and automatic source archives without
-a packaged binary. The zip that `scripts/package.sh` produces is delivered
+a packaged binary. The DMG that `scripts/package.sh` produces is delivered
 through Lemon Squeezy and must not be attached to GitHub. Packaging refuses to
 reuse a version whose source tag already points at another commit and verifies
-that the app, license, notices, trademark notice, and exact-source link are all
-present in the archive.
+the styled drag-to-Applications layout, app signature, license, notices,
+trademark notice, and exact-source link.
 
 The release title is the bare version. The repository name sits above it on
 every page that shows a release, so repeating it adds nothing.
+
+## Cross-surface product facts
+
+Buyer-facing facts appear in the app repository, the packaged disk image, and
+the private `nweii/thirdwind-site` repository. Keep one owner for each fact:
+
+- `scripts/build.sh` owns the version, build number, minimum macOS version, and
+  supported architectures.
+- `GESTURES.md` owns configuration syntax, gesture names, actions, and settings.
+- `scripts/package.sh` owns the paid artifact's contents and exact-source link.
+- `packaging/dmg-background.svg` owns the short install and Gatekeeper guidance
+  shown beside the app.
+
+README, `config.default.toml`, `config-notes.default.md`, the Trickpad website,
+and the relevant storefront descriptions and delivery instructions mirror the
+facts their readers need. When an owned fact changes, search every mirror before
+completing the work. Coordinate changes in `nweii/thirdwind-site` with its
+active task or checkout. Completion requires every relevant mirror to agree in
+substance, the repository checks to pass, and a fresh package verification when
+delivery contents or DMG guidance changed. Preserve each surface's level of
+detail instead of forcing identical prose everywhere.
 
 `gh release create` has been seen to report a missing `workflow` scope that the
 token already holds. Creating it through `gh api repos/OWNER/REPO/releases`
@@ -224,6 +245,11 @@ AppKit chooses the actuator and may suppress feedback after the fingers lift.
 Magic Mouse gestures never request haptics. Deferred taps request feedback only
 if their delayed action survives cancellation. Set it to `false` to opt out
 globally, or set `haptic` in an expanded trackpad binding for one override.
+
+`menu-bar-icon = "trickpad"` uses the bundled template mark. `"sf:SYMBOL"` uses
+any available SF Symbol by name and falls back to a hand if macOS does not
+provide it. Turning gestures off dims the selected icon without changing its
+shape.
 
 `experimental-mouse-click-gestures = false` keeps Magic Mouse two- and
 three-finger physical clicks unavailable by default. Set it to `true` to load

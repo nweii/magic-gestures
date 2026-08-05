@@ -29,3 +29,7 @@ Trickpad project in 2026.
 Trickpad and Third Wind names and the Trickpad app icon are addressed separately
 in TRADEMARKS.md. That notice does not limit the GPLv3 permissions for covered
 material.
+
+Apple, macOS, Magic Mouse, and Magic Trackpad are trademarks of Apple Inc.,
+registered in the U.S. and other countries and regions. Trickpad is an
+independent product and is not affiliated with or endorsed by Apple.

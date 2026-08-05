@@ -13,9 +13,8 @@
 
 @interface Config : NSObject
 
-// ~/.config/trickpad/config.toml, or the path in TRICKPAD_CONFIG. The former
-// MAGICGESTURES_CONFIG name remains an undocumented pre-release fallback.
-// Returns nil when no configuration file exists.
+// ~/.config/trickpad/config.toml, or the path in TRICKPAD_CONFIG. Returns nil
+// when no configuration file exists.
 + (NSString *)resolvedPath;
 
 // ~/.config/trickpad, where the configuration and its agent notes live.

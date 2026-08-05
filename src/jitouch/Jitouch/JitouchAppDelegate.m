@@ -185,55 +185,7 @@ CGKeyCode keyMap[128]; // for dvorak support
 static NSString *const kLoginAgentLabel = @"fyi.thirdwind.trickpad.agent";
 static NSString *const kLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.thirdwind.trickpad.agent.plist";
 static NSString *const kDidChooseLoginItem = @"DidChooseLoginItem";
-static NSString *const kLegacyDefaultsDomain = @"fyi.nathancheng.magic-gestures";
-static NSString *const kLegacyLoginAgentLabel = @"fyi.nathancheng.magic-gestures.agent";
-static NSString *const kLegacyLoginAgentPlistPath = @"~/Library/LaunchAgents/fyi.nathancheng.magic-gestures.agent.plist";
-static NSString *const kDidMigrateLegacyState = @"DidMigrateLegacyState";
 static BOOL runLaunchctl(NSArray *arguments);
-
-// Carries the user's pre-release settings into the renamed app once. A second
-// destination is never merged because choosing between two configs is unsafe.
-- (BOOL)migrateLegacyStateIfNeeded {
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    if ([defaults boolForKey:kDidMigrateLegacyState])
-        return NO;
-
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *legacyConfig = [@"~/.config/magic-gestures" stringByStandardizingPath];
-    NSString *config = [Config configDirectory];
-    BOOL legacyConfigExists = [fm fileExistsAtPath:legacyConfig];
-    BOOL configExists = [fm fileExistsAtPath:config];
-    if (legacyConfigExists && !configExists) {
-        NSError *error = nil;
-        if (![fm moveItemAtPath:legacyConfig toPath:config error:&error])
-            NSLog(@"Could not migrate the legacy settings folder: %@", error);
-    } else if (legacyConfigExists && configExists) {
-        NSLog(@"Both legacy and Trickpad settings folders exist; using %@ without merging.", config);
-    }
-
-    NSDictionary *legacyDefaults = [defaults persistentDomainForName:kLegacyDefaultsDomain];
-    for (NSString *key in @[kDidChooseLoginItem, @"InternalTraceDiagnostics",
-                            @"InternalGestureDispatchTone"]) {
-        if ([defaults objectForKey:key] == nil && [legacyDefaults objectForKey:key] != nil)
-            [defaults setObject:[legacyDefaults objectForKey:key] forKey:key];
-    }
-
-    NSString *legacyTarget = [NSString stringWithFormat:@"gui/%d/%@", (int)getuid(),
-                              kLegacyLoginAgentLabel];
-    NSString *legacyPlist = [kLegacyLoginAgentPlistPath stringByStandardizingPath];
-    BOOL legacyLoginItemWasInstalled = [fm fileExistsAtPath:legacyPlist];
-    runLaunchctl(@[@"bootout", legacyTarget]);
-    runLaunchctl(@[@"disable", legacyTarget]);
-    if ([fm fileExistsAtPath:legacyPlist]) {
-        NSError *error = nil;
-        if (![fm removeItemAtPath:legacyPlist error:&error])
-            NSLog(@"Could not remove the legacy login item: %@", error);
-    }
-
-    [defaults setBool:YES forKey:kDidMigrateLegacyState];
-    [defaults synchronize];
-    return legacyLoginItemWasInstalled;
-}
 
 // Removes the launchd job by label rather than plist path, so a job whose
 // plist has already been deleted still stops instead of being respawned by
@@ -643,7 +595,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
 }
 
 - (void)about:(id)sender {
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://github.com/nweii/trickpad"]];
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://thirdwind.fyi/trickpad/"]];
 }
 
 - (void)openAccessibilitySettings:(id)sender {
@@ -1323,7 +1275,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         @"I use Trickpad, a macOS app configured through one plain-text file. "
         @"Help me create a ready-to-paste configuration block. Read the syntax and "
         @"available gestures, actions, and settings here: "
-        @"https://github.com/nweii/trickpad/blob/main/GESTURES.md\n\n"
+        @"https://thirdwind.fyi/trickpad.md\n\n"
         @"Ask what I want the gesture to do, which device it should use, and whether "
         @"it should be global or limited to an application. Do not invent gesture or "
         @"action names. Return the smallest valid block, tell me where to paste it, "
@@ -1482,8 +1434,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         [NSString stringWithFormat:@"Version %@", version ?: @"unknown"]
                                                   action:NULL keyEquivalent:@""];
     [versionItem setEnabled:NO];
-    NSMenuItem *repoItem = [aboutMenu addItemWithTitle:@"GitHub..." action:@selector(about:) keyEquivalent:@""];
-    [repoItem setTarget:self];
+    NSMenuItem *websiteItem = [aboutMenu addItemWithTitle:@"Website..." action:@selector(about:) keyEquivalent:@""];
+    [websiteItem setTarget:self];
 
     NSMenuItem *aboutItem = [theMenu addItemWithTitle:@"About Trickpad" action:NULL keyEquivalent:@""];
     [aboutItem setSubmenu:aboutMenu];
@@ -1507,13 +1459,23 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     theMenu = nil;
 }
 
-// The system symbol is filled while gestures are active and outlined while they
-// are suspended.
+// The bundled mark is the default. Suspension dims the selected image without
+// changing its shape, so every icon choice uses the same state treatment.
 - (void)updateIconImage {
-    NSString *symbol = enAll ? @"hand.tap.fill" : @"hand.tap";
-    NSImage *img = [NSImage imageWithSystemSymbolName:symbol
-                             accessibilityDescription:@"Trickpad"];
+    NSString *choice = [[settings objectForKey:@"MenuBarIcon"] lowercaseString] ?: @"trickpad";
+    NSImage *img = nil;
+    if ([choice isEqualToString:@"trickpad"]) {
+        NSString *path = [[NSBundle mainBundle] pathForResource:@"Trickpad-menu-bar-icon" ofType:@"svg"];
+        img = [[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+        [img setSize:NSMakeSize(18, 18)];
+    } else {
+        NSString *symbol = [choice substringFromIndex:3];
+        img = [NSImage imageWithSystemSymbolName:symbol accessibilityDescription:@"Trickpad"];
+    }
+    if (img == nil)
+        img = [NSImage imageWithSystemSymbolName:@"hand.tap.fill" accessibilityDescription:@"Trickpad"];
     [img setTemplate:YES];
+    [[theItem button] setAlphaValue:enAll ? 1.0 : 0.45];
     // NSStatusItem image methods have been deprecated since macOS 10.14, so the
     // image is set on its button.
     [[theItem button] setImage:img];
@@ -1658,9 +1620,7 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 */
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-    BOOL legacyLoginItemWasInstalled = [self migrateLegacyStateIfNeeded];
-
-    // A zip install has no start.sh or install script to seed the settings
+    // A packaged install has no start.sh or install script to seed the settings
     // folder, so the app seeds it here before resolving the configuration.
     NSError *seedError = [self seedConfigDirectory];
     if (seedError != nil)
@@ -1668,11 +1628,6 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
                      detail:[NSString stringWithFormat:@"%@\n\nGestures run with built-in defaults until %@/config.toml exists.",
                              [seedError localizedDescription], [Config configDirectory]]];
 
-    if (legacyLoginItemWasInstalled) {
-        NSString *failure = [self setLoginItemInstalled:YES];
-        if (failure != nil)
-            [self reportFailure:@"Can't migrate Open at Login." detail:failure];
-    }
     [self enableLoginItemOnFirstLaunch];
 
     NSString *configPath = [Config resolvedPath];

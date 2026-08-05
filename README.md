@@ -46,12 +46,14 @@ menu bar item if you do not want this.
 ### Official download
 
 Official packaged builds are delivered with a purchase through Lemon Squeezy.
-Unzip the download and drag `Trickpad.app` to Applications.
+Open the downloaded disk image and drag Trickpad to Applications.
 
-The app is ad-hoc signed and not notarized, so macOS blocks it the first time
-you open it. Click **Done**, then open System Settings > Privacy & Security.
-Scroll to the message that Trickpad was blocked, click **Open Anyway**,
-authenticate, and click **Open** in the final prompt.
+The official build is ad-hoc signed and not notarized by Apple, so macOS shows
+a verification warning the first time you open it. Only follow these steps for
+Trickpad downloaded through your official purchase. Choose **Done**, not
+**Move to Trash**. Then open System Settings > Privacy & Security and scroll
+down to the **Security** section. Find the message that Trickpad was blocked,
+choose **Open Anyway**, authenticate, and confirm that you want to open it.
 
 ### Build from source
 
@@ -147,7 +149,7 @@ scripts, behavior settings, and motions already used by macOS.
 
 ## Uninstall
 
-### From a zip install
+### From an official install
 
 Turn off **Open at Login** if it is enabled, then choose **Quit Trickpad**.
 Drag `Trickpad.app` to the Trash. Delete `~/.config/trickpad` if you

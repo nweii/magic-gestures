@@ -10,7 +10,6 @@ PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
 GUI_DOMAIN="gui/$(id -u)"
 
 mkdir -p "$ROOT/run" "$HOME/Library/LaunchAgents"
-"$ROOT/scripts/migrate-legacy-config.sh"
 
 if [[ ! -x "$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]]; then
   "$ROOT/scripts/build.sh" >/dev/null

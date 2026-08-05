@@ -121,6 +121,7 @@ clang \
 # configuration folder without the source tree beside it.
 cp "$ROOT/config.default.toml" "$RES_DIR/config.default.toml"
 cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
+cp "$ROOT/Trickpad-menu-bar-icon.svg" "$RES_DIR/Trickpad-menu-bar-icon.svg"
 
 # The installed app analyzes its redacted export without depending on source files.
 clang \

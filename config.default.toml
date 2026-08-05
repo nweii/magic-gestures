@@ -2,13 +2,14 @@
 
 # Lines without # are active. Save, then choose Reload Settings in the menu bar.
 # Choose Manage with Agent for help, or see the full reference:
-# https://github.com/nweii/trickpad/blob/main/GESTURES.md
+# https://thirdwind.fyi/trickpad/
 
 [GENERAL]
 
 config-version = 3
 dominant-hand = "right"
 haptic-feedback = true
+menu-bar-icon = "trickpad" # Try an SF Symbol such as "sf:hand.tap.fill".
 experimental-mouse-click-gestures = false
 
 [MOUSE]

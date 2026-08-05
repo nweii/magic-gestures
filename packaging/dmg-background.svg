@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="960" viewBox="0 0 660 480">
+  <rect width="660" height="480" fill="#f7f8f7"/>
+  <text x="330" y="62" fill="#20262a" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="600" text-anchor="middle">Install Trickpad</text>
+  <text x="330" y="91" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" text-anchor="middle">Drag Trickpad to Applications</text>
+  <path d="M260 180 H400" fill="none" stroke="#2c8aa8" stroke-width="3" stroke-linecap="round"/>
+  <path d="M388 168 L401 180 L388 192" fill="none" stroke="#2c8aa8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="330" y="282" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" text-anchor="middle">After copying, open Trickpad once.</text>
+  <text x="330" y="299" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" text-anchor="middle">Trickpad is not notarized by Apple, so macOS will show a verification warning.</text>
+  <text x="330" y="316" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" font-weight="600" text-anchor="middle">Choose Done, not Move to Trash. Then use</text>
+  <text x="330" y="333" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" font-weight="600" text-anchor="middle">System Settings → Privacy &amp; Security (scroll down) → Open Anyway.</text>
+  <line x1="48" y1="350" x2="612" y2="350" stroke="#d7dee1"/>
+</svg>

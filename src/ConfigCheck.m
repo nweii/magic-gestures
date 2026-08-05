@@ -683,6 +683,13 @@ int main(void) {
             [[s objectForKey:@"MMHanded"] intValue] != 0)
             fail(@"right dominant hand keeps the default axis", @0, [s objectForKey:@"Handed"]);
 
+        s = parse(@"[general]\nmenu-bar-icon = \"trickpad\"\n");
+        if (![[s objectForKey:@"MenuBarIcon"] isEqualToString:@"trickpad"])
+            fail(@"menu bar icon accepts bundled mark", @"trickpad", [s objectForKey:@"MenuBarIcon"]);
+        s = parse(@"[general]\nmenu-bar-icon = \"sf:waveform.path\"\n");
+        if (![[s objectForKey:@"MenuBarIcon"] isEqualToString:@"sf:waveform.path"])
+            fail(@"menu bar icon accepts SF Symbol", @"sf:waveform.path", [s objectForKey:@"MenuBarIcon"]);
+
         NSArray *invalidSettings = @[
             @"[general]\nenable-mouse = maybe\n",
             @"[general]\nenable-trackpad = enabled\n",
@@ -690,6 +697,7 @@ int main(void) {
             @"[general]\nhaptic-feedback = sometimes\n",
             @"[general]\nexperimental-mouse-click-gestures = maybe\n",
             @"[general]\ndominant-hand = center\n",
+            @"[general]\nmenu-bar-icon = \"sf:\"\n",
             @"[general]\ntap-speed = soon\n",
             @"[general]\ntap-speed = 0\n",
             @"[general]\ntap-speed = -0.2\n",

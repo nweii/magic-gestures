@@ -10,18 +10,18 @@
   that can replace the normal click when confidently recognized. It remains off
   by default; ambiguous clicks and drags keep their native behavior.
 - Added universal Intel and Apple silicon builds for macOS 11 and later.
+- Added a configurable menu-bar icon. Use the bundled Trickpad mark or name an
+  SF Symbol in `config.toml`; suspended gestures dim either choice.
 
 ### Changed
 
-- Renamed Magic Gestures to Trickpad, including its app bundle, login item, and
-  configuration folder. First launch moves an existing
-  `~/.config/magic-gestures` folder to `~/.config/trickpad` when the new folder
-  does not already exist.
-- Official packaged builds are delivered through Lemon Squeezy. GitHub releases
-  carry the source and changelog only.
+- Established the Trickpad app bundle, login item, and
+  `~/.config/trickpad` configuration folder.
+- Official builds now arrive in a styled disk image with an Applications link,
+  first-launch guidance, license notices, and an exact corresponding-source
+  link. GitHub releases carry the source and changelog without a binary.
 
-This changes the alpha installation and configuration location. Existing version
-3 configuration files are migrated automatically when no Trickpad folder exists.
+This changes the alpha installation and configuration location.
 
 ## 0.6.1
 

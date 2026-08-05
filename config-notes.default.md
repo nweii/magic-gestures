@@ -23,7 +23,7 @@ custom URLs, or executable scripts.
   requested behavior is represented by a valid binding and unrelated bindings
   are unchanged.
 
-Source and full documentation: https://github.com/nweii/trickpad
+Product guide and configuration reference: https://thirdwind.fyi/trickpad.md
 
 ## Format
 
