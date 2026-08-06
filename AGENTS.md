@@ -116,7 +116,7 @@ gh release create vX.Y.Z --title "X.Y.Z" --notes "..."
 
 GitHub releases carry the tag, changelog, and automatic source archives without
 a packaged binary. The DMG that `scripts/package.sh` produces is delivered
-through Lemon Squeezy and must not be attached to GitHub. Packaging refuses to
+through Gumroad and must not be attached to GitHub. Packaging refuses to
 reuse a version whose source tag already points at another commit and verifies
 the styled drag-to-Applications layout, app signature, license, notices,
 trademark notice, and exact-source link.

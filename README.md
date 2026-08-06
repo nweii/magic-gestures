@@ -45,7 +45,7 @@ menu bar item if you do not want this.
 
 ### Official download
 
-Official packaged builds are delivered with a purchase through Lemon Squeezy.
+Official packaged builds are delivered with a purchase through Gumroad.
 Open the downloaded disk image and drag Trickpad to Applications.
 
 The official build is ad-hoc signed and not notarized by Apple, so macOS shows
