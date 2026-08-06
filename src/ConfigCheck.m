@@ -760,11 +760,11 @@ int main(void) {
             fail(@"menu collapses engine aliases for one public gesture",
                  @"Middle-Fix Index-Near-Tap", canonicalMouseHold);
 
-        // Every slug must appear in the notes installed beside the config, or
-        // it exists without being documented anywhere the user will look.
+        // Every slug must appear in the canonical gesture reference. The
+        // installed agent guide points there instead of duplicating the list.
         NSArray *args = [[NSProcessInfo processInfo] arguments];
         NSUInteger documentationEnd = MIN([args count], 4);
-        for (NSUInteger i = 2; i < documentationEnd; i++) {
+        for (NSUInteger i = 3; i < documentationEnd; i++) {
             NSString *doc = [NSString stringWithContentsOfFile:args[i] encoding:NSUTF8StringEncoding error:NULL];
             if (doc == nil)
                 continue;
@@ -778,14 +778,6 @@ int main(void) {
         }
 
         if ([args count] > 3) {
-            NSString *notes = [NSString stringWithContentsOfFile:args[2] encoding:NSUTF8StringEncoding error:NULL];
-            expectDeviceSlugs(@"installed notes mouse section",
-                              section(notes, @"Mouse: `", @"\n\nTrackpad:"),
-                              [Config mouseGestureSlugs]);
-            expectDeviceSlugs(@"installed notes trackpad section",
-                              section(notes, @"Trackpad: `", @"\n\nThe `hold-`"),
-                              [Config trackpadGestureSlugs]);
-
             NSString *reference = [NSString stringWithContentsOfFile:args[3] encoding:NSUTF8StringEncoding error:NULL];
             expectDeviceSlugs(@"gesture reference mouse section",
                               section(reference, @"## Magic Mouse", @"## Magic Trackpad"),

@@ -2,6 +2,22 @@
 
 # Changelog
 
+## 0.7.1
+
+Released 2026-08-05.
+
+### Changed
+
+- Made Copy Prompt use the stable, agent-readable web documentation and account
+  for differences between the installed version and the latest reference.
+- Reworked the installed agent guide around safe configuration edits and
+  gesture selection while keeping detailed syntax in the canonical reference.
+- Documented how a macOS shortcut assigned to an existing app menu command can
+  become a Trickpad binding.
+
+This is a backward-compatible patch release. Existing version 3 configuration
+files keep working.
+
 ## 0.7.0
 
 ### Added

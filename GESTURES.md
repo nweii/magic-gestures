@@ -224,6 +224,20 @@ uses the script's folder as its working directory, and does not wait for it to
 finish. It does not interpret shell commands, arguments, substitutions, or an
 interactive shell profile. Console records launch failures and nonzero exits.
 
+## Turn a menu command into a shortcut
+
+An app may offer a useful menu command without its own keyboard shortcut.
+macOS can assign one: open **System Settings > Keyboard > Keyboard Shortcuts >
+App Shortcuts**, choose the app, and add the command.
+
+Write the full menu path exactly as it appears in the app, using `->` without
+spaces between path components. Titles are case-sensitive, and an ellipsis is
+three periods (`...`), not `…`. An App Shortcut targets an existing menu command
+only. Test it in the target app before binding a Trickpad gesture to the chord.
+
+App updates and localizations can change menu titles. Update the App Shortcut if
+the assigned shortcut stops working.
+
 ## Settings
 
 | Setting | Value |

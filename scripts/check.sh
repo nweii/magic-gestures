@@ -321,11 +321,11 @@ grep -q 'config-version' "$ROOT/GESTURES.md" || managed_fail "GESTURES.md does n
 for f in "$ROOT/config.default.toml" "$ROOT/config-notes.default.md"; do
   grep -q 'thirdwind.fyi/trickpad' "$f" || managed_fail "$f does not point setup help to the product guide"
 done
-grep -q 'https://thirdwind.fyi/trickpad.md' "$APP_SRC" ||
+grep -q 'https://thirdwind.fyi/trickpad/docs.md' "$APP_SRC" ||
   managed_fail "Copy Prompt does not point agents to the website documentation"
 grep -q 'https://thirdwind.fyi/trickpad/download' "$APP_SRC" ||
   managed_fail "Get Latest Version does not point to the stable retrieval page"
-for f in "$ROOT/config.default.toml" "$ROOT/config-notes.default.md" "$ROOT/GESTURES.md"; do
+for f in "$ROOT/config.default.toml" "$ROOT/GESTURES.md"; do
   grep -q 'defer = true' "$f" || managed_fail "$f does not document deferred tap bindings"
   grep -q 'script:' "$f" || managed_fail "$f does not document script bindings"
   grep -q 'haptic-feedback' "$f" || managed_fail "$f does not document haptic feedback"
