@@ -1456,11 +1456,18 @@ static void doCommand(NSString *gesture, int device, NSDictionary *commandDict,
                     // dispatch thread, so the main queue starts it and returns.
                     NSString *soundName = [commandDict objectForKey:@"PlaySound"];
                     dispatch_async(dispatch_get_main_queue(), ^{
+                        // soundNamed: returns one shared instance per name, and
+                        // play is a no-op while that instance is still playing.
+                        // A gesture fired during the previous sound's tail must
+                        // still be heard, so restart rather than skip.
                         NSSound *sound = [NSSound soundNamed:soundName];
-                        if (sound == nil)
+                        if (sound == nil) {
                             NSLog(@"Could not play configured sound \"%@\"", soundName);
-                        else
+                        } else {
+                            if ([sound isPlaying])
+                                [sound stop];
                             [sound play];
+                        }
                     });
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
                     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
