@@ -224,6 +224,17 @@ uses the script's folder as its working directory, and does not wait for it to
 finish. It does not interpret shell commands, arguments, substitutions, or an
 interactive shell profile. Console records launch failures and nonzero exits.
 
+### Sounds
+
+Prefix a macOS system sound name with `sound:`:
+
+    three-finger-tap = "sound:Glass"
+
+The gesture plays that sound and does nothing else, which separates a
+recognition problem from a binding problem: if the sound plays, the gesture
+fired. The name is case-sensitive, carries no extension, and must match a file
+in `/System/Library/Sounds`. Reload Settings reports a name it cannot find.
+
 ## Turn a menu command into a shortcut
 
 An app may offer a useful menu command without its own keyboard shortcut.

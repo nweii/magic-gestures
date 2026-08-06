@@ -559,6 +559,33 @@ int main(void) {
         if ([scriptProblem rangeOfString:@"absolute path"].location == NSNotFound)
             fail(@"relative script path explains the requirement", @"absolute path", scriptProblem);
 
+        // Sound bindings name a file in /System/Library/Sounds and exist so a
+        // gesture can be tested without triggering a real action.
+        s = parse(@"[trackpad]\nthree-finger-tap = sound:Glass\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"PlaySound"] isEqualToString:@"Glass"])
+            fail(@"sound binding records its system sound name", @"Glass",
+                 [g objectForKey:@"PlaySound"] ?: @"missing");
+        if (![[g objectForKey:@"IsAction"] boolValue])
+            fail(@"sound binding is an action", @YES, [g objectForKey:@"IsAction"]);
+
+        NSArray *soundProblems = nil;
+        s = parseWithProblems(@"[trackpad]\nthree-finger-tap = sound:NoSuchSound\n", &soundProblems);
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap") != nil)
+            fail(@"unknown sound name rejected", @"nothing", @"a binding");
+        NSString *soundProblem = [soundProblems count] > 0 ? [soundProblems objectAtIndex:0] : @"";
+        if ([soundProblem rangeOfString:@"/System/Library/Sounds"].location == NSNotFound)
+            fail(@"unknown sound name names the sound folder", @"/System/Library/Sounds", soundProblem);
+
+        soundProblems = nil;
+        s = parseWithProblems(@"[trackpad]\nthree-finger-tap = sound:/System/Library/Sounds/Glass.aiff\n",
+                              &soundProblems);
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap") != nil)
+            fail(@"sound path rejected", @"nothing", @"a binding");
+        soundProblem = [soundProblems count] > 0 ? [soundProblems objectAtIndex:0] : @"";
+        if ([soundProblem rangeOfString:@"not a path"].location == NSNotFound)
+            fail(@"sound path explains the requirement", @"not a path", soundProblem);
+
         NSDictionary *badURLs = @{
             @"url:raycast//extensions": @"URL is missing a valid scheme followed by \":\"",
             @"url:1raycast://extensions": @"URL scheme must begin with a letter",

@@ -28,6 +28,8 @@ When the user wants ideas, find a few concrete options that fit their workflow:
   script.
 - Consider existing bindings, accidental activation, comfort and repeatability,
   mnemonic fit, and how consequential the action is.
+- To check whether a gesture fires at all, bind it to `sound:NAME` (a system
+  sound such as `sound:Glass`), which plays and does nothing else.
 
 Before proposing or changing a binding, read what macOS has already claimed.
 Run this, substituting the running app path from the prompt:

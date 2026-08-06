@@ -301,6 +301,9 @@ static NSString *describeBinding(NSDictionary *g) {
     NSString *script = [g objectForKey:@"ScriptPath"];
     if ([script length] > 0)
         return [@"Run " stringByAppendingString:[script lastPathComponent]];
+    NSString *sound = [g objectForKey:@"PlaySound"];
+    if ([sound length] > 0)
+        return [NSString stringWithFormat:@"Play sound \"%@\"", sound];
     NSString *url = [g objectForKey:@"OpenURL"];
     if ([url length] > 0) {
         const NSUInteger maxLength = 52;

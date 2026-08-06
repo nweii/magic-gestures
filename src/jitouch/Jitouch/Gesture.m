@@ -1013,6 +1013,7 @@ static void dispatchCommand(NSString *gesture, int device) {
         NSString *kind = ![[binding objectForKey:@"Enable"] boolValue] ? @"off" :
             [binding objectForKey:@"ScriptPath"] != nil ? @"script" :
             [binding objectForKey:@"OpenURL"] != nil ? @"url" :
+            [binding objectForKey:@"PlaySound"] != nil ? @"sound" :
             [[binding objectForKey:@"IsAction"] boolValue] ? @"built-in" : @"keystroke";
         MGTraceRecordDispatch(gesture, scope, kind, @"suppressed-for-trace");
         return;
@@ -1450,6 +1451,17 @@ static void doCommand(NSString *gesture, int device, NSDictionary *commandDict,
                                        terminationHandler:nil])
                         NSLog(@"Could not launch configured script \"%@\": %@",
                               scriptPath, [error localizedDescription]);
+                } else if ([commandDict objectForKey:@"PlaySound"]) {
+                    // NSSound is AppKit, and playback must not hold the
+                    // dispatch thread, so the main queue starts it and returns.
+                    NSString *soundName = [commandDict objectForKey:@"PlaySound"];
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        NSSound *sound = [NSSound soundNamed:soundName];
+                        if (sound == nil)
+                            NSLog(@"Could not play configured sound \"%@\"", soundName);
+                        else
+                            [sound play];
+                    });
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
                     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
                     NSString *configuredURL = [commandDict objectForKey:@"OpenURL"];

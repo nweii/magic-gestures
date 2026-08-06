@@ -514,6 +514,37 @@ static NSString *resolvedScriptPath(NSString *rawPath, NSString **outProblem) {
     return problem == nil ? path : nil;
 }
 
+// Resolves one macOS system sound by name. The name is case-sensitive and
+// carries no extension, so a binding names the sound the way System Settings
+// does rather than a file path.
+static NSString *resolvedSoundName(NSString *rawName, NSString **outProblem) {
+    NSString *name = [rawName stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceCharacterSet]];
+    NSString *problem = nil;
+    if ([name length] == 0)
+        problem = @"sound name is empty";
+    else if ([name rangeOfString:@"/"].location != NSNotFound ||
+             [name rangeOfString:@":"].location != NSNotFound)
+        problem = @"sound must be a name in /System/Library/Sounds, not a path";
+    else {
+        BOOL found = NO;
+        NSArray *files = [[NSFileManager defaultManager]
+                          contentsOfDirectoryAtPath:@"/System/Library/Sounds" error:NULL];
+        for (NSString *file in files) {
+            if ([[file stringByDeletingPathExtension] isEqualToString:name]) {
+                found = YES;
+                break;
+            }
+        }
+        if (!found)
+            problem = [NSString stringWithFormat:
+                       @"no sound named \"%@\" in /System/Library/Sounds", name];
+    }
+    if (outProblem != NULL)
+        *outProblem = problem;
+    return problem == nil ? name : nil;
+}
+
 // Returns an engine gesture dictionary, or nil for an unrecognized value.
 // Keystrokes contain modifiers and one key. Actions are dispatched by name.
 static NSDictionary *parseBinding(NSString *rawValue) {
@@ -541,6 +572,15 @@ static NSDictionary *parseBinding(NSString *rawValue) {
         if (path == nil)
             return nil;
         return @{ @"Gesture": @"", @"Command": path, @"ScriptPath": path,
+                  @"IsAction": @YES, @"ModifierFlags": @0, @"KeyCode": @0,
+                  @"Enable": @YES };
+    }
+
+    if ([value hasPrefix:@"sound:"]) {
+        NSString *name = resolvedSoundName([unquoted substringFromIndex:6], NULL);
+        if (name == nil)
+            return nil;
+        return @{ @"Gesture": @"", @"Command": name, @"PlaySound": name,
                   @"IsAction": @YES, @"ModifierFlags": @0, @"KeyCode": @0,
                   @"Enable": @YES };
     }
@@ -1154,8 +1194,13 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
                     resolvedScriptPath([unquoted substringFromIndex:7], &problem);
                     report(line, problem);
                 }
+                else if ([[unquoted lowercaseString] hasPrefix:@"sound:"]) {
+                    NSString *problem = nil;
+                    resolvedSoundName([unquoted substringFromIndex:6], &problem);
+                    report(line, problem);
+                }
                 else
-                    report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, action, URL, or script", value]);
+                    report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, action, URL, script, or sound", value]);
                 continue;
             }
 
