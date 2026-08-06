@@ -445,7 +445,10 @@ contact sequence with an existing gesture must use one of these paths.
 while retaining substantial fingertips in those regions. The filtered contact
 list feeds Magic Mouse one- and multi-finger taps, hold-one-tap-one recognition, and
 physical-click counting. Counted physical-click fingertips must form a connected cluster;
-`gestureMagicMouseThumb` identifies and excludes a thumb from that cluster.
+`gestureMagicMouseThumb` identifies and excludes a thumb from that cluster;
+with other contacts present, a corner contact counts as a thumb only when it
+sits clearly below the next-lowest contact, so the leftmost fingertip of a
+level three-finger row is not mistaken for one.
 A single narrow side contact may join a physical three-finger click only when
 two normal fingertips are already present and all three form one cluster. This
 does not make an ordinary click plus one resting edge contact a two-finger click.

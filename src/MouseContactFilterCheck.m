@@ -90,6 +90,15 @@ int main(void) {
                     clusteredThirdDecisions, 3) == -1,
                 @"disconnected side contact was retained as a third click finger");
 
+        require(!MGMagicMouseLowestContactIsThumb(0.135, 0.563, 0.593, 3),
+                @"index finger of a level three-finger click was excluded as a thumb");
+        require(MGMagicMouseLowestContactIsThumb(0.10, 0.40, 0.65, 3),
+                @"corner thumb well below the fingertips was not identified");
+        require(MGMagicMouseLowestContactIsThumb(0.10, 0.50, 1.0, 1),
+                @"lone corner contact no longer counts as a thumb");
+        require(!MGMagicMouseLowestContactIsThumb(0.30, 0.40, 0.65, 3),
+                @"contact outside the corner region was identified as a thumb");
+
         NSLog(@"mouse contact filter: all checks passed");
     }
     return 0;

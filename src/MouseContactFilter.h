@@ -14,6 +14,8 @@ MGMagicMouseContactDecision MGMagicMouseContactDecisionForGeometry(float x, floa
 NSString *MGMagicMouseContactDecisionName(MGMagicMouseContactDecision decision);
 BOOL MGMagicMouseContactShouldBeExcluded(float x, float y, float size,
                                          float minorAxis);
+BOOL MGMagicMouseLowestContactIsThumb(float x, float y, float nextLowestY,
+                                      int contactCount);
 BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,
                                           int contactCount);
 int MGMagicMouseClusteredThirdFingerIndex(

@@ -9,6 +9,9 @@ static const float kRestingEdgeMaximumSize = 1.0;
 static const float kRestingEdgeMaximumMinorAxis = 7.0;
 static const float kClickNeighborDistanceSquared = 0.25;
 static const float kClickMinimumY = 0.30;
+static const float kThumbRegionMaximumY = 0.6;
+static const float kThumbRegionMaximumX = 0.15;
+static const float kThumbBelowFingersMinimumGap = 0.12;
 
 BOOL MGMagicMouseContactShouldBeExcluded(float x, float y, float size,
                                          float minorAxis) {
@@ -36,6 +39,21 @@ NSString *MGMagicMouseContactDecisionName(MGMagicMouseContactDecision decision) 
         case MGMagicMouseContactKept: return @"kept";
     }
     return @"unknown";
+}
+
+// A thumb gripping the lower-left corner sits well below the fingertips on
+// top of the mouse. The index finger of a level three-finger row can land in
+// the same corner region, so the corner box alone cannot identify a thumb:
+// with other contacts present, the candidate must also sit clearly below the
+// next-lowest contact. A lone contact in the region keeps counting as a thumb
+// so the single-finger Thumb gesture still fires.
+BOOL MGMagicMouseLowestContactIsThumb(float x, float y, float nextLowestY,
+                                      int contactCount) {
+    if (y > kThumbRegionMaximumY || x > kThumbRegionMaximumX)
+        return NO;
+    if (contactCount <= 1)
+        return YES;
+    return nextLowestY - y >= kThumbBelowFingersMinimumGap;
 }
 
 BOOL MGMagicMouseContactsFormClickCluster(const float *xs, const float *ys,

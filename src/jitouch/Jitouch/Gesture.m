@@ -3837,8 +3837,13 @@ static int gestureMagicMouseThumb(const Finger *data, int nFingers) {
         for (int i = 1; i < nFingers; i++)
             if (data[i].py < data[tb].py)
                 tb = i;
+        float nextLowestY = 1.0f;
+        for (int i = 0; i < nFingers; i++)
+            if (i != tb && data[i].py < nextLowestY)
+                nextLowestY = data[i].py;
 
-        if (data[tb].py <= 0.6 && data[tb].px <= 0.15) {
+        if (MGMagicMouseLowestContactIsThumb(data[tb].px, data[tb].py,
+                                             nextLowestY, nFingers)) {
             if (type == 0) {
                 if ([commandForGesture(@"Thumb", MAGICMOUSE) isEqualToString:@"Quick Tab Switching"]) {
                     findTabGroup_lx = -99999;
