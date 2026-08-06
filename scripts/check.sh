@@ -19,6 +19,7 @@ clang \
   -framework Carbon \
   "$ROOT/src/Config.m" \
   "$ROOT/src/ConfigCheck.m" \
+  "$ROOT/src/SystemGestureClaims.m" \
   "$ROOT/third_party/tomlc17/tomlc17.c" \
   -o "$OUT" 2>/dev/null
 
@@ -196,6 +197,19 @@ clang \
   -o "$TRACKPAD_INTERACTION_OUT" 2>/dev/null
 "$TRACKPAD_INTERACTION_OUT"
 
+SYSTEM_GESTURE_OUT="$(mktemp -d)/systemgestureclaimscheck"
+clang \
+  -fblocks \
+  -fobjc-exceptions \
+  -fno-objc-arc \
+  -I"$ROOT/src" \
+  -isysroot "$SDKROOT" \
+  -framework Foundation \
+  "$ROOT/src/SystemGestureClaims.m" \
+  "$ROOT/src/SystemGestureClaimsCheck.m" \
+  -o "$SYSTEM_GESTURE_OUT" 2>/dev/null
+"$SYSTEM_GESTURE_OUT"
+
 SCRIPT_RUNNER_OUT="$(mktemp -d)/scriptrunnercheck"
 clang \
   -fblocks \
@@ -285,6 +299,15 @@ done
 grep -q 'BOOL anchorRemained = nFingers == 1 && data\[0\]\.identifier == fixId;' \
   "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
   gesture_fail "trackpad hold-tap treats full lift as a held anchor"
+
+# A two-finger tap lands its contacts together and lifts them a frame later, so
+# without a held anchor the Magic Mouse hold-tap recognizes it first and takes
+# the sequence. Both recognizers must keep measuring against the same interval.
+grep -q 'MGContactOnsetTrackerContactArrivedAfter(&magicMouseContactOnsets,' \
+  "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
+  gesture_fail "Magic Mouse hold-tap accepts an anchor that never rested, which steals two-finger taps"
+[[ "$(grep -c 'kMagicMouseTwoFingerTapMaximumOnsetSpread)' "$ROOT/src/jitouch/Jitouch/Gesture.m")" -ge 3 ]] ||
+  gesture_fail "Magic Mouse hold-tap and taps no longer share one contact onset interval"
 grep -q 'major=%f minor=%f size=%f' "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
   gesture_fail "verbose logging cannot capture trackpad contact geometry"
 for gesture in 'Two-Finger Click' 'Three-Finger Click'; do
@@ -307,6 +330,49 @@ for gesture in 'Two-Fix One-Slide-Right' 'Two-Fix One-Slide-Left' \
     "$ROOT/src/jitouch/Jitouch/Gesture.m" ||
     gesture_fail "$gesture shares the Magic Mouse hold-slide owner"
 done
+
+# The app warns about conflicts from SystemGestureClaims.m while an agent reads
+# scripts/system-gestures.sh. Both describe the same macOS preference keys, so
+# they must name the same key and slug pairs, and every slug must still exist.
+SYSTEM_GESTURES="$ROOT/scripts/system-gestures.sh"
+script_table() {
+  local line device rest domains key slug
+  for line in ${(f)"$(sed -n '/^ENTRIES=(/,/^)/p' "$SYSTEM_GESTURES" | grep -o '"[a-z]*:\$\?[A-Za-z_.,]*:[A-Za-z]*:[a-z,-]*"')"}; do
+    line="${line//\"/}"
+    device="${line%%:*}"; rest="${line#*:}"
+    domains="${rest%%:*}"; rest="${rest#*:}"
+    key="${rest%%:*}"
+    case "$domains" in
+      '$MOUSE_DOMAINS') domains="com.apple.AppleMultitouchMouse" ;;
+      '$TRACKPAD_DOMAINS') domains="com.apple.driver.AppleBluetoothMultitouch.trackpad,com.apple.AppleMultitouchTrackpad" ;;
+    esac
+    for slug in ${(s.,.)${rest#*:}}; do
+      echo "$device $domains $key $slug"
+    done
+  done | sort
+}
+diff <(script_table) <("$SYSTEM_GESTURE_OUT" --table) >/dev/null ||
+  gesture_fail "scripts/system-gestures.sh and src/SystemGestureClaims.m describe different macOS gesture conflicts"
+
+while read -r device domains key slug; do
+  if [[ "$device" == "trackpad" ]]; then method="trackpadGestureSlugs"; else method="mouseGestureSlugs"; fi
+  sed -n "/+ (NSDictionary \*)$method {/,/^}/p" "$ROOT/src/Config.m" | grep -q "@\"$slug\":" ||
+    gesture_fail "a macOS gesture conflict names $device slug $slug, which Config.m does not define"
+done < <(script_table)
+
+# Fingers rest on a Magic Mouse after the button releases, so a click's contacts
+# outlast any fixed window and go on to read as a tap. Suppression holds until
+# the contacts a tap recognizer can see are gone: raw-lift release stalled for
+# seconds behind resting fingers the filter had already excluded from taps.
+GESTURE_SRC="$ROOT/src/jitouch/Jitouch/Gesture.m"
+grep -q 'magicMouseTapsSuppressedUntilLift = YES;' "$GESTURE_SRC" ||
+  gesture_fail "a Magic Mouse physical click no longer suppresses taps"
+grep -q 'if (eligibleTapContactCount == 0 &&' "$GESTURE_SRC" ||
+  gesture_fail "Magic Mouse tap suppression is not released by the tap-eligible contacts lifting"
+grep -q 'eligibleTapContactCount = tapContactCount;' "$GESTURE_SRC" ||
+  gesture_fail "Magic Mouse tap suppression release ignores contact filtering"
+[[ "$(grep -c 'if (magicMouseTapsSuppressedUntilLift ||' "$GESTURE_SRC")" -eq 4 ]] ||
+  gesture_fail "a Magic Mouse tap recognizer ignores post-click suppression"
 
 grep -q 'NSWorkspaceDidWakeNotification' "$APP_SRC" || wake_fail "the app does not observe wake notifications"
 grep -q '\[self reload\]' "$APP_SRC" || wake_fail "the wake handler does not reload gesture devices"

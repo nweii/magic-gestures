@@ -38,6 +38,29 @@ void MGContactOnsetTrackerObserve(MGContactOnsetTracker *tracker,
     }
 }
 
+static BOOL onsetForIdentifier(const MGContactOnsetTracker *tracker, int identifier,
+                               double *outOnset) {
+    for (NSUInteger index = 0; index < tracker->count; index++) {
+        if (tracker->identifiers[index] != identifier)
+            continue;
+        *outOnset = tracker->firstSeenTimes[index];
+        return YES;
+    }
+    return NO;
+}
+
+BOOL MGContactOnsetTrackerContactArrivedAfter(const MGContactOnsetTracker *tracker,
+                                              int anchor, int arrival, double lead) {
+    double anchorOnset = 0;
+    double arrivalOnset = 0;
+    if (anchor == arrival || lead < 0)
+        return NO;
+    if (!onsetForIdentifier(tracker, anchor, &anchorOnset) ||
+        !onsetForIdentifier(tracker, arrival, &arrivalOnset))
+        return NO;
+    return arrivalOnset - anchorOnset > lead;
+}
+
 BOOL MGContactOnsetTrackerContactsArrivedWithin(const MGContactOnsetTracker *tracker,
                                                 const int *identifiers, int count,
                                                 double maximumSpread) {

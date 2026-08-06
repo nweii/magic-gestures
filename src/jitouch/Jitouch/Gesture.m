@@ -228,6 +228,8 @@ static NSString *gestureOwnerName(NSUInteger owner) {
 static int disableHorizontalScroll;
 static CFAbsoluteTime customMagicMouseScrollSuppressionUntil = 0;
 static CFAbsoluteTime customMagicMouseTapSuppressionUntil = 0;
+// Set when a physical click begins or ends, and cleared only by a full lift.
+static BOOL magicMouseTapsSuppressedUntilLift = NO;
 static CFAbsoluteTime customMagicMousePrimaryTapSuppressionUntil = 0;
 static const float kMagicMousePrimaryTapStartMinY = 0.58f;
 static const float kMagicMousePrimaryTapKeepMinY = 0.54f;
@@ -3070,7 +3072,8 @@ static void gestureMagicMouseTwoFingerTap(Finger *data, int nFingers, double tim
     static float startx[2];
     static float starty[2];
 
-    if (customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent()) {
+    if (magicMouseTapsSuppressedUntilLift ||
+        customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent()) {
         step = nFingers == 0 ? kTwoFingerTapIdle : kTwoFingerTapRejectedUntilLift;
         startTime = -1;
         return;
@@ -3178,7 +3181,8 @@ static void gestureMagicMouseThreeFingerTap(Finger *data, int nFingers, double t
     static float startx[3];
     static float starty[3];
 
-    if (customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
+    if (magicMouseTapsSuppressedUntilLift ||
+        customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
         CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft) ||
         CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonRight)) {
         step = kThreeFingerTapIdle;
@@ -3262,7 +3266,8 @@ static void gestureMagicMouseRightFrontTap(const Finger *data, int nFingers, dou
     static float startx = 0;
     static float starty = 0;
 
-    if (customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
+    if (magicMouseTapsSuppressedUntilLift ||
+        customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
         customMagicMousePrimaryTapSuppressionUntil > CFAbsoluteTimeGetCurrent()) {
         step = 0;
         touchId = -1;
@@ -3333,7 +3338,8 @@ static void gestureMagicMouseOneFingerTap(const Finger *data, int nFingers, doub
         return;
     }
 
-    if (customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
+    if (magicMouseTapsSuppressedUntilLift ||
+        customMagicMouseTapSuppressionUntil > CFAbsoluteTimeGetCurrent() ||
         customMagicMousePrimaryTapSuppressionUntil > CFAbsoluteTimeGetCurrent()) {
         step = kPrimaryTapRejectedUntilLift;
         touchId = -1;
@@ -3907,7 +3913,20 @@ static int gestureMagicMouseOneFixOneTap(const Finger *data, int nFingers, doubl
         sttime = -1;
     } else if (step == 1) {
         if (nFingers == 2) {
-            if (fabs(data[0].py-data[1].py) < 0.25) {
+            // A held anchor is already down well before the finger that taps
+            // beside it. Two contacts that land together are an ordinary
+            // two-finger tap, which reaches its own recognizer one frame later
+            // and would otherwise lose the sequence to this one. Both use the
+            // same interval, so a pair satisfies exactly one of them.
+            int anchorIndex = data[0].identifier == fixId ? 0 :
+                              data[1].identifier == fixId ? 1 : -1;
+            BOOL anchorWasHeld = anchorIndex >= 0 &&
+                MGContactOnsetTrackerContactArrivedAfter(&magicMouseContactOnsets,
+                    fixId, data[1 - anchorIndex].identifier,
+                    kMagicMouseTwoFingerTapMaximumOnsetSpread);
+            if (!anchorWasHeld)
+                MGTraceRecordCandidate(@"hold-tap", @"canceled", @"anchor-not-held");
+            if (anchorWasHeld && fabs(data[0].py-data[1].py) < 0.25) {
                 if (sttime < 0)
                     sttime = timestamp;
                 if ((data[0].identifier == fixId || data[0].size > stvt / 10 + 0.2) &&
@@ -3965,6 +3984,7 @@ static int gestureMagicMouseOneFixOneTap(const Finger *data, int nFingers, doubl
 static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, double timestamp, int frame) {
     int ignore = 0;
     int activeMagicMouseContactCount = nFingers;
+    int eligibleTapContactCount = nFingers;
     int eligibleClickContactCount = 0;
     int completedClickContactCount = 0;
     MGTraceContact traceContacts[16];
@@ -4092,6 +4112,7 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
                 MGTraceRecordCandidate(@"physical-click", @"canceled", @"disconnected-click-cluster");
         }
 
+        eligibleTapContactCount = tapContactCount;
         gestureMagicMouseOneFingerSwipe(data, nFingers, timestamp);
         gestureMagicMouseTwoFingerSwipe(data, nFingers, timestamp, thumbPresent);
         gestureMagicMouseThreeFingerTap(tapData, tapContactCount, timestamp, 0);
@@ -4119,6 +4140,17 @@ static int magicMouseCallback(MTDeviceRef device, Finger *data, int nFingers, do
         lastLoggedMagicMouseClickContactCount = eligibleClickContactCount;
     }
     dispatchMagicMousePhysicalClickForContactCount(completedClickContactCount);
+
+    // Release when the contacts a tap recognizer can see are gone, not when the
+    // raw count reaches zero. A resting finger the filter excludes cannot form
+    // a tap, and a hand often stays on the mouse for many seconds after a
+    // click, so waiting for a bare surface suppressed taps long after the
+    // clicking fingers had lifted. The button check keeps the flag through the
+    // click itself, whose own fingers may be briefly filtered mid-press.
+    if (eligibleTapContactCount == 0 &&
+        !CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft) &&
+        !CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonRight))
+        magicMouseTapsSuppressedUntilLift = NO;
 
     NSUInteger ownerBeforeFinish = magicMouseSequence.owner;
     MGGestureSequenceFinishFrame(&magicMouseSequence, activeMagicMouseContactCount);
@@ -4384,9 +4416,13 @@ static CGEventRef CGEventCallback(CGEventTapProxy proxy, CGEventType type, CGEve
         trackpadRewritingSecondaryClick = NO;
     }
 
+    // A click and a tap are the same contacts, so the fingers that performed a
+    // click must not go on to read as a tap. Fingers commonly rest for a moment
+    // after the button releases, which outlasts any fixed window, so this holds
+    // until the hand leaves the surface.
     if (type == kCGEventLeftMouseDown || type == kCGEventLeftMouseUp ||
         type == kCGEventRightMouseDown || type == kCGEventRightMouseUp) {
-        customMagicMouseTapSuppressionUntil = CFAbsoluteTimeGetCurrent() + 0.18;
+        magicMouseTapsSuppressedUntilLift = YES;
     }
 
     if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown) {

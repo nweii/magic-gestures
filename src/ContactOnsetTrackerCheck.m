@@ -42,6 +42,35 @@ int main(void) {
         require(!MGContactOnsetTrackerContactsArrivedWithin(&tracker, missing, 2, 0.120),
                 @"a contact without a recorded onset was accepted");
 
+        // A held anchor and a finger tapping beside it must never read as the
+        // simultaneous pair of an ordinary two-finger tap, and the reverse.
+        MGContactOnsetTrackerObserve(&tracker, NULL, 0, 30.200);
+        int held[] = {31};
+        int heldPair[] = {31, 32};
+        MGContactOnsetTrackerObserve(&tracker, held, 1, 40.000);
+        MGContactOnsetTrackerObserve(&tracker, heldPair, 2, 40.400);
+        require(MGContactOnsetTrackerContactArrivedAfter(&tracker, 31, 32, 0.120),
+                @"a finger tapping beside a held anchor was not seen as led");
+        require(!MGContactOnsetTrackerContactsArrivedWithin(&tracker, heldPair, 2, 0.120),
+                @"a held anchor and a later tap read as arriving together");
+        require(!MGContactOnsetTrackerContactArrivedAfter(&tracker, 32, 31, 0.120),
+                @"the anchor and the tapping finger were read in the wrong order");
+
+        MGContactOnsetTrackerObserve(&tracker, NULL, 0, 40.600);
+        int together[] = {41};
+        int togetherPair[] = {41, 42};
+        MGContactOnsetTrackerObserve(&tracker, together, 1, 50.000);
+        MGContactOnsetTrackerObserve(&tracker, togetherPair, 2, 50.030);
+        require(!MGContactOnsetTrackerContactArrivedAfter(&tracker, 41, 42, 0.120),
+                @"a staggered two-finger tap was accepted as a held anchor");
+        require(MGContactOnsetTrackerContactsArrivedWithin(&tracker, togetherPair, 2, 0.120),
+                @"a staggered two-finger tap was rejected as arriving apart");
+
+        require(!MGContactOnsetTrackerContactArrivedAfter(&tracker, 41, 49, 0.120),
+                @"a contact without a recorded onset was accepted as led");
+        require(!MGContactOnsetTrackerContactArrivedAfter(&tracker, 41, 41, 0.120),
+                @"one contact was accepted as leading itself");
+
         NSLog(@"contact onset tracker: all checks passed");
     }
     return 0;

@@ -263,29 +263,29 @@ thing from the shell.
 
 ## Conflicts with built-in macOS gestures
 
-macOS claims several of these motions first, in System Settings under Trackpad
-and Mouse. When both want the same motion, both fire.
+macOS assigns its own gestures in System Settings under Trackpad and Mouse.
+When both want the same motion, both fire. Which motions those are depends on
+your settings, since the finger counts and the individual gestures are
+adjustable, so no list here can tell you what is taken on your Mac.
 
-Check your own settings before binding, because the finger counts are
-adjustable. A default trackpad puts these out of reach:
+Trickpad reads those settings when it loads a configuration and reports any
+binding that shares a motion with a built-in gesture. The menu bar item shows
+the count, and the row opens the details.
 
-| Motion | Built-in use |
-|---|---|
-| `four-finger-swipe-up` | Mission Control |
-| `four-finger-swipe-down` | App Exposé |
-| `four-finger-swipe-left`, `four-finger-swipe-right` | Swipe between full-screen apps |
+To see the same thing from the shell:
 
-Mission Control and App Exposé can be moved between three and four fingers, so a
-trackpad set to three fingers takes the `three-finger-swipe` names out instead
-and frees the four-finger ones.
+```bash
+/Applications/Trickpad.app/Contents/Resources/system-gestures.sh
+```
 
-On the Magic Mouse, one-finger and two-finger horizontal motion drives scrolling
-and page navigation, which is why `one-finger-swipe-left` and
-`one-finger-swipe-right` fight the system.
+Each line names one gesture from this reference and whether macOS has claimed
+the motion it overlaps. A line reading `claimed=default` means macOS has never
+written that preference, so the built-in default decides it and System Settings
+is the only place to confirm.
 
-Free on a default setup: every `hold-` gesture, multi-finger tap or click,
-`index-to-pinky`, `pinky-to-index`, and the
-`three-finger-swipe` names.
+One kind of overlap is easy to miss. A built-in gesture that uses a *double*
+tap, such as the Magic Mouse two-finger double tap, contains two single taps,
+so a single-tap binding on the same finger count fires while you perform it.
 
 ## Choosing one
 

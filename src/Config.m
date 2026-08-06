@@ -10,6 +10,7 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <IOKit/hidsystem/IOLLEvent.h>
 #import <math.h>
+#import "SystemGestureClaims.h"
 #import "tomlc17.h"
 
 // The tables accept common alternative spellings because people and coding
@@ -1320,12 +1321,26 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
     NSArray *resolvedTrackpadCommands = commands(trackpadScopes, trackpadScopeOrder);
     NSArray *resolvedMouseCommands = commands(mouseScopes, mouseScopeOrder);
 
+    // A declaration key is "device|scope|slug". Application scopes do not change
+    // whether a motion collides with a built-in gesture, so every active binding
+    // for a slug counts once.
+    NSMutableSet *mouseSlugs = [NSMutableSet set];
+    NSMutableSet *trackpadSlugs = [NSMutableSet set];
+    for (NSString *declarationKey in activeBindingKeys) {
+        NSArray *parts = [declarationKey componentsSeparatedByString:@"|"];
+        if ([parts count] != 3)
+            continue;
+        [([parts[0] isEqualToString:@"mouse"] ? mouseSlugs : trackpadSlugs)
+            addObject:parts[2]];
+    }
+
     return @{
         @"enAll": @1,
         @"ClickSpeed": @([str(@"tap-speed", @"0.25") floatValue]),
         @"Sensitivity": @4.6666,
         @"ShowIcon": @1,
         @"BindingCount": @([activeBindingKeys count]),
+        @"SystemGestureConflicts": MGSystemGestureConflictsForCurrentUser(mouseSlugs, trackpadSlugs),
         @"HapticFeedback": @(parseBoolean(str(@"haptic-feedback", @"true"), YES) ? 1 : 0),
         @"MenuBarIcon": stripQuotes(str(@"menu-bar-icon", @"trickpad")),
         @"ExperimentalMouseClickGestures": @(parseBoolean(str(@"experimental-mouse-click-gestures", @"false"), NO) ? 1 : 0),

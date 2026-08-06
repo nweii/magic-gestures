@@ -102,6 +102,7 @@ clang \
   "$ROOT/src/MouseClickInteraction.m" \
   "$ROOT/src/ContactOnsetTracker.m" \
   "$ROOT/src/ScriptRunner.m" \
+  "$ROOT/src/SystemGestureClaims.m" \
   "$ROOT/src/TraceRecorder.m" \
   "$ROOT/src/TraceSessionModel.m" \
   "$ROOT/src/TrackpadInteraction.m" \
@@ -122,6 +123,10 @@ clang \
 cp "$ROOT/config.default.toml" "$RES_DIR/config.default.toml"
 cp "$ROOT/config-notes.default.md" "$RES_DIR/config-notes.default.md"
 cp "$ROOT/Trickpad-menu-bar-icon.svg" "$RES_DIR/Trickpad-menu-bar-icon.svg"
+# An agent managing the configuration folder has no source tree, and needs to
+# read the macOS gesture assignments a binding can collide with.
+cp "$ROOT/scripts/system-gestures.sh" "$RES_DIR/system-gestures.sh"
+chmod +x "$RES_DIR/system-gestures.sh"
 
 # The installed app analyzes its redacted export without depending on source files.
 clang \

@@ -15,3 +15,12 @@ void MGContactOnsetTrackerObserve(MGContactOnsetTracker *tracker,
 BOOL MGContactOnsetTrackerContactsArrivedWithin(const MGContactOnsetTracker *tracker,
                                                 const int *identifiers, int count,
                                                 double maximumSpread);
+
+// Answers whether `arrival` appeared more than `lead` after `anchor`, which is
+// how a recognizer requires one contact to have been held before another lands.
+// The comparison is strict, so passing the same interval both here and to
+// MGContactOnsetTrackerContactsArrivedWithin leaves the two answers disjoint:
+// one pair of contacts cannot read as both simultaneous and led. A contact the
+// tracker has not seen answers NO.
+BOOL MGContactOnsetTrackerContactArrivedAfter(const MGContactOnsetTracker *tracker,
+                                              int anchor, int arrival, double lead);

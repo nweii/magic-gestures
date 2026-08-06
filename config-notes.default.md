@@ -26,8 +26,26 @@ When the user wants ideas, find a few concrete options that fit their workflow:
   app does not expose a suitable shortcut or URL.
 - Prefer a built-in action, keyboard shortcut, or app deep link over a custom
   script.
-- Consider macOS gesture conflicts, existing bindings, accidental activation,
-  comfort and repeatability, mnemonic fit, and how consequential the action is.
+- Consider existing bindings, accidental activation, comfort and repeatability,
+  mnemonic fit, and how consequential the action is.
+
+Before proposing or changing a binding, read what macOS has already claimed.
+Run this, substituting the running app path from the prompt:
+
+```bash
+"<app>/Contents/Resources/system-gestures.sh"
+```
+
+Each line names one gesture slug and whether macOS uses the motion it overlaps.
+Read `claimed=yes` as taken and choose a different gesture. Read
+`claimed=default` as undecided, because macOS has never written that preference
+and its built-in default applies; ask the user to check System Settings.
+
+A built-in gesture that uses a double tap contains two single taps, so a
+single-tap binding on the same finger count fires while the user performs it.
+The `defer` option delays a tap so a second tap can cancel it, which depends on
+Trickpad recognizing both taps and costs every single tap that delay. Prefer a
+gesture macOS has not claimed.
 - Use an application-specific binding when a gesture makes sense in one app or
   would conflict elsewhere.
 

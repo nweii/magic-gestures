@@ -15,6 +15,7 @@
 #import <CoreFoundation/CFPreferences.h>
 #import "SystemPreferences.h"
 #import "Config.h"
+#import "SystemGestureClaims.h"
 #import "KeyUtility.h"
 #import "TraceRecorder.h"
 #import "TraceSessionModel.h"
@@ -24,6 +25,7 @@
 
 static NSArray *lastConfigProblems = nil;
 static NSInteger lastConfigBindingCount = 0;
+static NSArray *lastConfigConflicts = nil;
 static BOOL lastConfigRejected = NO;
 static dispatch_source_t configWatcher = nil;
 static int configWatcherFD = -1;
@@ -215,6 +217,7 @@ enum {
     kMenuTagAgents = 5,
     kMenuTagProblems = 6,
     kMenuTagDiagnostics = 7,
+    kMenuTagConflicts = 8,
 };
 
 static NSString *shellQuote(NSString *s) {
@@ -497,7 +500,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
     [self setConfigProblems:problems];
     lastConfigRejected = NO;
-    lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
+    [self adoptConfiguration:parsed];
     [Settings loadSettings2:parsed];
     [self refreshMenu];
     if (!enAll)
@@ -523,7 +526,7 @@ static BOOL runLaunchctl(NSArray *arguments) {
     }
     [self setConfigProblems:problems];
     lastConfigRejected = NO;
-    lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
+    [self adoptConfiguration:parsed];
     [Settings loadSettings2:parsed];
     [self refreshMenu];
     if (!enAll)
@@ -570,6 +573,39 @@ static BOOL runLaunchctl(NSArray *arguments) {
     [problems retain];
     [lastConfigProblems release];
     lastConfigProblems = problems;
+}
+
+// Every path that puts a parsed configuration into service records what the
+// menu reports about it, so a new one cannot show a stale conflict list.
+- (void)adoptConfiguration:(NSDictionary *)parsed {
+    lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
+    NSArray *conflicts = [parsed objectForKey:@"SystemGestureConflicts"];
+    [conflicts retain];
+    [lastConfigConflicts release];
+    lastConfigConflicts = conflicts;
+}
+
+// macOS keeps its own gesture assignments, and a binding that shares a motion
+// with one fires alongside it rather than instead of it.
+- (void)showConfigConflicts:(id)sender {
+    if ([lastConfigConflicts count] == 0)
+        return;
+
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:[NSString stringWithFormat:@"%lu gesture%@ macOS also uses",
+                           (unsigned long)[lastConfigConflicts count],
+                           [lastConfigConflicts count] == 1 ? @"" : @"s"]];
+    [alert setInformativeText:[NSString stringWithFormat:@"%@\n\n%@",
+                               [lastConfigConflicts componentsJoinedByString:@"\n\n"],
+                               MGSystemGestureSettingsProvenance()]];
+    [alert setAlertStyle:NSAlertStyleInformational];
+    [alert addButtonWithTitle:@"OK"];
+    [alert addButtonWithTitle:@"Edit Settings..."];
+    [NSApp activateIgnoringOtherApps:YES];
+    NSModalResponse r = [alert runModal];
+    [alert release];
+    if (r == NSAlertSecondButtonReturn)
+        [self preferences:nil];
 }
 
 // Skipped lines are the common failure in a hand-edited file, and nothing else
@@ -647,6 +683,21 @@ static BOOL runLaunchctl(NSArray *arguments) {
                         (unsigned long)n, n == 1 ? @"" : @"s"]];
         [item setAction:@selector(showConfigProblems:)];
     }
+}
+
+// A configuration with no shared motions has nothing to say, so the row stays
+// hidden rather than reporting a clean result nobody asked for.
+- (void)refreshConflictsItem {
+    NSMenuItem *item = [theMenu itemWithTag:kMenuTagConflicts];
+    if (item == nil)
+        return;
+
+    NSUInteger n = [lastConfigConflicts count];
+    [item setHidden:n == 0];
+    if (n == 0)
+        return;
+    [item setTitle:[NSString stringWithFormat:@"%lu gesture%@ macOS also uses...",
+                    (unsigned long)n, n == 1 ? @"" : @"s"]];
 }
 
 - (void)refreshBindingsSubmenu {
@@ -1412,6 +1463,10 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [item setTag:kMenuTagProblems];
     [item setTarget:self];
 
+    item = [theMenu addItemWithTitle:@"Gesture conflicts" action:@selector(showConfigConflicts:) keyEquivalent:@""];
+    [item setTag:kMenuTagConflicts];
+    [item setTarget:self];
+
     [theMenu addItem:[NSMenuItem separatorItem]];
 
     item = [theMenu addItemWithTitle:@"Current Gestures" action:NULL keyEquivalent:@""];
@@ -1567,6 +1622,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 
         [self refreshAccessibilityItem];
         [self refreshProblemsItem];
+        [self refreshConflictsItem];
         [self refreshBindingsSubmenu];
         [self refreshDiagnosticsSubmenu];
         [self updateIconImage];
@@ -1646,11 +1702,11 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
         [self setConfigProblems:problems];
         if (parsed != nil) {
             lastConfigRejected = NO;
-            lastConfigBindingCount = [[parsed objectForKey:@"BindingCount"] integerValue];
+            [self adoptConfiguration:parsed];
             [Settings loadSettings2:parsed];
         } else if ([problems count] > 0) {
             lastConfigRejected = YES;
-            lastConfigBindingCount = 0;
+            [self adoptConfiguration:nil];
             [self reportFailure:@"Could not apply the configuration."
                          detail:[[problems componentsJoinedByString:@"\n\n"]
                                  stringByAppendingString:@"\n\nNo gestures were loaded."]];
