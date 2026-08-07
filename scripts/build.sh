@@ -89,6 +89,7 @@ clang \
   -framework Carbon \
   -framework ApplicationServices \
   -framework AudioToolbox \
+  -framework AVFAudio \
   -framework IOKit \
   -framework ScriptingBridge \
   -framework MultitouchSupport \

@@ -13,6 +13,7 @@
 #import <CoreFoundation/CoreFoundation.h>
 #import <ApplicationServices/ApplicationServices.h>
 #import <AudioToolbox/AudioServices.h>
+#import <AVFAudio/AVFAudio.h>
 #import <Foundation/Foundation.h>
 #import <IOKit/IOKitLib.h>
 
@@ -1477,12 +1478,14 @@ static void doCommand(NSString *gesture, int device, NSDictionary *commandDict,
                     // failed to fire.
                     NSString *speech = [commandDict objectForKey:@"SpeakText"];
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        static NSSpeechSynthesizer *synthesizer = nil;
+                        static AVSpeechSynthesizer *synthesizer = nil;
                         if (synthesizer == nil)
-                            synthesizer = [[NSSpeechSynthesizer alloc] init];
+                            synthesizer = [[AVSpeechSynthesizer alloc] init];
                         if ([synthesizer isSpeaking])
-                            [synthesizer stopSpeaking];
-                        [synthesizer startSpeakingString:speech];
+                            [synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+                        AVSpeechUtterance *utterance = [[[AVSpeechUtterance alloc]
+                            initWithString:speech] autorelease];
+                        [synthesizer speakUtterance:utterance];
                     });
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
                     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
