@@ -1,53 +1,67 @@
 # Trickpad agent guide
 
-Trickpad refreshes this file whenever it launches. The file describes the version of Trickpad that supplied it.
+Trickpad maps Magic Mouse and Magic Trackpad gestures to shortcuts, built-in actions, URLs, and executable scripts. It refreshes this file whenever it launches. The file describes the version of Trickpad that supplied it.
 
-`config.toml` is user-owned. If `AGENTS.local.md` exists beside this file, read it for the user's explicit additional instructions. Do not write preference notes into either file unless the user asks. If your host supports durable, user-approved memory, retain non-sensitive Trickpad preferences there instead.
+## Get oriented
 
-Trickpad maps Magic Mouse and Magic Trackpad gestures to shortcuts, built-in actions, URLs, and executable scripts.
+This session is opened by the user from Trickpad's "Manage with Agent" menu item. Find out what the user is looking to do before reaching for any of the sections below.
+
+Three files sit in this folder, and each answers a different question:
+
+| File | What it holds |
+| --- | --- |
+| `config.toml` | Every binding and setting. The record of what the user has set up, and the only account of what a gesture does. |
+| `AGENTS.local.md` | The user's own conventions and preferences for configuring Trickpad, in their words. Optional, and theirs to keep. |
+| This file | Instructions from Trickpad. It is rewritten from the running version at every launch, so anything you add here will not persist. |
+
+Read `config.toml` first, and `AGENTS.local.md` if it exists. An edit to `config.toml` takes effect when Trickpad reloads its settings, not when the file is saved. Do not write preference notes into `config.toml` or this file unless the user asks; anything worth keeping between sessions belongs in `AGENTS.local.md`, and offering to maintain it alongside `config.toml` is part of the job.
+
+Bring whatever you already know about this user to the work.
 
 ## Help choose a gesture
 
-Start with the user's intended outcome, the app or context where it happens, and a gesture they find comfortable. Use the existing configuration as evidence of what they already rely on. Leave every existing binding and setting unchanged unless changing it is necessary for the user's stated request.
+Learn the user's intended outcome and the app or context where it happens. Leave every existing binding and setting unchanged unless changing it is necessary for the user's stated request.
 
-Summarizing the current configuration is often worth doing, since the user may never have opened the file themselves. Give it as a list grouped by device, one line per binding, naming the gesture and what it does in plain words rather than as the value in the file. Point out anything that looks unintended.
+Consider giving a summary of the current configuration. The user may not have the file open, and this may be their first time changing the settings. Give it as a list grouped by device, one line per binding, naming the gesture and what it does in plain words rather than as the value in the file. Point out anything that looks unintended.
 
-When the user wants ideas, find a few concrete options that fit their workflow:
+If the user wants ideas, find a few concrete options that fit their workflow:
 
 - Check an app's configurable shortcuts, automation hooks, documented URL schemes, deep links, and installed extensions.
 - Consider a Shortcut, command-line tool, or small local script only when an app does not expose a suitable shortcut or URL.
 - Prefer a built-in action, keyboard shortcut, or app deep link over a custom script.
 - Consider existing bindings, comfort and repeatability, mnemonic fit, and how consequential the action is.
 - Use an application-specific binding when a gesture makes sense in one app or would conflict elsewhere.
-- To check whether a gesture fires at all, bind it to `sound:NAME` (a system sound such as `sound:Glass`) or `say:WORDS`, which play or speak and do nothing else. Speech can name the gesture, so several test bindings stay distinguishable by ear.
-- To confirm a gesture that still does its real work, add `sound` or `say` as a binding option: `{ action = "cmd+shift+4", sound = "Glass" }`. A Magic Mouse has no haptic feedback, so this is the only way to feel or hear one of its gestures fire.
+- `sound:NAME` (a system sound such as `sound:Glass`) and `say:WORDS` play or speak and do nothing else. They are ordinary binding values, useful for whatever the user wants them for; checking that a gesture fires at all is the obvious one. Speech can name the gesture, so several such bindings stay distinguishable by ear.
+- To confirm a gesture that still does its real work, you could add `sound` or `say` as a binding option: `{ action = "cmd+shift+4", sound = "Glass" }`. A Magic Mouse has no haptic feedback, so this is the only way to feel or hear one of its gestures fire.
 
-## Design bindings this person will keep
+Some useful app commands appear in the menu bar without their own shortcut. Recommend a macOS App Shortcut when appropriate. The user creates one in **System Settings > Keyboard > Keyboard Shortcuts > App Shortcuts**. It targets an existing menu command in one app or all apps. Use its full menu path exactly as shown, with `->` and no spaces between path components. Titles are case-sensitive, and an ellipsis is three periods (`...`), not `…`. Verify it in the target app before binding a Trickpad gesture to it. Do not automate System Settings for this. Its interface and the app's menu titles can change across macOS and app releases.
 
-A good configuration is personal: it reflects one person's apps, habits, and taste, and it usually gets there through revision rather than in one pass.
+Do not inspect private content, browser history, credentials, clipboard contents, or unrelated files to generate ideas. Ask before reading another local file or creating a script.
 
-**A binding earns its place in one of a few ways.** Any one of these can justify it, and the mix differs per person and per app:
+## What makes a binding stick
+
+A good configuration is personal: it reflects one user's apps, habits, and taste, and it usually gets there through revision rather than in one pass.
+
+**A binding earns its place in one of a few ways.** Any one of these can justify it, and the mix differs per user and per app:
 
 - Frequency. Something done many times an hour is worth a gesture; something rare rarely is.
 - Flow. The strongest case is a hand already on the mouse or trackpad doing continuous work — dragging, scrubbing, navigating — where the action interleaves with that work. A gesture that saves an easy shortcut can still be a big win if it keeps the hand in place mid-flow.
 - Ergonomics. A genuinely awkward chord, three or four modifiers or a long reach, benefits even when it is less frequent.
 - No keyboard equivalent. Opening a URL or deep link, running a script, or a middle click has no keystroke to save, so a gesture is a natural fit.
 
-Ask about the person's actual day — the apps they live in, what they do while the hand is already on the device — and propose bindings they would plausibly try, not a showcase of what the app can do.
+Ask about the user's workflows and propose bindings they would plausibly try, not a showcase of what the app can do.
 
-**Treat the configuration as a draft, always.** Trying, disliking, and rebinding is the normal path, not a failure of planning. The loop is cheap: edit, Reload Settings, try it in real work. Offer `sound:NAME` or `say:WORDS` when the person wants to feel a gesture out before giving it a real action. Suggest revisiting a binding after a few days of real use rather than defending the first draft.
+**Work with the user's associations.** People remember gesture bindings as meaning attached to motion, so bindings that share structure are cheaper to learn and harder to mix up. Paired actions sit well on paired gestures, with symmetric motions paralleling symmetric actions. A gesture rebound per application holds up best when its action stays the same kind of thing in each. When the user offers their own mnemonic, help them refine and develop it.
 
-**Tend the file the way its owner keeps it.** The configuration is a plain-text file the person lives in, so its readability is part of the product. Offer, when it would help, to tidy section dividers, comments, ordering, and spacing — and match the conventions already in the file rather than imposing new ones. If the person has their own formatting rules, treat them as the file's lint and keep every edit consistent with them. `AGENTS.local.md` beside this file is the durable home for those conventions if they want them written down. A comment on a binding's own line appears in the menu bar item's Current Gestures list, so a well-commented file documents itself in the app.
-
-## Recommend gestures that avoid conflicts
+## Check for conflicts
 
 If a recommendation carries a risk, tell the user plainly what could collide and when, in terms of what their hand does.
 
-**Many gestures overlap with simpler variants.** A double tap contains a single tap, and a three-finger gesture could pass through a two-finger moment as fingers land and lift. When one binding sits inside another this way, the simpler one might fire during the fuller one. Trickpad works to tell such intentions apart, but bindings that cannot overlap in the first place beat any amount of filtering, so we prefer them at the planning stage.
+**Gestures may overlap with simpler variants.** A double tap contains a single tap, and a three-finger gesture could pass through a two-finger moment as fingers land and lift. When one binding sits inside another this way, the simpler one might fire during the fuller one. Trickpad works to tell such intentions apart, but bindings that cannot overlap in the first place beat any amount of filtering, so we prefer them at the planning stage.
 
 **The device counts contacts, not fingers.** A resting finger can add one to the count. A light touch or an edge contact can drop one. That makes gestures at neighboring finger counts easy to mistake for each other now and then. When two actions must never substitute for each other, give them gestures that differ in kind — a hold against a tap, a swipe against a click — rather than by one finger.
 
-**Conflicts usually come from three places. Check each.**
+**Conflicts can come from three places. Check each.**
 
 - Triggers macOS has claimed. Run the claims report, substituting the running app path from the prompt:
 
@@ -55,23 +69,25 @@ If a recommendation carries a risk, tell the user plainly what could collide and
   "<app>/Contents/Resources/system-gestures.sh"
   ```
 
-  Run it by path. It is a zsh script, and naming another interpreter fails with a substitution error that reads as a broken script.
+  Run it by path. It is a zsh script, and naming another interpreter fails with a substitution error that reads as a broken script. You might need to ask for permission to run this script.
 
   `claimed=yes` means macOS acts on that trigger: prefer a different gesture, or tell the user what would double-fire. `claimed=default` means macOS has never written the preference, so ask the user to check System Settings. A `gate=` field means a second preference decided the answer, and the report names it.
 
-  When the report will not run, recommend from the gestures whose safety does not depend on it. Hold gestures are the quietest choice, and macOS binds nothing to them. Name the check that could not run and what follows from it: macOS may already act on a proposed trigger, so a binding could double-fire. Offer the command to a user who wants it, and let the recommendation stand whether or not they run it.
+  If the report will not run, recommend from the gestures whose safety does not depend on it. Name the check that could not run and what follows from it: macOS may already act on a proposed trigger, so a binding could double-fire.
 
-  Reading the preference domains yourself is the one substitute to avoid. Which keys answer for which trigger is knowledge this report holds, so a reading assembled from key names you remember looks complete from the inside while missing the one that decided the answer.
-- The configuration itself. Read the user's other bindings on the same device for anything the proposal contains, sits inside, or neighbors by one finger. Name the current binding on every gesture you discuss, read from the file as you write the sentence. An account from memory reads exactly like one from the file, so nobody can catch what it got wrong.
-- The output. The keystroke a binding sends can collide with app or global hotkeys nothing here can see. A Caps Lock remapped to a modifier chord is common; ask.
+  Always rely on authoritative sources of gesture configuration state (the config file and what you can see of the gestures configured in macOS System Settings) over your own memory.
+- Read the user's other bindings on the same device for anything the proposal contains, sits inside, or neighbors by one finger. Name the current binding on every gesture you discuss, read from the file as you write the sentence.
+- The keystroke a binding sends can collide with app or global hotkeys.
 
-**Judge a gesture against the hand at rest.** Between gestures a hand is often already on or over the device — resting, clicking, scrolling. A good gesture is one that background is unlikely to produce by accident, so weigh a proposal against the contacts and motions ordinary use of that surface involves. The less it resembles them, the more the binding can safely carry.
+**Judge a gesture against the hand at rest.** Between gestures a hand might be already on or over the device — resting, clicking, scrolling. A good gesture is one that background is unlikely to produce by accident, so weigh a proposal against the contacts and motions ordinary use of that surface involves. The less it resembles them, the more the binding can safely carry.
 
-**Work with the user's associations.** People remember gesture bindings as meaning attached to motion, so bindings that share structure are cheaper to learn and harder to mix up. Paired actions sit well on paired gestures, the way the defaults put escape and return on mirrored hold-taps. A gesture rebound per application holds up best when its action stays the same kind of thing in each. When the user offers their own mnemonic, build on it rather than replacing it.
+## Tend the configuration over time
 
-Some useful app commands appear in the menu bar without their own shortcut. Recommend a macOS App Shortcut when appropriate. The user creates one in **System Settings > Keyboard > Keyboard Shortcuts > App Shortcuts**. It targets an existing menu command in one app or all apps. Use its full menu path exactly as shown, with `->` and no spaces between path components. Titles are case-sensitive, and an ellipsis is three periods (`...`), not `…`. Verify it in the target app before binding a Trickpad gesture to it. Do not automate System Settings for this. Its interface and the app's menu titles can change across macOS and app releases.
+**Treat the configuration as a draft, always.** Trying, disliking, and rebinding is the normal path, not a failure of planning. The loop is cheap: edit, Reload Settings, try it in real work. Offer `sound:NAME` or `say:WORDS` when the user wants to feel a gesture out before giving it a real action. Suggest revisiting a binding after a few days of real use rather than defending the first draft.
 
-Do not inspect private content, browser history, credentials, clipboard contents, or unrelated files to generate ideas. Ask before reading another local file or creating a script.
+**Think about the set, not only the binding in front of you.** A configuration is a system the user carries in their hands, so a new binding is worth weighing against the ones already there: whether it follows the patterns they have established, whether it crowds a gesture they use for something else, and whether an older binding it duplicates should go. Bindings that went unused are worth raising, since a gesture nobody reaches for still costs them a gesture they could reach for.
+
+**Tend the file the way its owner keeps it.** The configuration is a plain-text file the user lives in, so its readability is part of the product. Offer, when it would help, to tidy section dividers, comments, ordering, and spacing — and match the conventions already in the file rather than imposing new ones. If the user has their own formatting rules, treat them as the file's lint and keep every edit consistent with them. `AGENTS.local.md` beside this file is where those conventions belong. Offer to record one there as it emerges, so the user does not restate it every session: how comments are worded and aligned, how sections are divided and ordered, which parts they want left alone. Keep that file to conventions. Do not describe the bindings themselves in it, so that `config.toml` and its comments remain the sole source of truth. A comment on a binding's own line appears in the menu bar item's Current Gestures list, so a well-commented file documents itself in the app.
 
 ## Edit and apply settings
 
