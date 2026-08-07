@@ -135,10 +135,49 @@ trademark notice, and exact-source link.
 The release title is the bare version. The repository name sits above it on
 every page that shows a release, so repeating it adds nothing.
 
+### Obligations a release carries
+
+Three of these outlive the moment of tagging, and each fails quietly.
+
+**The corresponding-source link must name the tag the sold build was cut
+from.** GPLv3 requires the buyer of a binary to be able to obtain its exact
+source. `scripts/package.sh` writes `SOURCE.txt` inside the disk image from the
+app version, so the artifact is correct by construction. The storefront listing
+states the same link by hand and has no such guard, so a release is unfinished
+until the listing names the new tag. A stale link there is a licence failure
+rather than a cosmetic one, and nothing in this repository can detect it.
+
+**`CHANGELOG.md` is an interface, not only prose.** A downstream surface parses
+it to render a customer-facing changelog and the version it advertises. The
+shape it relies on: `## X.Y.Z` per release, a `Released YYYY-MM-DD.` line, a
+`### Section` heading per group, `- ` bullets that may wrap, and any trailing
+paragraph as closing notes. Entries are written in the imperative, so the
+section heading supplies the tense. Changing that structure degrades a page
+outside this repository, which no check here will catch.
+
+**Publishing the tag does not publish the release.** Surfaces that read this
+repository do so when they build, not when it changes, so each needs a rebuild
+of its own before a customer sees the new version. Treat a release as delivered
+only once every surface below has been refreshed.
+
+### After a release
+
+Work through these in order. The first is the licence obligation; the rest are
+consistency.
+
+1. The storefront listing: the corresponding-source link, the version, and any
+   copy naming a feature the release changed.
+2. The product website: its reference pages carry their own copy of the
+   configuration syntax and are updated by hand, so a change to `GESTURES.md`
+   reaches them only when someone ports it.
+3. Any surface that derives from `CHANGELOG.md`, which needs a rebuild to pick
+   up the new entry.
+
 ## Cross-surface product facts
 
-Buyer-facing facts appear in the app repository, the packaged disk image, and
-the private `nweii/thirdwind-site` repository. Keep one owner for each fact:
+Buyer-facing facts appear in this repository, in the packaged disk image, on
+the product website, and in the storefront listing. Keep one owner for each
+fact:
 
 - `scripts/build.sh` owns the version, build number, minimum macOS version, and
   supported architectures.
@@ -146,25 +185,31 @@ the private `nweii/thirdwind-site` repository. Keep one owner for each fact:
 - `scripts/package.sh` owns the paid artifact's contents and exact-source link.
 - `packaging/dmg-background.svg` owns the short install and Gatekeeper guidance
   shown beside the app.
+- `CHANGELOG.md` owns what each release changed, in the structure above.
 
-README, `config.default.toml`, `config-notes.default.md`, the Trickpad website,
-and the relevant storefront descriptions and delivery instructions mirror the
-facts their readers need. When an owned fact changes, search every mirror before
-completing the work. Coordinate changes in `nweii/thirdwind-site` with its
-active task or checkout. Completion requires every relevant mirror to agree in
-substance, the repository checks to pass, and a fresh package verification when
-delivery contents or DMG guidance changed. Preserve each surface's level of
-detail instead of forcing identical prose everywhere.
+README, `config.default.toml`, `config-notes.default.md`, the website, and the
+storefront description mirror the facts their readers need. When an owned fact
+changes, search every mirror before completing the work. Completion requires
+every relevant mirror to agree in substance, the repository checks to pass, and
+a fresh package verification when delivery contents or DMG guidance changed.
+Preserve each surface's level of detail instead of forcing identical prose
+everywhere.
 
 `gh release create` has been seen to report a missing `workflow` scope that the
 token already holds. Creating it through `gh api repos/OWNER/REPO/releases`
 works. Pass `--repo` to any `gh release` or `gh repo` command here, or it
 resolves to the `upstream` remote and reports the fork's releases instead.
 
+Moving a published tag turns its GitHub release back into a draft. Republishing
+it is a separate step, and a release left drafted is invisible.
+
 The app is ad-hoc signed rather than notarized, so anyone installing the
-official packaged build has to clear Gatekeeper by hand once. Notarizing would
-need a paid Apple Developer account. Building from source stays supported and
-skips that step.
+official packaged build clears Gatekeeper by hand. That warning returns for
+every new download, because approving one copy does not teach macOS to trust
+later ones. The Accessibility grant does persist across builds, since
+`scripts/build.sh` pins a designated requirement naming the bundle identifier
+without a code hash. Notarizing would need a paid Apple Developer account.
+Building from source stays supported and skips the Gatekeeper step.
 
 A rename or removal of a configuration name is the one change that needs a
 migration note in the release, because an existing file will silently stop
