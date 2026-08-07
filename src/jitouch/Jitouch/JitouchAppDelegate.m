@@ -711,13 +711,9 @@ static BOOL runLaunchctl(NSArray *arguments) {
                     (unsigned long)n, n == 1 ? @"" : @"s"]];
 }
 
-// The trailing comment on one configuration line, with # inside quoted TOML
-// strings left alone. Costs one small file read per menu rebuild, which
-// happens at launch and on reload, never during gesture recognition.
-static NSString *configLineComment(NSArray *configLines, NSInteger lineNumber) {
-    if (lineNumber < 1 || (NSUInteger)lineNumber > [configLines count])
-        return nil;
-    NSString *line = [configLines objectAtIndex:(NSUInteger)(lineNumber - 1)];
+// The trailing comment of one line, with # inside quoted TOML strings left
+// alone.
+static NSString *trailingLineComment(NSString *line) {
     BOOL inBasic = NO, inLiteral = NO, escaped = NO;
     for (NSUInteger i = 0; i < [line length]; i++) {
         unichar c = [line characterAtIndex:i];
@@ -735,6 +731,51 @@ static NSString *configLineComment(NSArray *configLines, NSInteger lineNumber) {
             return [[line substringFromIndex:i + 1] stringByTrimmingCharactersInSet:
                     [NSCharacterSet whitespaceCharacterSet]];
         }
+    }
+    return nil;
+}
+
+// The comment on a binding's own configuration line, located by its section
+// and key rather than a recorded line number: parsing reconstructs the file
+// out of order in places, so recorded numbers can drift, while a TOML table
+// cannot repeat a key. Costs one pass over the small file per menu rebuild,
+// at launch and on reload, never during gesture recognition.
+static NSString *commentForBindingLine(NSArray *configLines, NSString *device,
+                                       NSString *application, NSString *bindingKey) {
+    if ([bindingKey length] == 0)
+        return nil;
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceCharacterSet];
+    BOOL inSection = NO;
+    for (NSString *raw in configLines) {
+        NSString *line = [raw stringByTrimmingCharactersInSet:whitespace];
+        if ([line hasPrefix:@"["]) {
+            NSRange close = [line rangeOfString:@"]"];
+            if (close.location == NSNotFound) { inSection = NO; continue; }
+            NSString *header = [line substringWithRange:NSMakeRange(1, close.location - 1)];
+            NSString *sectionDevice = header;
+            NSString *sectionApp = nil;
+            NSRange dot = [header rangeOfString:@"."];
+            if (dot.location != NSNotFound) {
+                sectionDevice = [header substringToIndex:dot.location];
+                sectionApp = [[header substringFromIndex:dot.location + 1]
+                    stringByTrimmingCharactersInSet:
+                        [NSCharacterSet characterSetWithCharactersInString:@"\"'"]];
+            }
+            BOOL deviceMatches = [sectionDevice caseInsensitiveCompare:device] == NSOrderedSame;
+            BOOL appMatches = [application isEqualToString:@"All Applications"]
+                ? sectionApp == nil
+                : (sectionApp != nil && [sectionApp isEqualToString:application]);
+            inSection = deviceMatches && appMatches;
+            continue;
+        }
+        if (!inSection || ![line hasPrefix:bindingKey])
+            continue;
+        NSString *afterKey = [line substringFromIndex:[bindingKey length]];
+        if ([afterKey length] == 0 ||
+            !([afterKey hasPrefix:@"="] || [afterKey hasPrefix:@" "] ||
+              [afterKey hasPrefix:@"\t"]))
+            continue;
+        return trailingLineComment(raw);
     }
     return nil;
 }
@@ -778,8 +819,11 @@ static NSArray *configFileLines(void) {
                 if ([fires length] == 0)
                     continue;
                 [seenGestures addObject:gestureName];
-                NSString *comment = configLineComment(configLines,
-                    [[g objectForKey:@"SourceLine"] integerValue]);
+                NSString *sourceText = [g objectForKey:@"SourceText"] ?: @"";
+                NSString *bindingKey = [[sourceText componentsSeparatedByCharactersInSet:
+                    [NSCharacterSet whitespaceCharacterSet]] firstObject] ?: @"";
+                NSString *comment = commentForBindingLine(configLines, pair[0],
+                                                          application, bindingKey);
                 [appLines insertObject:@[[NSString stringWithFormat:@"%@%@  →  %@", scope,
                                           [Config humanNameForGesture:gestureName], fires],
                                          comment ?: @""]
