@@ -2,6 +2,47 @@
 
 # Changelog
 
+## 0.8.0
+
+Released 2026-08-07.
+
+### Added
+
+- Warned about gesture conflicts on every configuration load. Trickpad reads
+  the macOS mouse, trackpad, and accessibility gesture settings and lists any
+  binding whose trigger a built-in gesture already uses, naming the System
+  Settings pane where it lives. Bindings still run; Trickpad adds to what the
+  hardware does rather than replacing it. Agents get the same report from the
+  bundled `Contents/Resources/system-gestures.sh`.
+- Added `sound:` and `say:` binding values for testing gestures.
+  `"sound:Glass"` plays a system sound and `"say:three fingers"` speaks any
+  words, with no other action, so a gesture can be proven before a real
+  action rides on it. A gesture fired mid-sound interrupts and restarts it,
+  so silence always means the gesture did not fire.
+- Showed each binding's own `config.toml` line comment beside it in the
+  Current Gestures menu.
+- Added menu key equivalents while the menu is open: `⌘,` opens settings,
+  `⌘R` reloads, `⌘C` copies the agent prompt, `⌥⌘C` copies it with
+  `config.toml` attached, and `⌘Q` quits.
+- Opened the menu once on first launch, so a new install shows where the app
+  lives instead of leaving a menu bar icon to be found.
+- Expanded the installed agent guide around designing personal bindings: what
+  earns a gesture, cheap trial and error, keeping the file's own formatting,
+  and checking conflicts before proposing anything.
+
+### Fixed
+
+- Required a hold gesture's resting finger to genuinely rest before the
+  second finger lands, so a two-finger tap is no longer misread as a
+  hold-tap. This also makes `defer = true` behave as documented.
+- Kept Magic Mouse taps quiet after a physical click until the clicking
+  fingers lift, so a resting hand no longer fires a tap on release.
+- Stopped counting the index finger of a level three-finger row as a thumb,
+  which made some three-finger clicks dispatch as two-finger clicks.
+
+This is a backward-compatible minor release. Existing version 3 configuration
+files keep working.
+
 ## 0.7.1
 
 Released 2026-08-05.
@@ -19,6 +60,8 @@ This is a backward-compatible patch release. Existing version 3 configuration
 files keep working.
 
 ## 0.7.0
+
+Released 2026-08-05.
 
 ### Added
 
