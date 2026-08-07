@@ -1,9 +1,9 @@
 #!/bin/zsh
 set -euo pipefail
 
-# Reports which multi-touch motions macOS has already claimed, named by the
-# Trickpad gesture slug each claim endangers. A claimed motion still fires its
-# system action when a Trickpad binding sits on the same motion, so both run.
+# Reports which multi-touch triggers macOS has already claimed, named by the
+# Trickpad gesture slug each claim endangers. A claimed trigger still fires its
+# system action when a Trickpad binding sits on the same trigger, so both run.
 #
 # macOS assigns touch gestures in more than one preference domain, and the
 # Trackpad settings pane is not the only place a trackpad gesture is turned on,
@@ -15,7 +15,7 @@ set -euo pipefail
 # claimed=yes   the preference is set to a non-zero value
 # claimed=no    the preference is set to zero
 # claimed=default  the preference is absent, so the macOS default applies and
-#                  this script cannot tell whether the motion is claimed
+#                  this script cannot tell whether the trigger is claimed
 #
 # src/SystemGestureClaims.m holds the same table for the warnings Trickpad shows
 # when it loads a configuration. scripts/check.sh keeps the two identical.
@@ -23,8 +23,8 @@ set -euo pipefail
 MOUSE_DOMAINS="com.apple.AppleMultitouchMouse"
 TRACKPAD_DOMAINS="com.apple.driver.AppleBluetoothMultitouch.trackpad,com.apple.AppleMultitouchTrackpad"
 
-# device:domains:key:slug[,slug...]  Each key names a motion; the slugs are the
-# Trickpad gestures that motion overlaps.
+# device:domains:key:slug[,slug...]  Each key names a trigger; the slugs are the
+# Trickpad gestures that trigger overlaps.
 ENTRIES=(
   "mouse:$MOUSE_DOMAINS:MouseOneFingerDoubleTapGesture:one-finger-tap"
   "mouse:$MOUSE_DOMAINS:MouseTwoFingerDoubleTapGesture:two-finger-tap"

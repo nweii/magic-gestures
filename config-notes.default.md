@@ -40,7 +40,7 @@ Run this, substituting the running app path from the prompt:
 "<app>/Contents/Resources/system-gestures.sh"
 ```
 
-Each line names one gesture slug and whether macOS uses the motion it overlaps.
+Each line names one gesture slug and whether macOS uses the trigger it overlaps.
 Read `claimed=yes` as taken and choose a different gesture. Read
 `claimed=default` as undecided, because macOS has never written that preference
 and its built-in default applies; ask the user to check System Settings.

@@ -1,9 +1,9 @@
-// Maps macOS multi-touch preference keys to the gesture slugs whose motion they
+// Maps macOS multi-touch preference keys to the gesture slugs whose trigger they
 // overlap, and phrases the overlap for a reader deciding whether to rebind.
 
 #import "SystemGestureClaims.h"
 
-// One built-in gesture, and the configuration slugs whose motion it shares.
+// One built-in gesture, and the configuration slugs whose trigger it shares.
 //
 // `domains` are the preference domains that answer for `key`, in order. macOS
 // assigns touch gestures in more than one domain, and the Trackpad pane is not
@@ -156,7 +156,7 @@ NSArray *MGSystemGestureConflicts(NSSet *configuredMouseSlugs,
     NSMutableArray *warnings = [NSMutableArray array];
     for (NSString *binding in order) {
         [warnings addObject:[NSString stringWithFormat:
-            @"Your %@ binding shares its motion with:\n%@", binding,
+            @"Your %@ binding shares its trigger with:\n%@", binding,
             [[bulletsByBinding objectForKey:binding] componentsJoinedByString:@"\n"]]];
     }
     return warnings;

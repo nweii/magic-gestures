@@ -283,12 +283,13 @@ thing from the shell.
 ## Conflicts with built-in macOS gestures
 
 macOS assigns its own gestures in System Settings under Trackpad and Mouse.
-When both want the same motion, both fire. Which motions those are depends on
-your settings, since the finger counts and the individual gestures are
-adjustable, so no list here can tell you what is taken on your Mac.
+Binding a trigger macOS already acts on adds your action without removing the
+built-in one. Which triggers are taken depends on your settings, since the
+finger counts and the individual gestures are adjustable, so no list here can
+tell you what is free on your Mac.
 
 Trickpad reads those settings when it loads a configuration and reports any
-binding that shares a motion with a built-in gesture. The menu bar item shows
+binding whose trigger a built-in gesture already uses. The menu bar item shows
 the count, and the row opens the details.
 
 To see the same thing from the shell:
@@ -298,7 +299,7 @@ To see the same thing from the shell:
 ```
 
 Each line names one gesture from this reference and whether macOS has claimed
-the motion it overlaps. A line reading `claimed=default` means macOS has never
+the trigger it overlaps. A line reading `claimed=default` means macOS has never
 written that preference, so the built-in default decides it and System Settings
 is the only place to confirm.
 
