@@ -1479,12 +1479,28 @@ static void doCommand(NSString *gesture, int device, NSDictionary *commandDict,
                     NSString *speech = [commandDict objectForKey:@"SpeakText"];
                     dispatch_async(dispatch_get_main_queue(), ^{
                         static AVSpeechSynthesizer *synthesizer = nil;
-                        if (synthesizer == nil)
+                        static AVSpeechSynthesisVoice *voice = nil;
+                        if (synthesizer == nil) {
                             synthesizer = [[AVSpeechSynthesizer alloc] init];
+                            // An utterance with no voice falls back to the
+                            // compact default, which sounds far worse than the
+                            // voices already installed. Prefer the highest
+                            // quality available for the user's language.
+                            NSString *language = [AVSpeechSynthesisVoice currentLanguageCode];
+                            for (AVSpeechSynthesisVoice *candidate in
+                                 [AVSpeechSynthesisVoice speechVoices]) {
+                                if (![[candidate language] isEqualToString:language])
+                                    continue;
+                                if (voice == nil || [candidate quality] > [voice quality])
+                                    voice = [candidate retain];
+                            }
+                        }
                         if ([synthesizer isSpeaking])
                             [synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
                         AVSpeechUtterance *utterance = [[[AVSpeechUtterance alloc]
                             initWithString:speech] autorelease];
+                        if (voice != nil)
+                            [utterance setVoice:voice];
                         [synthesizer speakUtterance:utterance];
                     });
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
