@@ -850,9 +850,15 @@ static NSArray *configFileLines(void) {
             NSString *comment = line[1];
             if ([comment length] > 0) {
                 [row setToolTip:comment];
-                NSString *shown = [comment length] > 40
-                    ? [[comment substringToIndex:40] stringByAppendingString:@"…"]
-                    : comment;
+                // The cut lands on a composed-character boundary so an emoji
+                // or accented letter at the limit is dropped whole rather
+                // than split into a broken glyph.
+                NSString *shown = comment;
+                if ([comment length] > 40) {
+                    NSRange safe = [comment rangeOfComposedCharacterSequenceAtIndex:40];
+                    shown = [[comment substringToIndex:safe.location]
+                             stringByAppendingString:@"…"];
+                }
                 // Parentheses at full menu size separate the user's note from
                 // the binding while skimming; shrunken text read as noise, and
                 // color alone cannot carry the boundary. The explicit colors
