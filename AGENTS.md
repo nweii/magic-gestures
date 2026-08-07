@@ -73,9 +73,15 @@ a link to the product website.
   user's login shell. Picking one writes
   `~/.config/trickpad/manage-with-agent.command` and opens it, starting
   that agent in the configuration folder with the running app path and a prompt
-  pointing at the installed instructions.
-- Edit Settings, which opens `config.toml` in the user's editor.
-- Reload Settings, which rereads the file into the running engine.
+  pointing at the installed instructions. The submenu also carries Copy Prompt
+  (⌘C), which keeps the configuration private and tells the agent to ask for
+  lines, and Copy Prompt + Settings (⌥⌘C), which attaches the whole
+  `config.toml` as the user's explicit choice.
+- Edit Settings (⌘,), which opens `config.toml` in the user's editor.
+- Reload Settings (⌘R), which rereads the file into the running engine.
+  Edit and Reload carry the menu's only SF Symbol icons (gearshape,
+  arrow.clockwise), marking the two rows a user reaches for most; key
+  equivalents, including ⌘Q on Quit, fire while the menu is open.
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.

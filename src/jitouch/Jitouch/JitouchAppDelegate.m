@@ -1336,8 +1336,8 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 
 // Copies a privacy-conscious prompt for a general chat assistant that cannot
 // edit the local configuration directly.
-- (void)copyAgentPrompt:(id)sender {
-    NSString *prompt =
+static NSString *agentPromptWithSettings(BOOL includeSettings) {
+    NSString *intro =
         @"I use Trickpad, a macOS app configured through one plain-text file. "
         @"Help me create a ready-to-paste configuration block. Read the syntax and "
         @"available gestures, actions, and settings in the latest web documentation: "
@@ -1346,13 +1346,38 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
         @"it should be global or limited to an application. Do not invent gesture or "
         @"action names. Ask my Trickpad version if support for a setting matters, because "
         @"the documentation may describe a newer release. Return the smallest valid block, tell me where to paste it, "
-        @"and remind me to choose Reload Settings. Preserve unrelated bindings. Ask "
-        @"for only the relevant lines if you need to inspect my existing configuration "
-        @"because it may contain private URLs or script paths.\n\n"
-        @"What I want to configure: ";
+        @"and remind me to choose Reload Settings. Preserve unrelated bindings.";
+    // The plain prompt keeps the configuration private and tells the agent to
+    // ask for lines instead. Attaching it is the user's explicit choice.
+    NSString *middle =
+        @" Ask for only the relevant lines if you need to inspect my existing "
+        @"configuration because it may contain private URLs or script paths.";
+    if (includeSettings) {
+        NSString *path = [Config resolvedPath];
+        NSString *config = path != nil
+            ? [NSString stringWithContentsOfFile:path
+                                        encoding:NSUTF8StringEncoding error:NULL]
+            : nil;
+        if (config != nil)
+            middle = [NSString stringWithFormat:
+                @"\n\nMy current config.toml:\n\n```toml\n%@\n```", config];
+    }
+    return [NSString stringWithFormat:@"%@%@\n\nWhat I want to configure: ",
+            intro, middle];
+}
+
+- (void)copyAgentPrompt:(id)sender {
     NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
     [pasteboard clearContents];
-    [pasteboard setString:prompt forType:NSPasteboardTypeString];
+    [pasteboard setString:agentPromptWithSettings(NO)
+                  forType:NSPasteboardTypeString];
+}
+
+- (void)copyAgentPromptWithSettings:(id)sender {
+    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+    [pasteboard clearContents];
+    [pasteboard setString:agentPromptWithSettings(YES)
+                  forType:NSPasteboardTypeString];
 }
 
 // Creates the user-owned configuration once and atomically refreshes the
@@ -1442,8 +1467,14 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     if (any) [menu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *copyPrompt = [menu addItemWithTitle:@"Copy Prompt"
                                              action:@selector(copyAgentPrompt:)
-                                      keyEquivalent:@""];
+                                      keyEquivalent:@"c"];
     [copyPrompt setTarget:self];
+    NSMenuItem *copyPromptSettings = [menu addItemWithTitle:@"Copy Prompt + Settings"
+                                                     action:@selector(copyAgentPromptWithSettings:)
+                                              keyEquivalent:@"c"];
+    [copyPromptSettings setKeyEquivalentModifierMask:
+        NSEventModifierFlagCommand | NSEventModifierFlagOption];
+    [copyPromptSettings setTarget:self];
 
     if (!any) {
         NSMenuItem *empty = [menu addItemWithTitle:@"No coding agent installed" action:NULL keyEquivalent:@""];
@@ -1489,8 +1520,19 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
-    [theMenu addItemWithTitle:@"Edit Settings..." action:@selector(preferences:) keyEquivalent:@""];
-    [theMenu addItemWithTitle:@"Reload Settings" action:@selector(reloadConfiguration:) keyEquivalent:@""];
+    // Icons mark only the two rows a user reaches for most, so they stay
+    // identifiable at a glance without turning every row into a picture.
+    // Key equivalents fire while the menu is open.
+    NSMenuItem *editItem = [theMenu addItemWithTitle:@"Edit Settings..."
+                                              action:@selector(preferences:)
+                                       keyEquivalent:@","];
+    [editItem setImage:[NSImage imageWithSystemSymbolName:@"gearshape"
+                                 accessibilityDescription:@"Settings"]];
+    NSMenuItem *reloadItem = [theMenu addItemWithTitle:@"Reload Settings"
+                                                action:@selector(reloadConfiguration:)
+                                         keyEquivalent:@"r"];
+    [reloadItem setImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
+                                   accessibilityDescription:@"Reload"]];
 
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];
@@ -1514,7 +1556,7 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 
     NSMenuItem *aboutItem = [theMenu addItemWithTitle:@"About Trickpad" action:NULL keyEquivalent:@""];
     [aboutItem setSubmenu:aboutMenu];
-    [theMenu addItemWithTitle:@"Quit Trickpad" action:@selector(quit:) keyEquivalent:@""];
+    [theMenu addItemWithTitle:@"Quit Trickpad" action:@selector(quit:) keyEquivalent:@"q"];
 
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
