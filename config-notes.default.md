@@ -104,13 +104,18 @@ by one finger.
 - Triggers macOS has claimed. Run the claims report, substituting the running
   app path from the prompt:
 
-  ```bash
+  ```
   "<app>/Contents/Resources/system-gestures.sh"
   ```
 
+  Run it by path. It is a zsh script, and naming another interpreter fails with
+  a substitution error that reads as a broken script.
+
   `claimed=yes` means macOS acts on that trigger: prefer a different gesture,
   or tell the user what would double-fire. `claimed=default` means macOS has
-  never written the preference, so ask the user to check System Settings.
+  never written the preference, so ask the user to check System Settings. A
+  `gate=` field means a second preference decided the answer, and the report
+  names it.
 - The configuration itself. Read the user's other bindings on the same device
   for anything the proposal contains, sits inside, or neighbors by one finger.
 - The output. The keystroke a binding sends can collide with app or global

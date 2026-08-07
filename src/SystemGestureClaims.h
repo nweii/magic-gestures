@@ -26,7 +26,8 @@ NSArray *MGSystemGestureConflictsForCurrentUser(NSSet *configuredMouseSlugs,
                                                 NSSet *configuredTrackpadSlugs);
 
 // Every preference key paired with one slug it overlaps, as sorted
-// "device domain key slug" lines. scripts/check.sh diffs these against
+// "device domain key slug prerequisite disqualifier" lines, with "-" for a gate
+// the entry does not carry. scripts/check.sh diffs these against
 // scripts/system-gestures.sh so the two cannot describe different conflicts.
 NSArray *MGSystemGestureClaimTableLines(void);
 

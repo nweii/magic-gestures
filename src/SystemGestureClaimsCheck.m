@@ -63,6 +63,37 @@ int main(int argc, const char *argv[]) {
             ^NSNumber *(NSString *domains, NSString *key) { return @3; });
         require([unbound count] == 0, @"a claimed motion nobody bound must not warn");
 
+        // Secondary click is enabled on most Macs and answers a two-finger
+        // press. Tap to click is what makes a two-finger tap reach it, so
+        // warning without that key steers a reader off a free gesture.
+        NSSet *trackpadTwoFingerTap = [NSSet setWithObject:@"two-finger-tap"];
+        NSArray *tapToClickOff = MGSystemGestureConflicts(none, trackpadTwoFingerTap,
+            ^NSNumber *(NSString *domains, NSString *key) {
+                if ([key isEqualToString:@"TrackpadRightClick"]) return @1;
+                if ([key isEqualToString:@"Clicking"]) return @0;
+                return nil;
+            });
+        require(!warnsAbout(tapToClickOff, @"Secondary click"),
+                @"secondary click must not warn while tap to click is off");
+
+        NSArray *tapToClickOn = MGSystemGestureConflicts(none, trackpadTwoFingerTap,
+            ^NSNumber *(NSString *domains, NSString *key) {
+                if ([key isEqualToString:@"TrackpadRightClick"]) return @1;
+                if ([key isEqualToString:@"Clicking"]) return @1;
+                return nil;
+            });
+        require(warnsAbout(tapToClickOn, @"Secondary click"),
+                @"secondary click must warn while tap to click is on");
+
+        // An absent prerequisite leaves the overlap unproven, and an unproven
+        // overlap is not a finding.
+        NSArray *tapToClickUnwritten = MGSystemGestureConflicts(none, trackpadTwoFingerTap,
+            ^NSNumber *(NSString *domains, NSString *key) {
+                return [key isEqualToString:@"TrackpadRightClick"] ? @1 : nil;
+            });
+        require(!warnsAbout(tapToClickUnwritten, @"Secondary click"),
+                @"an unwritten prerequisite must not prove a claim");
+
         // The two devices keep separate vocabularies, so a trackpad claim must
         // not reach an identically named mouse binding.
         NSArray *crossed = MGSystemGestureConflicts(twoFingerTap, none,

@@ -336,25 +336,23 @@ done
 # they must name the same key and slug pairs, and every slug must still exist.
 SYSTEM_GESTURES="$ROOT/scripts/system-gestures.sh"
 script_table() {
-  local line device rest domains key slug
-  for line in ${(f)"$(sed -n '/^ENTRIES=(/,/^)/p' "$SYSTEM_GESTURES" | grep -o '"[a-z]*:\$\?[A-Za-z_.,]*:[A-Za-z]*:[a-z,-]*"')"}; do
-    line="${line//\"/}"
-    device="${line%%:*}"; rest="${line#*:}"
-    domains="${rest%%:*}"; rest="${rest#*:}"
-    key="${rest%%:*}"
+  local line fields domains slug
+  for line in ${(f)"$(sed -n '/^ENTRIES=(/,/^)/p' "$SYSTEM_GESTURES" | grep -o '"[^"]*"')"}; do
+    fields=(${(s.:.)${line//\"/}})
+    domains="$fields[2]"
     case "$domains" in
       '$MOUSE_DOMAINS') domains="com.apple.AppleMultitouchMouse" ;;
       '$TRACKPAD_DOMAINS') domains="com.apple.driver.AppleBluetoothMultitouch.trackpad,com.apple.AppleMultitouchTrackpad" ;;
     esac
-    for slug in ${(s.,.)${rest#*:}}; do
-      echo "$device $domains $key $slug"
+    for slug in ${(s.,.)fields[4]}; do
+      echo "$fields[1] $domains $fields[3] $slug ${fields[5]:--} ${fields[6]:--}"
     done
   done | sort
 }
 diff <(script_table) <("$SYSTEM_GESTURE_OUT" --table) >/dev/null ||
   gesture_fail "scripts/system-gestures.sh and src/SystemGestureClaims.m describe different macOS gesture conflicts"
 
-while read -r device domains key slug; do
+while read -r device domains key slug prerequisite disqualifier; do
   if [[ "$device" == "trackpad" ]]; then method="trackpadGestureSlugs"; else method="mouseGestureSlugs"; fi
   sed -n "/+ (NSDictionary \*)$method {/,/^}/p" "$ROOT/src/Config.m" | grep -q "@\"$slug\":" ||
     gesture_fail "a macOS gesture conflict names $device slug $slug, which Config.m does not define"
