@@ -4,7 +4,11 @@
      Entries follow ASD-STE100 Simplified Technical English: one idea per
      sentence, sentences under 25 words, no semicolons, and no "should", "may",
      or "might". A reader decides from this file whether an update affects
-     them, and many of them do not read English as a first language. -->
+     them, and many of them do not read English as a first language.
+
+     Lead with what changed for the reader, not with the mechanism behind it.
+     Keep the voice neutral: no "you" or "your", and no claim about the state
+     of a reader's own Mac, which this file cannot see. -->
 
 # Changelog
 
@@ -19,7 +23,7 @@ Released 2026-08-07.
 
 ### Changed
 
-- Improve the agent guidance so that an agent starts from the existing configuration and the request at hand, rather than assuming a new gesture is wanted.
+- Improve the agent guidance so an agent starts from the existing configuration and the request at hand, rather than assuming a new gesture is wanted.
 - Let a user's own conventions survive an update. `AGENTS.local.md` beside the settings holds them, and an agent offers to maintain that file.
 
 ## 0.8.0
@@ -28,28 +32,28 @@ Released 2026-08-07.
 
 ### Added
 
-- Warn about gesture conflicts at every configuration load. Trickpad reads the macOS mouse, trackpad, and accessibility gesture settings. It lists each binding whose trigger a built-in gesture already uses, and it names the System Settings pane that holds that gesture. The bindings continue to run, because Trickpad adds to what the hardware does. Agents read the same report from `Contents/Resources/system-gestures.sh` in the app bundle.
-- Add the `sound:` and `say:` binding values, which test a gesture. `"sound:Glass"` plays a system sound. `"say:three fingers"` speaks any words it is given. Neither does anything else, so a gesture can be proven before a real action rides on it. A gesture that fires during a sound interrupts that sound and starts it again. Silence therefore means that the gesture did not fire.
-- Add the `sound` and `say` binding options. They play a system sound or speak words together with the real action of a binding, as in `{ action = "cmd+shift+4", sound = "Glass" }`. Both work on either device. A Magic Mouse has no haptic feedback, so a sound is the way to confirm one of its gestures. Each starts immediately and delays neither the action nor the next gesture. Each interrupts itself when the gesture repeats.
-- Show the line comment of each binding from `config.toml` beside it in the Current Gestures menu.
-- Add key equivalents that work while the menu is open. `⌘,` opens the settings. `⌘R` reloads them. `⌘C` copies the agent prompt. `⌥⌘C` copies that prompt with `config.toml` attached. `⌘Q` quits.
-- Title the gesture list with its binding count. One row now carries the configuration state, and the details of any skipped line open from inside it.
-- Open the menu once at first launch. A new installation shows where the app lives, instead of leaving a menu bar icon to be found.
-- Expand the agent guide on the design of personal bindings. It covers what earns a gesture, cheap trial and error, the formatting of the file, and the conflict checks that come before a proposal.
-- Teach the agent guide to draft a support email to support@thirdwind.fyi. The draft carries the version, the macOS version, the device, and the bindings that bear on the problem. The agent writes the draft and shows it. The user sends it.
+- Warn when a binding shares its trigger with a gesture macOS already uses, and name the System Settings pane that holds it. Both still fire, so the warning is a prompt to rebind rather than a failure. Agents read the same report from `Contents/Resources/system-gestures.sh` in the app bundle.
+- Add the `sound:` and `say:` binding values for testing a gesture. `"sound:Glass"` plays a system sound and `"say:three fingers"` speaks, with no other action, so a gesture can be proven before a real action rides on it. A repeat interrupts and restarts the sound, so silence means the gesture did not fire.
+- Add `sound` and `say` as options beside a binding's real action, as in `{ action = "cmd+shift+4", sound = "Glass" }`. A Magic Mouse has no haptic feedback, so this is the way to confirm one of its gestures by ear. Each starts immediately and delays neither the action nor the next gesture.
+- Show each binding's own line comment beside it in the Current Gestures menu.
+- Add menu key equivalents that work while the menu is open: `⌘,` for settings, `⌘R` to reload, `⌘C` for the agent prompt, `⌥⌘C` for that prompt with `config.toml` attached, and `⌘Q` to quit.
+- Title the gesture list with its binding count, so one row carries the configuration state and opens the details of any skipped line.
+- Open the menu once at first launch, so a new installation shows where the app lives instead of leaving an icon to be found.
+- Expand the agent guide on designing bindings worth keeping: what earns a gesture, cheap trial and error, the file's own formatting, and the conflict checks that come before a proposal.
+- Teach the agent guide to draft a support email to support@thirdwind.fyi, carrying the version, macOS version, device, and the bindings that bear on the problem. The agent drafts and shows it, and the user sends it.
 
 ### Changed
 
-- Rework the starter configuration for a first reading. It has a header that explains how to comment out a line, two examples for each device, and no catalog of optional bindings.
-- Move Open at Login below the separator, with the app-lifecycle rows. The group above it now holds the configuration actions.
+- Rework the starter configuration for a first reading: a header explaining how to comment out a line, two examples per device, and no catalog of optional bindings.
+- Move Open at Login below the separator with the app-lifecycle rows, leaving the group above to configuration actions.
 
 ### Fixed
 
-- Correct a `script:` example that named a path Trickpad does not ship. The example failed at reload when a user removed the comment.
-- Probe installed coding agents in one background shell, not in one shell for each agent. The Manage with Agent submenu opens without delay.
-- Require the resting finger of a hold gesture to rest before the second finger lands. Trickpad no longer reads a two-finger tap as a hold-tap. `defer = true` now behaves as documented.
-- Keep Magic Mouse taps quiet after a physical click until the clicking fingers lift. A resting hand no longer fires a tap on release.
-- Stop counting the index finger of a level three-finger row as a thumb. This error made some three-finger clicks dispatch as two-finger clicks.
+- Correct a `script:` example that named a path Trickpad does not ship, so uncommenting it failed at reload.
+- Open the Manage with Agent submenu without delay, by probing installed agents in one background shell rather than one shell per agent.
+- Stop a two-finger tap from being read as a hold-tap. A hold gesture now requires its resting finger to settle before the second lands, which also makes `defer = true` behave as documented.
+- Stop a resting hand from firing a tap when a Magic Mouse physical click releases.
+- Stop some three-finger Magic Mouse clicks from dispatching as two-finger clicks. The index finger of a level row was counted as a thumb.
 
 This is a backward-compatible minor release. Existing version 3 configuration files keep working.
 
@@ -59,8 +63,8 @@ Released 2026-08-05.
 
 ### Changed
 
-- Make Copy Prompt use the stable web documentation that an agent can read. The prompt also states that the installed version can differ from the latest reference.
-- Rework the agent guide around safe configuration edits and the choice of a gesture. The detailed syntax stays in the canonical reference.
+- Point Copy Prompt at the stable web documentation, and have it note that the installed version can differ from the latest reference.
+- Rework the agent guide around safe configuration edits and gesture choice, keeping the detailed syntax in the canonical reference.
 - Document how a macOS shortcut for an existing app menu command can become a Trickpad binding.
 
 This is a backward-compatible patch release. Existing version 3 configuration files keep working.
@@ -71,15 +75,15 @@ Released 2026-08-05.
 
 ### Added
 
-- Add an experimental physical-click binding for two or three fingers on a Magic Mouse. A click that Trickpad recognizes with confidence replaces the normal click. This binding is off by default. Ambiguous clicks and drags keep their native behavior.
+- Add experimental two- and three-finger physical-click bindings for a Magic Mouse, off by default. A confidently recognized click replaces the normal click, and ambiguous clicks and drags stay native.
 - Add universal Intel and Apple silicon builds for macOS 11 and later.
-- Add a configurable menu bar icon. Use the bundled Trickpad mark, or name an SF Symbol in `config.toml`. Suspended gestures dim either choice.
-- Add a Get Latest Version menu item. It opens the stable download page of Trickpad and does not depend on a store.
+- Add a configurable menu bar icon: the bundled Trickpad mark, or any SF Symbol named in `config.toml`. Suspended gestures dim either choice.
+- Add a Get Latest Version menu item that opens Trickpad's stable download page, independent of any store.
 
 ### Changed
 
 - Establish the Trickpad app bundle, the login item, and the `~/.config/trickpad` configuration folder.
-- Ship official builds in a styled disk image. The image carries an Applications link, first-launch guidance, license notices, and an exact corresponding-source link. GitHub releases carry the source and the changelog without a binary.
+- Ship official builds in a styled disk image carrying an Applications link, first-launch guidance, license notices, and an exact corresponding-source link. GitHub releases carry the source and changelog without a binary.
 
 This changes the alpha installation and configuration location.
 
@@ -89,12 +93,12 @@ Released 2026-08-03.
 
 ### Fixed
 
-- Prevent a resting edge contact on a Magic Mouse from joining a two-finger tap. A configured tap starts only when its two contacts arrive together. Deliberate taps near an edge remain available.
-- Track the arrival of each contact for simultaneous multi-finger taps on both devices. Hold gestures, swipes, and physical clicks keep their own rules, because their contacts arrive or end at different times by design.
+- Stop a resting edge contact on a Magic Mouse from joining a two-finger tap. A configured tap starts only when both contacts arrive together, so deliberate taps near an edge still work.
+- Track each contact's arrival for simultaneous multi-finger taps on both devices. Holds, swipes, and physical clicks keep their own rules, since their contacts arrive at different times by design.
 
 ### Changed
 
-- Group the hidden guided hardware tests under a `Gesture testing` submenu in Diagnostics. This submenu does not appear in a normal installation.
+- Group the hidden guided hardware tests under a `Gesture testing` submenu in Diagnostics, absent from a normal installation.
 
 This is a backward-compatible patch release. Existing version 3 configuration files keep working.
 
@@ -104,9 +108,9 @@ Released 2026-08-03.
 
 ### Changed
 
-- Replace the custom configuration grammar with TOML. The configuration now lives at `~/.config/trickpad/config.toml`. Actions, shortcuts, URLs, scripts, and exclusions are quoted strings.
-- Change application-specific table headings to TOML nested tables, such as `[TRACKPAD."Final Cut Pro"]`.
-- Reject the reload when the file has a duplicate table, a duplicate key, an unquoted string, or malformed TOML. The running configuration stays in place. Trickpad continues to report each unknown setting and binding on its own.
+- Replace the custom configuration grammar with TOML, at `~/.config/trickpad/config.toml`. Actions, shortcuts, URLs, scripts, and exclusions are quoted strings.
+- Change application-specific headings to TOML nested tables, such as `[TRACKPAD."Final Cut Pro"]`.
+- Reject a reload on a duplicate table, a duplicate key, an unquoted string, or malformed TOML, keeping the running configuration in place. Unknown settings and bindings are still reported one by one.
 
 This changes the alpha configuration interface from version 2 to version 3. Convert a version 2 file before updating.
 
@@ -116,19 +120,19 @@ Released 2026-08-02.
 
 ### Added
 
-- Add **Copy Prompt** under **Manage with Agent**. It gives a chat assistant the public configuration reference and asks for a block that the user can paste. It does not copy the user's configuration or any private value.
+- Add **Copy Prompt** under **Manage with Agent**. It gives a chat assistant the public reference and asks for a block to paste, without copying the configuration or any private value.
 
 ### Changed
 
-- Simplify the starter configuration. It is now a short working setup with a separate area for examples, not a compact reference document. An update does not change a configuration the user owns.
-- Keep the guided hardware trace capture internal and hidden by default. The public Diagnostics menu keeps the logs and the copied debug state.
+- Simplify the starter configuration to a short working setup with a separate examples area, rather than a compact reference document. An update leaves a user-owned configuration alone.
+- Keep guided hardware trace capture internal and hidden by default. Diagnostics still offers logs and copied debug state.
 
 ### Fixed
 
-- Allow up to three pixels of incidental movement on a Magic Mouse during a multi-finger physical click. Four pixels start a drag and cancel the configured action.
-- Delay a Magic Mouse physical-click action until mouse-up. The native click stays, and a deliberate click-and-drag no longer fires the configured action early.
-- Limit the trace results to the physical-click gesture under test. A configured tap action is no longer reported as a false click.
-- Let the user close the internal trace window after it completes. The labels have more contrast, and the execution-quality buttons no longer truncate.
+- Allow up to three pixels of incidental movement during a Magic Mouse multi-finger click. Four pixels start a drag and cancel the configured action.
+- Delay a Magic Mouse physical-click action until mouse-up, so a deliberate click-and-drag no longer fires it early. The native click stays.
+- Limit trace results to the physical-click gesture under test, so a configured tap is no longer reported as a false click.
+- Let the internal trace window close after it completes, raise its label contrast, and stop its execution-quality buttons truncating.
 
 This is a backward-compatible patch release. Existing version 2 configuration files keep working. Magic Mouse physical-click bindings stay disabled by default behind `experimental-mouse-click-gestures`, because their behavior is still under test in daily use.
 
@@ -138,19 +142,19 @@ Released 2026-08-02.
 
 ### Added
 
-- Add optional `left-` and `right-` prefixes for Shift, Control, Option, and Command. A modifier with no prefix continues to use the left-side key.
-- Add diagnostics for Magic Mouse physical-click correlation to the verbose logs.
-- Add experimental physical-click bindings for two and three fingers on a Magic Mouse. They are disabled by default and need `experimental-mouse-click-gestures = true` under `[general]`.
+- Add optional `left-` and `right-` prefixes for Shift, Control, Option, and Command. A modifier with no prefix uses the left-side key.
+- Add Magic Mouse physical-click correlation to the verbose logs.
+- Add experimental two- and three-finger physical-click bindings for a Magic Mouse, behind `experimental-mouse-click-gestures = true` under `[general]`.
 
 ### Fixed
 
 - Correlate physical clicks with touch frames that arrive before mouse-down, after mouse-down, or just after mouse-up.
-- Prevent a brief contact dropout, a trackpad drag, a palm, a thumb, or an isolated edge contact from changing or triggering a physical-click binding.
-- Allow large fingertips near the rear of a Magic Mouse. Trickpad still rejects measured rear-palm contacts and narrow side-edge contacts.
+- Stop a brief contact dropout, a trackpad drag, a palm, a thumb, or an isolated edge contact from changing or triggering a physical-click binding.
+- Accept large fingertips near the rear of a Magic Mouse, while still rejecting rear-palm and narrow side-edge contacts.
 - Give each contact sequence one gesture owner, so taps, clicks, holds, and swipes cannot dispatch over one another.
-- Keep native scrolling for a swipe family that has no binding. Trickpad suppresses scrolling only while a bound swipe owns the contact sequence.
-- Preserve the native trackpad click, and add the configured multi-finger click action beside it.
-- Correct four faults in the configuration parser. An expanded application binding did not inherit a global action. An explicit `defer = false` did not apply. Recovery from a malformed block failed. Current Gestures did not show the last declaration of a gesture.
-- Report a rejected configuration reload in the menu. Trickpad no longer presents an empty configuration as a success.
+- Keep native scrolling for a swipe family with no binding, suppressing it only while a bound swipe owns the contact sequence.
+- Keep the native trackpad click alongside a configured multi-finger click action.
+- Correct four configuration faults: an application binding inheriting a global action, an explicit `defer = false`, recovery from a malformed block, and the last declaration shown in Current Gestures.
+- Report a rejected reload in the menu, rather than presenting an empty configuration as a success.
 
 This is a backward-compatible minor release. Existing version 2 configuration files keep working. Magic Mouse physical-click bindings need an explicit experimental opt-in, because their recognition is still sensitive to contact timing and hand posture.
