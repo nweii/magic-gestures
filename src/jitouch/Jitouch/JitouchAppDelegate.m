@@ -711,12 +711,50 @@ static BOOL runLaunchctl(NSArray *arguments) {
                     (unsigned long)n, n == 1 ? @"" : @"s"]];
 }
 
+// The trailing comment on one configuration line, with # inside quoted TOML
+// strings left alone. Costs one small file read per menu rebuild, which
+// happens at launch and on reload, never during gesture recognition.
+static NSString *configLineComment(NSArray *configLines, NSInteger lineNumber) {
+    if (lineNumber < 1 || (NSUInteger)lineNumber > [configLines count])
+        return nil;
+    NSString *line = [configLines objectAtIndex:(NSUInteger)(lineNumber - 1)];
+    BOOL inBasic = NO, inLiteral = NO, escaped = NO;
+    for (NSUInteger i = 0; i < [line length]; i++) {
+        unichar c = [line characterAtIndex:i];
+        if (inBasic) {
+            if (escaped) escaped = NO;
+            else if (c == '\\') escaped = YES;
+            else if (c == '"') inBasic = NO;
+        } else if (inLiteral) {
+            if (c == '\'') inLiteral = NO;
+        } else if (c == '"') {
+            inBasic = YES;
+        } else if (c == '\'') {
+            inLiteral = YES;
+        } else if (c == '#') {
+            return [[line substringFromIndex:i + 1] stringByTrimmingCharactersInSet:
+                    [NSCharacterSet whitespaceCharacterSet]];
+        }
+    }
+    return nil;
+}
+
+static NSArray *configFileLines(void) {
+    NSString *path = [Config resolvedPath];
+    NSString *text = path != nil
+        ? [NSString stringWithContentsOfFile:path
+                                    encoding:NSUTF8StringEncoding error:NULL]
+        : nil;
+    return text != nil ? [text componentsSeparatedByString:@"\n"] : @[];
+}
+
 - (void)refreshBindingsSubmenu {
     NSMenuItem *parent = [theMenu itemWithTag:kMenuTagBindings];
     if (parent == nil)
         return;
 
     NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Current Gestures"] autorelease];
+    NSArray *configLines = configFileLines();
     NSArray *sources = @[@[@"Mouse", magicMouseCommands ?: @[], [Config mouseGestureSlugs]],
                          @[@"Trackpad", trackpadCommands ?: @[], [Config trackpadGestureSlugs]]];
     BOOL any = NO;
@@ -740,8 +778,11 @@ static BOOL runLaunchctl(NSArray *arguments) {
                 if ([fires length] == 0)
                     continue;
                 [seenGestures addObject:gestureName];
-                [appLines insertObject:[NSString stringWithFormat:@"%@%@  →  %@", scope,
-                                        [Config humanNameForGesture:gestureName], fires]
+                NSString *comment = configLineComment(configLines,
+                    [[g objectForKey:@"SourceLine"] integerValue]);
+                [appLines insertObject:@[[NSString stringWithFormat:@"%@%@  →  %@", scope,
+                                          [Config humanNameForGesture:gestureName], fires],
+                                         comment ?: @""]
                                  atIndex:0];
             }
             [lines addObjectsFromArray:appLines];
@@ -755,10 +796,36 @@ static BOOL runLaunchctl(NSArray *arguments) {
 
         NSMenuItem *header = [sub addItemWithTitle:pair[0] action:NULL keyEquivalent:@""];
         [header setEnabled:NO];
-        for (NSString *line in lines) {
-            NSMenuItem *row = [sub addItemWithTitle:line action:NULL keyEquivalent:@""];
+        for (NSArray *line in lines) {
+            NSMenuItem *row = [sub addItemWithTitle:line[0] action:NULL keyEquivalent:@""];
             [row setEnabled:NO];
             [row setIndentationLevel:1];
+            // The user's own note from the binding's line, the way they wrote
+            // it. The dimmed suffix keeps the row scannable; the tooltip
+            // carries the note in full when it is long.
+            NSString *comment = line[1];
+            if ([comment length] > 0) {
+                [row setToolTip:comment];
+                NSString *shown = [comment length] > 40
+                    ? [[comment substringToIndex:40] stringByAppendingString:@"…"]
+                    : comment;
+                NSMutableAttributedString *title = [[[NSMutableAttributedString alloc]
+                    initWithString:[NSString stringWithFormat:@"%@   %@", line[0], shown]]
+                    autorelease];
+                NSUInteger mainLength = [(NSString *)line[0] length];
+                // The explicit colors keep a commented row matching its
+                // disabled neighbors instead of rendering at full strength.
+                [title addAttributes:@{
+                        NSFontAttributeName: [NSFont menuFontOfSize:0],
+                        NSForegroundColorAttributeName: [NSColor secondaryLabelColor],
+                    } range:NSMakeRange(0, mainLength)];
+                [title addAttributes:@{
+                        NSFontAttributeName: [NSFont menuFontOfSize:11],
+                        NSForegroundColorAttributeName: [NSColor tertiaryLabelColor],
+                    } range:NSMakeRange(mainLength,
+                                        [[title string] length] - mainLength)];
+                [row setAttributedTitle:title];
+            }
         }
     }
 
