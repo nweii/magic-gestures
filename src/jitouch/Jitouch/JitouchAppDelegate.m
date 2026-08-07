@@ -1666,6 +1666,32 @@ static NSTextField *traceText(NSRect frame, CGFloat size, BOOL bold) {
 #pragma mark - Initialization
 
 
+// A menu bar app with no window gives a first-time user nothing that says
+// where the app lives, so the first launch opens the app's own menu once:
+// it points at its location instead of describing it. The wait exists
+// because launch also raises the Accessibility permission dialog, and a
+// menu popping over that dialog reaches the user at the moment they are
+// least oriented. An icon pushed into notch overflow may keep the menu
+// invisible; this handles the common case, not that one.
+static NSString * const kFirstLaunchMenuShownKey = @"FirstLaunchMenuShown";
+
+- (void)openFirstLaunchMenuWhenSettled {
+    static int pollCount = 0;
+    // Accessibility is usually granted within the first minute of a real
+    // install. Waiting much longer risks the menu opening over unrelated
+    // work, and the menu is worth showing even ungranted, since its own
+    // Accessibility row is the way to finish that step.
+    if (!AXIsProcessTrusted() && ++pollCount < 45) {
+        [self performSelector:@selector(openFirstLaunchMenuWhenSettled)
+                   withObject:nil afterDelay:2.0];
+        return;
+    }
+    [[NSUserDefaults standardUserDefaults] setBool:YES
+                                            forKey:kFirstLaunchMenuShownKey];
+    if (theItem != nil)
+        [[theItem button] performClick:nil];
+}
+
 - (void)checkAXAPI {
     AXIsProcessTrustedWithOptions((CFDictionaryRef)@{(id)kAXTrustedCheckOptionPrompt: @(YES)});
 }
@@ -1696,6 +1722,11 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
 */
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+    // Captured before seeding creates the file: an existing configuration
+    // means an existing user, so an upgrade never replays the first-launch
+    // welcome even though older versions never wrote its preference.
+    BOOL configExistedBeforeSeeding = [Config resolvedPath] != nil;
+
     // A packaged install has no start.sh or install script to seed the settings
     // folder, so the app seeds it here before resolving the configuration.
     NSError *seedError = [self seedConfigDirectory];
@@ -1745,6 +1776,11 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
     [self startWatchingConfig];
 
     [self checkAXAPI];
+
+    if (!configExistedBeforeSeeding &&
+        ![[NSUserDefaults standardUserDefaults] boolForKey:kFirstLaunchMenuShownKey])
+        [self performSelector:@selector(openFirstLaunchMenuWhenSettled)
+                   withObject:nil afterDelay:2.0];
 
     [[NSDistributedNotificationCenter defaultCenter] addObserver: self
                                                         selector: @selector(settingsUpdated:)
