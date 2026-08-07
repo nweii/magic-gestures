@@ -254,43 +254,6 @@ static NSString *loginShellPath(void) {
     return @"/bin/zsh";
 }
 
-// Coding agents may be installed through shell profiles outside a GUI app's
-// PATH. The user's login shell resolves them with the same shell and package
-// manager paths available in a terminal.
-static NSString *resolveToolPath(NSString *tool) {
-    NSTask *task = [[NSTask alloc] init];
-    [task setLaunchPath:loginShellPath()];
-    [task setArguments:@[@"-lc", [NSString stringWithFormat:@"command -v %@", tool]]];
-    NSPipe *pipe = [NSPipe pipe];
-    [task setStandardOutput:pipe];
-    [task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
-
-    NSString *path = nil;
-    @try {
-        [task launch];
-        NSData *out = [[pipe fileHandleForReading] readDataToEndOfFile];
-        [task waitUntilExit];
-        if ([task terminationStatus] == 0) {
-            path = [[[NSString alloc] initWithData:out encoding:NSUTF8StringEncoding] autorelease];
-            path = [path stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-            if ([path length] == 0)
-                path = nil;
-        }
-    } @catch (NSException *e) {
-        path = nil;
-    }
-    [task release];
-
-    if (path != nil)
-        return path;
-
-    for (NSString *dir in fallbackToolDirectories()) {
-        NSString *candidate = [dir stringByAppendingPathComponent:tool];
-        if ([[NSFileManager defaultManager] isExecutableFileAtPath:candidate])
-            return candidate;
-    }
-    return nil;
-}
 
 // Describes a binding from its keycode and modifier flags. Labels describe an
 // app-dependent purpose and may not match the focused app.
@@ -1556,10 +1519,80 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
 
 - (NSMenu *)buildAgentSubmenu {
     NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Manage with Agent"] autorelease];
-    // The delegate rebuilds this submenu when it opens. Each candidate requires
-    // a login-shell probe, and tools installed after launch are included.
+    // The delegate fills this submenu from the probe cache when it opens, so
+    // opening costs no login-shell spawns.
     [sub setDelegate:self];
     return sub;
+}
+
+// Installed agents, probed once per top-level menu open in the background
+// rather than while the submenu opens: each candidate needs the user's login
+// shell, and six synchronous shell launches made the submenu visibly late.
+// Entries are name-path pairs; nil means no probe has finished yet.
+static NSArray *cachedAgentEntries = nil;
+
+static NSArray *agentCandidates(void) {
+    return @[@[@"Claude Code", @"claude"],
+             @[@"Codex", @"codex"],
+             @[@"Cursor", @"cursor-agent"],
+             @[@"Gemini", @"gemini"],
+             @[@"opencode", @"opencode"],
+             @[@"Aider", @"aider"]];
+}
+
+- (void)refreshAgentToolCache {
+    // One login shell resolves every candidate, replacing a spawn per tool.
+    NSMutableArray *names = [NSMutableArray array];
+    for (NSArray *pair in agentCandidates())
+        [names addObject:pair[1]];
+    NSString *script = [NSString stringWithFormat:
+        @"for t in %@; do p=$(command -v \"$t\" 2>/dev/null) && "
+        @"[ -n \"$p\" ] && printf '%%s=%%s\\n' \"$t\" \"$p\"; done; true",
+        [names componentsJoinedByString:@" "]];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+        NSTask *task = [[NSTask alloc] init];
+        [task setLaunchPath:loginShellPath()];
+        [task setArguments:@[@"-lc", script]];
+        NSPipe *pipe = [NSPipe pipe];
+        [task setStandardOutput:pipe];
+        [task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
+        NSMutableDictionary *paths = [NSMutableDictionary dictionary];
+        @try {
+            [task launch];
+            NSData *out = [[pipe fileHandleForReading] readDataToEndOfFile];
+            [task waitUntilExit];
+            NSString *text = [[[NSString alloc] initWithData:out
+                encoding:NSUTF8StringEncoding] autorelease];
+            for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
+                NSRange eq = [line rangeOfString:@"="];
+                if (eq.location == NSNotFound || eq.location == 0)
+                    continue;
+                [paths setObject:[line substringFromIndex:eq.location + 1]
+                          forKey:[line substringToIndex:eq.location]];
+            }
+        } @catch (NSException *e) {
+            [paths removeAllObjects];
+        }
+        [task release];
+        NSMutableArray *entries = [NSMutableArray array];
+        for (NSArray *pair in agentCandidates()) {
+            NSString *path = [paths objectForKey:pair[1]];
+            if ([path length] > 0)
+                [entries addObject:@[pair[0], path]];
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [cachedAgentEntries release];
+            cachedAgentEntries = [entries copy];
+        });
+    });
+}
+
+- (void)menuWillOpen:(NSMenu *)menu {
+    // Refreshing when the top-level menu opens keeps newly installed tools
+    // appearing without ever probing on the submenu-open path: the probe
+    // finishes in the background long before a hand reaches the submenu.
+    if (menu == theMenu)
+        [self refreshAgentToolCache];
 }
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
@@ -1574,25 +1607,15 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
 
     [menu removeAllItems];
 
-    NSArray *candidates = @[@[@"Claude Code", @"claude"],
-                            @[@"Codex", @"codex"],
-                            @[@"Cursor", @"cursor-agent"],
-                            @[@"Gemini", @"gemini"],
-                            @[@"opencode", @"opencode"],
-                            @[@"Aider", @"aider"]];
     BOOL any = NO;
-
-    for (NSArray *pair in candidates) {
-        NSString *path = resolveToolPath(pair[1]);
-        if (path == nil)
-            continue;
+    for (NSArray *pair in cachedAgentEntries) {
         any = YES;
         NSMenuItem *item = [menu addItemWithTitle:pair[0]
                                            action:@selector(manageWithAgent:)
                                     keyEquivalent:@""];
-        [item setRepresentedObject:path];
+        [item setRepresentedObject:pair[1]];
         [item setTarget:self];
-        [item setToolTip:path];
+        [item setToolTip:pair[1]];
     }
 
     if (any) [menu addItem:[NSMenuItem separatorItem]];
@@ -1607,7 +1630,11 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
         NSEventModifierFlagCommand | NSEventModifierFlagOption];
     [copyPromptSettings setTarget:self];
 
-    if (!any) {
+    if (!any && cachedAgentEntries == nil) {
+        NSMenuItem *pending = [menu addItemWithTitle:@"Looking for installed agents…"
+                                              action:NULL keyEquivalent:@""];
+        [pending setEnabled:NO];
+    } else if (!any) {
         NSMenuItem *empty = [menu addItemWithTitle:@"No coding agent installed" action:NULL keyEquivalent:@""];
         [empty setEnabled:NO];
 
@@ -1624,6 +1651,7 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
     // The menu outlives this method and is read back by tag on every refresh,
     // so it is owned here rather than left to the status item.
     theMenu = [[NSMenu alloc] initWithTitle:@"Trickpad"];
+    [theMenu setDelegate:self];
 
     NSMenuItem *item = [theMenu addItemWithTitle:@"Turn Trickpad Off" action:@selector(switchChange:) keyEquivalent:@""];
     [item setTag:kMenuTagToggle];
@@ -1656,10 +1684,13 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
                        action:@selector(reloadConfiguration:)
                 keyEquivalent:@"r"];
 
+    [theMenu addItem:[NSMenuItem separatorItem]];
+
+    // Open at Login sits with the app-lifecycle rows rather than the
+    // configuration actions above, keeping its checkmark out of that group.
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];
 
-    [theMenu addItem:[NSMenuItem separatorItem]];
     item = [theMenu addItemWithTitle:@"Diagnostics" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagDiagnostics];
 
@@ -1938,6 +1969,8 @@ void languageChanged(CFNotificationCenterRef center, void *observer, CFStringRef
     //[self showIcon];
 
     [self startWatchingConfig];
+
+    [self refreshAgentToolCache];
 
     [self checkAXAPI];
 

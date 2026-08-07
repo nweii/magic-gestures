@@ -73,7 +73,9 @@ a link to the product website.
   as Off, and when lines were skipped the submenu opens with a clickable
   details row.
 - Manage with Agent, a submenu of the coding agents found through the
-  user's login shell. Picking one writes
+  user's login shell. Candidates are probed in one background shell when the
+  menu opens, and the submenu serves the cached result, so hovering it costs
+  no shell spawns. Picking one writes
   `~/.config/trickpad/manage-with-agent.command` and opens it, starting
   that agent in the configuration folder with the running app path and a prompt
   pointing at the installed instructions. The submenu also carries Copy Prompt
@@ -86,7 +88,8 @@ a link to the product website.
   carry no icons, which would sit unevenly beside the Open at Login checkmark.
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
-  launchd terminating the running process.
+  launchd terminating the running process. It sits after the separator with
+  the app-lifecycle rows, not among the configuration actions.
 - Diagnostics, which can copy a state summary, open the last 15 minutes of logs,
   or enable verbose logging for the current session. An internal preference can
   also reveal the guided Magic Mouse trace session described below.
