@@ -853,18 +853,21 @@ static NSArray *configFileLines(void) {
                 NSString *shown = [comment length] > 40
                     ? [[comment substringToIndex:40] stringByAppendingString:@"…"]
                     : comment;
+                // Parentheses at full menu size separate the user's note from
+                // the binding while skimming; shrunken text read as noise, and
+                // color alone cannot carry the boundary. The explicit colors
+                // keep a commented row matching its disabled neighbors instead
+                // of rendering at full strength.
                 NSMutableAttributedString *title = [[[NSMutableAttributedString alloc]
-                    initWithString:[NSString stringWithFormat:@"%@   %@", line[0], shown]]
+                    initWithString:[NSString stringWithFormat:@"%@  (%@)", line[0], shown]]
                     autorelease];
                 NSUInteger mainLength = [(NSString *)line[0] length];
-                // The explicit colors keep a commented row matching its
-                // disabled neighbors instead of rendering at full strength.
                 [title addAttributes:@{
                         NSFontAttributeName: [NSFont menuFontOfSize:0],
                         NSForegroundColorAttributeName: [NSColor secondaryLabelColor],
                     } range:NSMakeRange(0, mainLength)];
                 [title addAttributes:@{
-                        NSFontAttributeName: [NSFont menuFontOfSize:11],
+                        NSFontAttributeName: [NSFont menuFontOfSize:0],
                         NSForegroundColorAttributeName: [NSColor tertiaryLabelColor],
                     } range:NSMakeRange(mainLength,
                                         [[title string] length] - mainLength)];
