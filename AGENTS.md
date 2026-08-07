@@ -135,17 +135,18 @@ trademark notice, and exact-source link.
 The release title is the bare version. The repository name sits above it on
 every page that shows a release, so repeating it adds nothing.
 
-### Obligations a release carries
+### What a release commits this repository to
 
-Three of these outlive the moment of tagging, and each fails quietly.
+Two of these fail quietly, and one is already guarded.
 
-**The corresponding-source link must name the tag the sold build was cut
-from.** GPLv3 requires the buyer of a binary to be able to obtain its exact
-source. `scripts/package.sh` writes `SOURCE.txt` inside the disk image from the
-app version, so the artifact is correct by construction. The storefront listing
-states the same link by hand and has no such guard, so a release is unfinished
-until the listing names the new tag. A stale link there is a licence failure
-rather than a cosmetic one, and nothing in this repository can detect it.
+**The corresponding-source link is generated, not written.** GPLv3 requires the
+buyer of a binary to be able to obtain its exact source, and
+`scripts/package.sh` satisfies that without anyone typing a URL: it derives the
+link from the app version, refuses to package when that version's tag already
+points at a different commit, and greps the mounted image to confirm the link
+before finishing. Leave it generated. A hand-maintained copy of that link
+anywhere else would have no such guard, so proposing one is a decision to take
+deliberately rather than a gap to fill.
 
 **`CHANGELOG.md` is an interface, not only prose.** A downstream surface parses
 it to render a customer-facing changelog and the version it advertises. The
@@ -162,16 +163,13 @@ only once every surface below has been refreshed.
 
 ### After a release
 
-Work through these in order. The first is the licence obligation; the rest are
-consistency.
-
-1. The storefront listing: the corresponding-source link, the version, and any
-   copy naming a feature the release changed.
-2. The product website: its reference pages carry their own copy of the
+1. The product website's reference pages, which carry their own copy of the
    configuration syntax and are updated by hand, so a change to `GESTURES.md`
    reaches them only when someone ports it.
-3. Any surface that derives from `CHANGELOG.md`, which needs a rebuild to pick
+2. Any surface that derives from `CHANGELOG.md`, which needs a rebuild to pick
    up the new entry.
+3. The storefront listing, where any copy naming a feature the release changed
+   is maintained by hand.
 
 ## Cross-surface product facts
 
