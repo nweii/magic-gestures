@@ -85,6 +85,21 @@ int main(int argc, const char *argv[]) {
         require(warnsAbout(tapToClickOn, @"Secondary click"),
                 @"secondary click must warn while tap to click is on");
 
+        // A disqualifier takes a claim away only when macOS wrote it. Secondary
+        // click moved to a corner is the case it describes, and a Mac that never
+        // wrote that preference has not moved it.
+        NSArray *cornerUnwritten = MGSystemGestureConflicts(none, trackpadTwoFingerTap,
+            ^NSNumber *(NSString *domains, NSString *key) {
+                return [key isEqualToString:@"TrackpadCornerSecondaryClick"] ? nil : @1;
+            });
+        require(warnsAbout(cornerUnwritten, @"Secondary click"),
+                @"an unwritten disqualifier must not take a claim away");
+
+        NSArray *cornerSet = MGSystemGestureConflicts(none, trackpadTwoFingerTap,
+            ^NSNumber *(NSString *domains, NSString *key) { return @1; });
+        require(!warnsAbout(cornerSet, @"Secondary click"),
+                @"secondary click moved to a corner must not warn");
+
         // An absent prerequisite leaves the overlap unproven, and an unproven
         // overlap is not a finding.
         NSArray *tapToClickUnwritten = MGSystemGestureConflicts(none, trackpadTwoFingerTap,

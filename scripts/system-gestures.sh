@@ -100,12 +100,14 @@ for entry in "${ENTRIES[@]}"; do
       default) claimed="default"; gate="$prerequisite=absent" ;;
     esac
   fi
+  # A disqualifier only removes a claim it can prove has moved elsewhere. An
+  # absent one proves nothing, so the claim stands.
   if [[ "$claimed" != "no" && "$disqualifier" != "-" ]]; then
     read -r _ gate_value <<< "$(read_preference "$disqualifier" "$domains")"
-    case "$(claim_for_value "$gate_value")" in
-      yes) claimed="no"; gate="$disqualifier=$gate_value" ;;
-      default) claimed="default"; gate="$disqualifier=absent" ;;
-    esac
+    if [[ "$(claim_for_value "$gate_value")" == "yes" ]]; then
+      claimed="no"
+      gate="$disqualifier=$gate_value"
+    fi
   fi
   for slug in ${(s.,.)slugs}; do
     line="device=$device slug=$slug claimed=$claimed key=$key value=$value domain=$domain"

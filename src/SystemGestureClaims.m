@@ -13,8 +13,10 @@
 // `prerequisite` is a second key that must itself be non-zero before the setting
 // can answer the motion at all. A setting can be enabled and still be out of
 // reach, because the motion that would trigger it is switched off elsewhere.
-// Both gates fail closed: a gate macOS has never written leaves the entry
-// unproven, and an unproven entry does not warn.
+// A claim needs proof. The key and any prerequisite must read non-zero before
+// the entry warns, and a disqualifier removes the claim only when it too reads
+// non-zero. A preference macOS has never written proves nothing, so it neither
+// establishes a claim nor takes one away.
 // `setting`, `motion`, and `location` quote the macOS interface, so a reader
 // comparing a warning against System Settings sees the same words in both. A
 // NULL `setting` means the label is unconfirmed and the motion stands alone.
