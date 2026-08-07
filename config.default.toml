@@ -1,16 +1,24 @@
 # Trickpad
-
-# Lines without # are active. Save, then choose Reload Settings in the menu bar.
-# Choose Manage with Agent for help, or see the full reference:
-# https://thirdwind.fyi/trickpad/
+# ⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘⌘
+# Every setting is in this file. Save it, then choose Reload Settings in the
+# menu bar. Prefer not to edit it yourself? Choose Manage with Agent and
+# describe what you want.
+#
+# Anything after a # is a note, and a line that starts with one is switched
+# off. Notes you write beside a binding appear in the menu under Current
+# Gestures.
+#
+# Every gesture, key, and action: https://thirdwind.fyi/trickpad/docs/
 
 [GENERAL]
 
 config-version = 3
 dominant-hand = "right"
 haptic-feedback = true
-menu-bar-icon = "trickpad" # Try an SF Symbol such as "sf:hand.tap.fill".
+menu-bar-icon = "trickpad"   # Or name an SF Symbol: "sf:hand.tap.fill"
 experimental-mouse-click-gestures = false
+
+# ----------------------------------------
 
 [MOUSE]
 
@@ -18,23 +26,15 @@ hold-left-tap-right = "return"
 hold-right-tap-left = "escape"
 two-finger-tap = { action = "middle-click", defer = true }
 
+# three-finger-tap = "ctrl+cmd+a"   # A chord you already use. Delete the # to try it.
+# front-right-tap = "url:shortcuts://run-shortcut?name=My%20Shortcut"
 
-# Optional bindings. Remove # to enable one.
-
-# three-finger-tap = "ctrl+cmd+a"
-# two-finger-tap = { action = "middle-click", defer = true }
-# three-finger-tap = "script:~/.config/trickpad/scripts/capture-selection"
-# front-right-tap = "url:raycast://extensions/raycast/raycast-ai/ai-chat"
-# two-finger-click = "right-ctrl+space"  # Experimental; replaces the normal click when recognized.
+# ----------------------------------------
 
 [TRACKPAD]
 
 hold-left-tap-right = "return"
 hold-right-tap-left = "escape"
 
-
-# Optional bindings. Remove # to enable one.
-
-# three-finger-tap = "cmd+shift+a"
-# four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"
-# three-finger-click = { action = "escape", haptic = true }
+# four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"   # New to-do from whatever you copied
+# three-finger-tap = "script:~/bin/my-script"   # Any executable file, run directly
