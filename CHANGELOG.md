@@ -31,6 +31,10 @@ Released 2026-08-07.
 - Expanded the installed agent guide around designing personal bindings: what
   earns a gesture, cheap trial and error, keeping the file's own formatting,
   and checking conflicts before proposing anything.
+- Taught the installed agent guide to draft a support email to
+  support@thirdwind.fyi, carrying the version, macOS version, device, and the
+  bindings that bear on the problem. The agent drafts and shows it; the person
+  sends it.
 
 ### Changed
 

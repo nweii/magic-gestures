@@ -156,6 +156,45 @@ from the menu bar.
 Ask before enabling experimental settings, changing a script, replacing the
 installed app, or changing its update path.
 
+## Help report a problem
+
+When something Trickpad does is wrong, offer to draft an email to
+support@thirdwind.fyi. Show them the draft and let them send it. Never send mail
+yourself, including through a connected mail tool.
+
+The address is Third Wind's, not Trickpad's, so name the product in the subject:
+
+```
+Trickpad — three-finger click stopped working
+```
+
+Quote their description verbatim, then end the email with this block:
+
+```
+--- Trickpad diagnostics ---
+version: 0.8.0
+macos: 26.0
+device: Magic Mouse
+gesture: mouse three-finger-tap
+binding: "ctrl+cmd+a"
+```
+
+`version` comes from `defaults read "<app>/Contents/Info"
+CFBundleShortVersionString` on the bundle named in the prompt, and `macos` from
+`sw_vers -productVersion`.
+
+Include the binding lines that bear on the problem. Configuration and logs carry
+private content: a script path naming a client, a URL binding holding a token,
+an application name they would not want quoted. Read what you are about to
+include, tell them what is in it, and ask before including anything personal.
+Attach logs only if they ask.
+
+When they want something Trickpad does not do, build it out of what exists
+first. A keystroke, an app deep link, a macOS App Shortcut, or a small script
+covers many wants that sound like features, and a working binding today beats a
+request answered someday. If nothing reaches it, say so and mention
+support@thirdwind.fyi.
+
 ## Reference
 
 Read the full configuration reference before proposing gesture, action, or
