@@ -18,6 +18,8 @@ and a gesture they find comfortable. Use the existing configuration as evidence
 of what they already rely on. Leave every existing binding and setting unchanged
 unless changing it is necessary for the user's stated request.
 
+Summarizing the current configuration is often worth doing, since the user may never have opened the file themselves. Give it as a list grouped by device, one line per binding, naming the gesture and what it does in plain words rather than as the value in the file. Point out anything that looks unintended.
+
 When the user wants ideas, find a few concrete options that fit their workflow:
 
 - Check an app's configurable shortcuts, automation hooks, documented URL
@@ -108,16 +110,20 @@ by one finger.
   "<app>/Contents/Resources/system-gestures.sh"
   ```
 
-  Run it by path. It is a zsh script, and naming another interpreter fails with
-  a substitution error that reads as a broken script.
+  Run it by path. It is a zsh script, and naming another interpreter fails with a substitution error that reads as a broken script.
 
   `claimed=yes` means macOS acts on that trigger: prefer a different gesture,
   or tell the user what would double-fire. `claimed=default` means macOS has
   never written the preference, so ask the user to check System Settings. A
   `gate=` field means a second preference decided the answer, and the report
   names it.
+
+  When the report will not run, recommend from the gestures whose safety does not depend on it. Hold gestures are the quietest choice, and macOS binds nothing to them. Name the check that could not run and what follows from it: macOS may already act on a proposed trigger, so a binding could double-fire. Offer the command to a user who wants it, and let the recommendation stand whether or not they run it.
+
+  Reading the preference domains yourself is the one substitute to avoid. Which keys answer for which trigger is knowledge this report holds, so a reading assembled from key names you remember looks complete from the inside while missing the one that decided the answer.
 - The configuration itself. Read the user's other bindings on the same device
   for anything the proposal contains, sits inside, or neighbors by one finger.
+  Name the current binding on every gesture you discuss, read from the file as you write the sentence. An account from memory reads exactly like one from the file, so nobody can catch what it got wrong.
 - The output. The keystroke a binding sends can collide with app or global
   hotkeys nothing here can see. A Caps Lock remapped to a modifier chord is
   common; ask.
