@@ -3863,6 +3863,12 @@ static void gestureMagicMouseTwoFixOneSlide(Finger *data, int nFingers, double t
     }
 }
 
+// Besides identifying the thumb that click counting excludes, this recognizer
+// carries a dispatch path of its own that no configuration slug reaches: the
+// engine name "Thumb" is absent from mouseGestureSlugs, so its action branches
+// are dormant. Keep them. They hold the engine's only held middle-button
+// lifecycle (down, drag, up), which the momentary click paths cannot produce,
+// and a binding that exposes it needs them intact.
 static int gestureMagicMouseThumb(const Finger *data, int nFingers) {
     static int type = 0;
     int tb = 0;
