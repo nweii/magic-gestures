@@ -24,14 +24,29 @@ Released 2026-08-07.
 - Added menu key equivalents while the menu is open: `⌘,` opens settings,
   `⌘R` reloads, `⌘C` copies the agent prompt, `⌥⌘C` copies it with
   `config.toml` attached, and `⌘Q` quits.
+- Titled the gesture list with its binding count, so one row carries the
+  configuration state and skipped-line details open from inside it.
 - Opened the menu once on first launch, so a new install shows where the app
   lives instead of leaving a menu bar icon to be found.
 - Expanded the installed agent guide around designing personal bindings: what
   earns a gesture, cheap trial and error, keeping the file's own formatting,
   and checking conflicts before proposing anything.
 
+### Changed
+
+- Reworked the starter configuration for first reading: a header that explains
+  commenting a line out, two examples per device, and no optional-binding
+  catalogs.
+- Moved Open at Login below the separator with the app-lifecycle rows, leaving
+  the group above to configuration actions.
+
 ### Fixed
 
+- Corrected a `script:` example that named a path nothing ships, so
+  uncommenting it failed at reload.
+- Probed installed coding agents in one background shell instead of one
+  synchronous shell per agent, which made the Manage with Agent submenu open
+  without delay.
 - Required a hold gesture's resting finger to genuinely rest before the
   second finger lands, so a two-finger tap is no longer misread as a
   hold-tap. This also makes `defer = true` behave as documented.
