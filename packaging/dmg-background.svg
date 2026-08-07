@@ -1,12 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="960" viewBox="0 0 660 480">
-  <rect width="660" height="480" fill="#f7f8f7"/>
-  <text x="330" y="62" fill="#20262a" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22" font-weight="600" text-anchor="middle">Install Trickpad</text>
-  <text x="330" y="91" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" text-anchor="middle">Drag Trickpad to Applications</text>
-  <path d="M260 180 H400" fill="none" stroke="#2c8aa8" stroke-width="3" stroke-linecap="round"/>
-  <path d="M388 168 L401 180 L388 192" fill="none" stroke="#2c8aa8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="330" y="282" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" text-anchor="middle">After copying, open Trickpad once.</text>
-  <text x="330" y="299" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" text-anchor="middle">Trickpad is not notarized by Apple, so macOS will show a verification warning.</text>
-  <text x="330" y="316" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" font-weight="600" text-anchor="middle">Choose Done, not Move to Trash. Then use</text>
-  <text x="330" y="333" fill="#66747b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" font-weight="600" text-anchor="middle">System Settings → Privacy &amp; Security (scroll down) → Open Anyway.</text>
-  <line x1="48" y1="350" x2="612" y2="350" stroke="#d7dee1"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1080" viewBox="0 0 660 540">
+  <rect width="660" height="540" fill="#f7f8f7"/>
+  <text x="330" y="58" fill="#20262a" font-family="Dinish Expanded" font-size="22" font-weight="700" text-anchor="middle">Install Trickpad</text>
+  <path d="M260 150 H400" fill="none" stroke="#2c8aa8" stroke-width="3" stroke-linecap="round"/>
+  <path d="M388 138 L401 150 L388 162" fill="none" stroke="#2c8aa8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g font-family="Dinish Expanded" font-size="13.5">
+    <text x="118" y="268" fill="#2c8aa8" font-weight="700">1</text>
+    <text x="141" y="268" fill="#20262a" font-weight="400">Drag Trickpad to Applications.</text>
+    <text x="118" y="294" fill="#2c8aa8" font-weight="700">2</text>
+    <text x="141" y="294" fill="#20262a" font-weight="400">Open it. macOS shows a warning: choose Done, not Move to Trash.</text>
+    <text x="118" y="320" fill="#2c8aa8" font-weight="700">3</text>
+    <text x="141" y="320" fill="#20262a" font-weight="400">System Settings → Privacy &amp; Security → Open Anyway (scroll down).</text>
+  </g>
+  <text x="141" y="342" fill="#66747b" font-family="Dinish" font-size="12" font-weight="400">You only need to do this security override once.</text>
 </svg>
