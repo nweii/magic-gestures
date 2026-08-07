@@ -79,9 +79,8 @@ a link to the product website.
   `config.toml` as the user's explicit choice.
 - Edit Settings (⌘,), which opens `config.toml` in the user's editor.
 - Reload Settings (⌘R), which rereads the file into the running engine.
-  Edit and Reload carry the menu's only SF Symbol icons (gearshape,
-  arrow.clockwise), marking the two rows a user reaches for most; key
-  equivalents, including ⌘Q on Quit, fire while the menu is open.
+  Key equivalents, including ⌘Q on Quit, fire while the menu is open. Rows
+  carry no icons, which would sit unevenly beside the Open at Login checkmark.
 - Open at Login, a checkbox running `install-login-agent.sh` or
   `uninstall-login-agent.sh` with `PLIST_ONLY` set, so the file changes without
   launchd terminating the running process.

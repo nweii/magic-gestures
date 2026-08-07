@@ -1520,19 +1520,14 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
     [item setTag:kMenuTagAgents];
     [item setSubmenu:[self buildAgentSubmenu]];
 
-    // Icons mark only the two rows a user reaches for most, so they stay
-    // identifiable at a glance without turning every row into a picture.
+    // No row icons: they sit unevenly beside the Open at Login checkmark.
     // Key equivalents fire while the menu is open.
-    NSMenuItem *editItem = [theMenu addItemWithTitle:@"Edit Settings..."
-                                              action:@selector(preferences:)
-                                       keyEquivalent:@","];
-    [editItem setImage:[NSImage imageWithSystemSymbolName:@"gearshape"
-                                 accessibilityDescription:@"Settings"]];
-    NSMenuItem *reloadItem = [theMenu addItemWithTitle:@"Reload Settings"
-                                                action:@selector(reloadConfiguration:)
-                                         keyEquivalent:@"r"];
-    [reloadItem setImage:[NSImage imageWithSystemSymbolName:@"arrow.clockwise"
-                                   accessibilityDescription:@"Reload"]];
+    [theMenu addItemWithTitle:@"Edit Settings..."
+                       action:@selector(preferences:)
+                keyEquivalent:@","];
+    [theMenu addItemWithTitle:@"Reload Settings"
+                       action:@selector(reloadConfiguration:)
+                keyEquivalent:@"r"];
 
     item = [theMenu addItemWithTitle:@"Open at Login" action:@selector(toggleLoginItem:) keyEquivalent:@""];
     [item setTag:kMenuTagLoginItem];
