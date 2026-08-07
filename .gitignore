@@ -4,3 +4,4 @@ run/
 .DS_Store
 *.app
 *.dSYM
+.scratch/

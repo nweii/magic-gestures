@@ -9,6 +9,30 @@ with a menu bar item and no window.
 Shell scripts live in `scripts/` and resolve paths from the project root, two
 levels up from themselves.
 
+## Where things live
+
+- `src/` — the app, including the vendored engine under `src/jitouch/`.
+- `scripts/` — build, check, package, and install scripts, plus `scripts/debug/`
+  for hand-run diagnostic programs nothing else depends on.
+- `packaging/` — the disk image background and its source.
+- `fixtures/` — synthetic inputs the checks replay.
+- `third_party/` — vendored dependencies kept at a pinned version.
+- `assets/` — material that ships to people rather than to the build:
+  `assets/design/` for design working files, `assets/marketing/` for generated
+  icon exports used by the website and the storefront. No script reads either,
+  so moving something here means it is not part of the build.
+- `build/`, `run/`, and `.scratch/` are ignored by git and safe to delete.
+  `build/` holds compiled output and packaged images, `run/` holds runtime logs
+  and generated commands, and `.scratch/` is working space for anything that
+  does not belong in the repository. Keep nothing in them that exists nowhere
+  else.
+
+The repository root holds the licence files, the reference documents, the
+starter configuration, and the two icon sources `build.sh` reads: `Trickpad.icon`
+for the app icon and `Trickpad-menu-bar-icon.svg` for the menu bar mark. A file
+at the root is either read by the build or read by a person arriving at the
+repository; anything else belongs in a directory above.
+
 ## Vendored engine, local config layer
 
 Recognition is [Jitouch](https://github.com/JitouchApp/Jitouch), vendored under
