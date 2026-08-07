@@ -1,16 +1,10 @@
 # Debug tools
 
-Small single-file programs for diagnosing keyboard and input problems by hand.
-Nothing builds or runs them automatically, and the app does not depend on them.
+Small single-file programs for diagnosing keyboard and input problems by hand. Nothing builds or runs them automatically, and the app does not depend on them.
 
-- `check-secure-input.m` — reports whether macOS currently considers Secure
-  Input active. Secure Input suppresses synthesized keystrokes, so a binding
-  that dispatches without any visible effect is often this.
-- `release-secure-input.m` — attempts to release a Secure Input state a
-  terminated process left behind.
-- `right-control-test.m` — posts one right-Control-plus-Space chord through the
-  same event-planning path a binding uses, which separates a recognition
-  problem from a keystroke problem.
+- `check-secure-input.m` — reports whether macOS currently considers Secure Input active. Secure Input suppresses synthesized keystrokes, so a binding that dispatches without any visible effect is often this.
+- `release-secure-input.m` — attempts to release a Secure Input state a terminated process left behind.
+- `right-control-test.m` — posts one right-Control-plus-Space chord through the same event-planning path a binding uses, which separates a recognition problem from a keystroke problem.
 - `release-right-control.m` — releases a right-Control modifier left held down.
 
 Compile one with clang, naming the frameworks it imports:

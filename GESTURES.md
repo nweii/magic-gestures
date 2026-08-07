@@ -1,16 +1,10 @@
 # Gesture reference
 
-Everything you can write in `config.toml`. The file uses TOML, with quoted
-strings and `#` comments. Each device has its own table, and a name from one
-table does nothing on the other.
+Everything you can write in `config.toml`. The file uses TOML, with quoted strings and `#` comments. Each device has its own table, and a name from one table does nothing on the other.
 
-The recognizers are compiled in. Reload Settings reports and skips a name that
-is not listed here.
+The recognizers are compiled in. Reload Settings reports and skips a name that is not listed here.
 
-Gestures that hold one finger still are named by where the fingers sit, not by
-which finger does what. `hold-left-tap-right` means hold a finger and tap to its
-right, which on a right hand is the index finger holding and the middle finger
-tapping. Either hand works, and either finger can play either part.
+Gestures that hold one finger still are named by where the fingers sit, not by which finger does what. `hold-left-tap-right` means hold a finger and tap to its right, which on a right hand is the index finger holding and the middle finger tapping. Either hand works, and either finger can play either part.
 
 ## Magic Mouse
 
@@ -33,16 +27,11 @@ tapping. Either hand works, and either finger can play either part.
 | `three-finger-swipe-up` | Swipe up with three fingers |
 | `three-finger-swipe-down` | Swipe down with three fingers |
 
-Physical clicks ignore narrow contacts at either side and palm contacts at the
-rear. Counted fingertips must form one connected cluster; a recognized thumb
-does not count toward the gesture. They are disabled by default while
-recognition is calibrated across natural grips and hardware. Set
-`experimental-mouse-click-gestures = true` under `[GENERAL]` to opt in.
+Physical clicks ignore narrow contacts at either side and palm contacts at the rear. Counted fingertips must form one connected cluster; a recognized thumb does not count toward the gesture. They are disabled by default while recognition is calibrated across natural grips and hardware. Set `experimental-mouse-click-gestures = true` under `[GENERAL]` to opt in.
 
 ## Magic Trackpad
 
-The trackpad recognizes a hold-and-slide in one direction only, so it has one
-slide name where the mouse has two.
+The trackpad recognizes a hold-and-slide in one direction only, so it has one slide name where the mouse has two.
 
 | Write this | The motion |
 |---|---|
@@ -66,13 +55,9 @@ slide name where the mouse has two.
 | `index-to-pinky` | Brush your fingers across in sequence, index first |
 | `pinky-to-index` | Brush your fingers across in sequence, pinky first |
 
-On both devices, the native click continues and the configured action fires on
-release. A drag keeps its native events and does not fire the configured click
-action.
+On both devices, the native click continues and the configured action fires on release. A drag keeps its native events and does not fire the configured click action.
 
-One continuous touch sequence can run one kind of configured gesture. A swipe
-or hold gesture may repeat while it owns the sequence, but a physical click,
-tap, or different gesture will not also run until every finger lifts.
+One continuous touch sequence can run one kind of configured gesture. A swipe or hold gesture may repeat while it owns the sequence, but a physical click, tap, or different gesture will not also run until every finger lifts.
 
 ## Application-specific bindings
 
@@ -83,14 +68,11 @@ Put an application name or exact bundle identifier in a device heading:
     three-finger-click = "escape"
     four-finger-tap = "off"
 
-The application section overrides global bindings for the same gesture. `off`
-excludes a global binding in that application. TOML tables cannot repeat, so
-keep an application's bindings together under its one device table.
+The application section overrides global bindings for the same gesture. `off` excludes a global binding in that application. TOML tables cannot repeat, so keep an application's bindings together under its one device table.
 
 ## Binding options
 
-Use braces when a binding needs options. Separate properties with commas; line
-breaks are optional:
+Use braces when a binding needs options. Separate properties with commas; line breaks are optional:
 
     three-finger-tap = {
       action = "ctrl+cmd+a",
@@ -104,35 +86,26 @@ An application-specific block may omit `action` to inherit the global action:
 
     three-finger-tap = { haptic = false }
 
-`haptic` is valid only for trackpad bindings. It overrides the global
-`haptic-feedback` setting for that binding.
+`haptic` is valid only for trackpad bindings. It overrides the global `haptic-feedback` setting for that binding.
 
 ### Hearing a gesture fire
 
-`sound` plays a macOS system sound and `say` speaks any words when the gesture
-fires, alongside whatever the binding already does:
+`sound` plays a macOS system sound and `say` speaks any words when the gesture fires, alongside whatever the binding already does:
 
     three-finger-tap = { action = "cmd+shift+4", sound = "Glass" }
     three-finger-click = { action = "right-ctrl+space", say = "dictation" }
 
-Both work on either device. A Magic Mouse has no haptic feedback, so this is
-the only way to confirm one of its gestures by ear. Either starts the moment
-the gesture fires and never delays the action or the next gesture, and a
-gesture fired while one is still sounding interrupts it and starts again.
+Both work on either device. A Magic Mouse has no haptic feedback, so this is the only way to confirm one of its gestures by ear. Either starts the moment the gesture fires and never delays the action or the next gesture, and a gesture fired while one is still sounding interrupts it and starts again.
 
 ### Deferring a tap
 
-Set `defer = true` when the first tap also begins a double-tap gesture in macOS
-or another application:
+Set `defer = true` when the first tap also begins a double-tap gesture in macOS or another application:
 
     two-finger-tap = { action = "ctrl+cmd+a", defer = true }
 
-Trickpad waits through the Mac's double-click interval before sending the
-single-tap action. A second matching tap on the same device cancels it. This
-preserves the double-tap gesture at the cost of latency on the single tap.
+Trickpad waits through the Mac's double-click interval before sending the single-tap action. A second matching tap on the same device cancels it. This preserves the double-tap gesture at the cost of latency on the single tap.
 
-`defer` works only with tap gestures. A swipe, slide, or hold using it is
-reported and skipped.
+`defer` works only with tap gestures. A swipe, slide, or hold using it is reported and skipped.
 
 ## What a gesture can send
 
@@ -154,48 +127,31 @@ Modifiers, then one key. These four are the same binding:
 | Option | `opt` `option` `alt` `⌥` |
 | Shift | `shift` `⇧` |
 
-Modifiers default to the left-side key. Prefix a written name with `left-` or
-`right-` when an application distinguishes the two sides, such as
-`right-control+space`. The prefix works with every written alias, including
-`right-ctrl`, `right-cmd`, and `right-alt`. Modifier symbols use the default
-left side.
+Modifiers default to the left-side key. Prefix a written name with `left-` or `right-` when an application distinguishes the two sides, such as `right-control+space`. The prefix works with every written alias, including `right-ctrl`, `right-cmd`, and `right-alt`. Modifier symbols use the default left side.
 
-Keys: any letter or digit, plus `return` `escape` `tab` `space` `delete`
-`forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down`
-and `f1` through `f12`. Punctuation keys: `[` `]` `-` `=` `;` `'` `,` `.`
-`/` `\` and backtick (`` ` ``).
+Keys: any letter or digit, plus `return` `escape` `tab` `space` `delete` `forward-delete` `up` `down` `left` `right` `home` `end` `page-up` `page-down` and `f1` through `f12`. Punctuation keys: `[` `]` `-` `=` `;` `'` `,` `.` `/` `\` and backtick (`` ` ``).
 
-Aliases: `enter` is `return`, `esc` is `escape`, `backspace` and `del` are
-`delete`, `spacebar` is `space`.
+Aliases: `enter` is `return`, `esc` is `escape`, `backspace` and `del` are `delete`, `spacebar` is `space`.
 
-Fn cannot be sent. It is a HID usage rather than an ordinary key event, so no
-gesture can stand in for an Fn shortcut.
+Fn cannot be sent. It is a HID usage rather than an ordinary key event, so no gesture can stand in for an Fn shortcut.
 
 ### Actions
 
-`middle-click` `mission-control` `next-tab` `previous-tab` `new-tab`
-`close-tab` `reopen-tab` `maximize` `minimize`
+`middle-click` `mission-control` `next-tab` `previous-tab` `new-tab` `close-tab` `reopen-tab` `maximize` `minimize`
 
-`middle-click` posts a real middle-button event, which gives a Magic Mouse a
-button it does not otherwise have.
+`middle-click` posts a real middle-button event, which gives a Magic Mouse a button it does not otherwise have.
 
 ### URL bindings and app deep links
 
-Prefix an absolute URL with `url:`. macOS opens it in the application registered
-for its scheme. A URL binding can open a web URL or an app deep link that targets
-a specific place or action in Raycast, Obsidian, Things, or another app:
+Prefix an absolute URL with `url:`. macOS opens it in the application registered for its scheme. A URL binding can open a web URL or an app deep link that targets a specific place or action in Raycast, Obsidian, Things, or another app:
 
     hold-right-tap-left = "url:raycast://extensions/raycast/raycast-ai/ai-chat"
     three-finger-tap = "url:obsidian://daily"
     four-finger-tap = "url:https://example.com/page#section"
 
-The URL must include a scheme followed by `:`. Reload Settings reports malformed
-URLs, unencoded spaces, and malformed percent escapes. It does not require an
-application for the scheme to be installed; macOS resolves the handler when the
-gesture fires.
+The URL must include a scheme followed by `:`. Reload Settings reports malformed URLs, unencoded spaces, and malformed percent escapes. It does not require an application for the scheme to be installed; macOS resolves the handler when the gesture fires.
 
-TOML treats `#` outside a quoted string as a comment. URL fragments stay inside
-the quoted value. A trailing comment follows the closing quote:
+TOML treats `#` outside a quoted string as a comment. URL fragments stay inside the quoted value. A trailing comment follows the closing quote:
 
     three-finger-tap = "url:obsidian://daily" # Open today's daily note
 
@@ -214,16 +170,9 @@ For example:
     four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}"
     four-finger-tap = "url:things:///add?title={{clipboard|urlencode}}&when={{datetime:yyyy-MM-dd}}"
 
-Use `urlencode` for clipboard text placed in a query parameter. It escapes
-characters such as spaces, `&`, `=`, `/`, and `?` so the clipboard cannot change
-the URL's structure. Use raw `{{clipboard}}` only when the copied text is already
-safe in that position.
+Use `urlencode` for clipboard text placed in a query parameter. It escapes characters such as spaces, `&`, `=`, `/`, and `?` so the clipboard cannot change the URL's structure. Use raw `{{clipboard}}` only when the copied text is already safe in that position.
 
-An empty clipboard resolves to an empty value. Reload Settings reports unknown
-substitutions and filters, unmatched braces, empty date formats, and unmatched
-quotes in date formats. The expanded URL is checked again when the gesture fires.
-If it is invalid, nothing opens and Console records the problem without the
-expanded clipboard contents.
+An empty clipboard resolves to an empty value. Reload Settings reports unknown substitutions and filters, unmatched braces, empty date formats, and unmatched quotes in date formats. The expanded URL is checked again when the gesture fires. If it is invalid, nothing opens and Console records the problem without the expanded clipboard contents.
 
 ### Scripts
 
@@ -231,48 +180,28 @@ Prefix an executable path with `script:`:
 
     hold-right-tap-left = "script:~/bin/my-script"
 
-The path may begin with `~` or be absolute. It must exist and be executable when
-the settings reload. Trickpad launches it directly through its shebang,
-uses the script's folder as its working directory, and does not wait for it to
-finish. It does not interpret shell commands, arguments, substitutions, or an
-interactive shell profile. Console records launch failures and nonzero exits.
+The path may begin with `~` or be absolute. It must exist and be executable when the settings reload. Trickpad launches it directly through its shebang, uses the script's folder as its working directory, and does not wait for it to finish. It does not interpret shell commands, arguments, substitutions, or an interactive shell profile. Console records launch failures and nonzero exits.
 
 ### Sounds and speech
 
-Prefix a macOS system sound name with `sound:`, or the words to speak with
-`say:`:
+Prefix a macOS system sound name with `sound:`, or the words to speak with `say:`:
 
     three-finger-tap = "sound:Glass"
     three-finger-tap = "say:three fingers"
 
-The gesture plays that sound or speaks that text and does nothing else, which
-separates a recognition problem from a binding problem: if you hear it, the
-gesture fired. Speech can carry any words, so several test bindings can each
-announce which gesture fired. A fire during the previous sound or sentence
-interrupts it and starts over, so silence always means the gesture did not
-fire.
+The gesture plays that sound or speaks that text and does nothing else, which separates a recognition problem from a binding problem: if you hear it, the gesture fired. Speech can carry any words, so several test bindings can each announce which gesture fired. A fire during the previous sound or sentence interrupts it and starts over, so silence always means the gesture did not fire.
 
-Written this way the sound replaces the action, which is what makes it a test.
-To hear a gesture that still does its real work, use the `sound` or `say`
-binding option instead.
+Written this way the sound replaces the action, which is what makes it a test. To hear a gesture that still does its real work, use the `sound` or `say` binding option instead.
 
-A sound name is case-sensitive, carries no extension, and must match a file in
-`/System/Library/Sounds`. Reload Settings reports a name it cannot find, and a
-`say:` with nothing after it.
+A sound name is case-sensitive, carries no extension, and must match a file in `/System/Library/Sounds`. Reload Settings reports a name it cannot find, and a `say:` with nothing after it.
 
 ## Turn a menu command into a shortcut
 
-An app may offer a useful menu command without its own keyboard shortcut.
-macOS can assign one: open **System Settings > Keyboard > Keyboard Shortcuts >
-App Shortcuts**, choose the app, and add the command.
+An app may offer a useful menu command without its own keyboard shortcut. macOS can assign one: open **System Settings > Keyboard > Keyboard Shortcuts > App Shortcuts**, choose the app, and add the command.
 
-Write the full menu path exactly as it appears in the app, using `->` without
-spaces between path components. Titles are case-sensitive, and an ellipsis is
-three periods (`...`), not `…`. An App Shortcut targets an existing menu command
-only. Test it in the target app before binding a Trickpad gesture to the chord.
+Write the full menu path exactly as it appears in the app, using `->` without spaces between path components. Titles are case-sensitive, and an ellipsis is three periods (`...`), not `…`. An App Shortcut targets an existing menu command only. Test it in the target app before binding a Trickpad gesture to the chord.
 
-App updates and localizations can change menu titles. Update the App Shortcut if
-the assigned shortcut stops working.
+App updates and localizations can change menu titles. Update the App Shortcut if the assigned shortcut stops working.
 
 ## Settings
 
@@ -290,24 +219,15 @@ the assigned shortcut stops working.
 
 Booleans are `true` or `false`, following TOML.
 
-Hiding the menu bar icon is not a setting here either. Use System Settings >
-Menu Bar; gestures keep working without it.
+Hiding the menu bar icon is not a setting here either. Use System Settings > Menu Bar; gestures keep working without it.
 
-Starting at login is not a setting here. Tick **Open at Login** in the menu bar
-item. From a source checkout, `scripts/install-login-agent.sh` does the same
-thing from the shell.
+Starting at login is not a setting here. Tick **Open at Login** in the menu bar item. From a source checkout, `scripts/install-login-agent.sh` does the same thing from the shell.
 
 ## Conflicts with built-in macOS gestures
 
-macOS assigns its own gestures in System Settings under Trackpad and Mouse.
-Binding a trigger macOS already acts on adds your action without removing the
-built-in one. Which triggers are taken depends on your settings, since the
-finger counts and the individual gestures are adjustable, so no list here can
-tell you what is free on your Mac.
+macOS assigns its own gestures in System Settings under Trackpad and Mouse. Binding a trigger macOS already acts on adds your action without removing the built-in one. Which triggers are taken depends on your settings, since the finger counts and the individual gestures are adjustable, so no list here can tell you what is free on your Mac.
 
-Trickpad reads those settings when it loads a configuration and reports any
-binding whose trigger a built-in gesture already uses. The menu bar item shows
-the count, and the row opens the details.
+Trickpad reads those settings when it loads a configuration and reports any binding whose trigger a built-in gesture already uses. The menu bar item shows the count, and the row opens the details.
 
 To see the same thing from the shell:
 
@@ -315,28 +235,16 @@ To see the same thing from the shell:
 /Applications/Trickpad.app/Contents/Resources/system-gestures.sh
 ```
 
-Each line names one gesture from this reference and whether macOS has claimed
-the trigger it overlaps. A line reading `claimed=default` means macOS has never
-written that preference, so the built-in default decides it and System Settings
-is the only place to confirm.
+Each line names one gesture from this reference and whether macOS has claimed the trigger it overlaps. A line reading `claimed=default` means macOS has never written that preference, so the built-in default decides it and System Settings is the only place to confirm.
 
-One kind of overlap is easy to miss. A built-in gesture that uses a *double*
-tap, such as the Magic Mouse two-finger double tap, contains two single taps,
-so a single-tap binding on the same finger count fires while you perform it.
+One kind of overlap is easy to miss. A built-in gesture that uses a *double* tap, such as the Magic Mouse two-finger double tap, contains two single taps, so a single-tap binding on the same finger count fires while you perform it.
 
 ## Choosing one
 
-The `hold-` gestures hold one finger still while another taps or slides. A
-resting hand does not produce that shape and macOS binds nothing to it, so they
-stay clear on both counts. Bind those for anything you would regret firing by
-accident.
+The `hold-` gestures hold one finger still while another taps or slides. A resting hand does not produce that shape and macOS binds nothing to it, so they stay clear on both counts. Bind those for anything you would regret firing by accident.
 
-A tap fires while your hand rests on the surface. A swipe competes with
-scrolling. Both are fine for something harmless.
+A tap fires while your hand rests on the surface. A swipe competes with scrolling. Both are fine for something harmless.
 
 ## Where these come from
 
-The recognizers are [Jitouch](https://github.com/JitouchApp/Jitouch), vendored
-under `src/jitouch/`. `src/Config.m` maps the names above to the engine's
-internal names, which are longer and encode detail a hand does not distinguish,
-such as how far apart two fingers land.
+The recognizers are [Jitouch](https://github.com/JitouchApp/Jitouch), vendored under `src/jitouch/`. `src/Config.m` maps the names above to the engine's internal names, which are longer and encode detail a hand does not distinguish, such as how far apart two fingers land.
