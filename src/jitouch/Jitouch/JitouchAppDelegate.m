@@ -215,7 +215,6 @@ enum {
     kMenuTagAccessibility = 3,
     kMenuTagBindings = 4,
     kMenuTagAgents = 5,
-    kMenuTagProblems = 6,
     kMenuTagDiagnostics = 7,
     kMenuTagConflicts = 8,
 };
@@ -670,29 +669,28 @@ static BOOL runLaunchctl(NSArray *arguments) {
     }
 }
 
-// The submenu reads bindings from the settings used by the gesture engine.
+// The binding count titles the submenu that lists what it counts, so one row
+// carries the configuration state. A failed or partial reload changes the
+// headline; the clickable details live on the submenu's first row.
 - (void)refreshProblemsItem {
-    NSMenuItem *item = [theMenu itemWithTag:kMenuTagProblems];
+    NSMenuItem *item = [theMenu itemWithTag:kMenuTagBindings];
     if (item == nil)
         return;
 
     NSUInteger n = [lastConfigProblems count];
     if (lastConfigRejected) {
-        [item setTitle:[NSString stringWithFormat:@"Reload failed, %ld binding%@ still active...",
+        [item setTitle:[NSString stringWithFormat:@"Reload failed, %ld binding%@ still active",
                         (long)lastConfigBindingCount,
                         lastConfigBindingCount == 1 ? @"" : @"s"]];
-        [item setAction:@selector(showConfigProblems:)];
     } else if (n == 0) {
         [item setTitle:[NSString stringWithFormat:@"%ld binding%@ loaded",
                         (long)lastConfigBindingCount,
                         lastConfigBindingCount == 1 ? @"" : @"s"]];
-        [item setAction:NULL];
     } else {
-        [item setTitle:[NSString stringWithFormat:@"%ld binding%@ loaded, %lu line%@ skipped...",
+        [item setTitle:[NSString stringWithFormat:@"%ld binding%@ loaded, %lu skipped",
                         (long)lastConfigBindingCount,
                         lastConfigBindingCount == 1 ? @"" : @"s",
-                        (unsigned long)n, n == 1 ? @"" : @"s"]];
-        [item setAction:@selector(showConfigProblems:)];
+                        (unsigned long)n]];
     }
 }
 
@@ -796,6 +794,19 @@ static NSArray *configFileLines(void) {
 
     NSMenu *sub = [[[NSMenu alloc] initWithTitle:@"Current Gestures"] autorelease];
     NSArray *configLines = configFileLines();
+
+    if (lastConfigRejected || [lastConfigProblems count] > 0) {
+        NSString *detailsTitle = lastConfigRejected
+            ? @"Reload failed — details…"
+            : [NSString stringWithFormat:@"%lu line%@ skipped — details…",
+               (unsigned long)[lastConfigProblems count],
+               [lastConfigProblems count] == 1 ? @"" : @"s"];
+        NSMenuItem *details = [sub addItemWithTitle:detailsTitle
+                                             action:@selector(showConfigProblems:)
+                                      keyEquivalent:@""];
+        [details setTarget:self];
+        [sub addItem:[NSMenuItem separatorItem]];
+    }
     NSArray *sources = @[@[@"Mouse", magicMouseCommands ?: @[], [Config mouseGestureSlugs]],
                          @[@"Trackpad", trackpadCommands ?: @[], [Config trackpadGestureSlugs]]];
     BOOL any = NO;
@@ -1619,10 +1630,6 @@ static NSString *agentPromptWithSettings(BOOL includeSettings) {
 
     item = [theMenu addItemWithTitle:@"Accessibility" action:NULL keyEquivalent:@""];
     [item setTag:kMenuTagAccessibility];
-    [item setTarget:self];
-
-    item = [theMenu addItemWithTitle:@"Configuration" action:@selector(showConfigProblems:) keyEquivalent:@""];
-    [item setTag:kMenuTagProblems];
     [item setTarget:self];
 
     item = [theMenu addItemWithTitle:@"Gesture conflicts" action:@selector(showConfigConflicts:) keyEquivalent:@""];

@@ -65,10 +65,13 @@ a link to the product website.
 
 - Turn Trickpad Off, which suspends recognition without quitting.
 - The Accessibility status, which opens the Privacy pane when access is missing.
-- The configuration status, which reports active bindings and skipped lines.
-- Current Gestures, a submenu listing the live bindings by device, each phrased
-  through `humanNameForGesture:`. Application-specific rows name their scope and
-  exclusions appear as Off.
+- The configuration row, titled by its binding count ("11 bindings loaded"),
+  whose title also reports skipped lines or a rejected reload. Its submenu
+  lists the live bindings by device, each phrased through
+  `humanNameForGesture:`, with a binding's own line comment beside it in dim
+  parentheses. Application-specific rows name their scope, exclusions appear
+  as Off, and when lines were skipped the submenu opens with a clickable
+  details row.
 - Manage with Agent, a submenu of the coding agents found through the
   user's login shell. Picking one writes
   `~/.config/trickpad/manage-with-agent.command` and opens it, starting
