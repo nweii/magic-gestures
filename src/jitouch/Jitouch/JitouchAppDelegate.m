@@ -1714,6 +1714,9 @@ static NSArray *agentCandidates(void) {
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
     theItem = [bar statusItemWithLength:NSVariableStatusItemLength];
     [theItem retain];
+    // Persists where the user command-drags the icon. Without this, macOS
+    // reassigns a position each launch and a deliberate placement is lost.
+    [theItem setAutosaveName:@"TrickpadStatusItem"];
     [theItem setMenu:theMenu];
     [self updateIconImage];
     [self refreshAccessibilityItem];

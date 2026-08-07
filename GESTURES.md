@@ -216,7 +216,7 @@ expanded clipboard contents.
 
 Prefix an executable path with `script:`:
 
-    hold-right-tap-left = "script:~/.config/trickpad/scripts/capture-selection"
+    hold-right-tap-left = "script:~/bin/my-script"
 
 The path may begin with `~` or be absolute. It must exist and be executable when
 the settings reload. Trickpad launches it directly through its shebang,

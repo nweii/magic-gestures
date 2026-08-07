@@ -64,14 +64,14 @@ cat > "$SPEC" <<JSON
   "icon-size": 104,
   "window": {
     "position": { "x": 120, "y": 120 },
-    "size": { "width": 660, "height": 480 }
+    "size": { "width": 660, "height": 540 }
   },
   "format": "UDZO",
   "filesystem": "HFS+",
   "contents": [
-    { "x": 175, "y": 180, "type": "file", "path": "$APP_BUNDLE" },
-    { "x": 485, "y": 180, "type": "link", "path": "/Applications" },
-    { "x": 330, "y": 415, "type": "file", "path": "$STAGE/Legal" }
+    { "x": 175, "y": 150, "type": "file", "path": "$APP_BUNDLE" },
+    { "x": 485, "y": 150, "type": "link", "path": "/Applications" },
+    { "x": 330, "y": 445, "type": "file", "path": "$STAGE/Legal" }
   ]
 }
 JSON
