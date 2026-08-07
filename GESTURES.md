@@ -224,16 +224,24 @@ uses the script's folder as its working directory, and does not wait for it to
 finish. It does not interpret shell commands, arguments, substitutions, or an
 interactive shell profile. Console records launch failures and nonzero exits.
 
-### Sounds
+### Sounds and speech
 
-Prefix a macOS system sound name with `sound:`:
+Prefix a macOS system sound name with `sound:`, or the words to speak with
+`say:`:
 
     three-finger-tap = "sound:Glass"
+    three-finger-tap = "say:three fingers"
 
-The gesture plays that sound and does nothing else, which separates a
-recognition problem from a binding problem: if the sound plays, the gesture
-fired. The name is case-sensitive, carries no extension, and must match a file
-in `/System/Library/Sounds`. Reload Settings reports a name it cannot find.
+The gesture plays that sound or speaks that text and does nothing else, which
+separates a recognition problem from a binding problem: if you hear it, the
+gesture fired. Speech can carry any words, so several test bindings can each
+announce which gesture fired. A fire during the previous sound or sentence
+interrupts it and starts over, so silence always means the gesture did not
+fire.
+
+A sound name is case-sensitive, carries no extension, and must match a file in
+`/System/Library/Sounds`. Reload Settings reports a name it cannot find, and a
+`say:` with nothing after it.
 
 ## Turn a menu command into a shortcut
 

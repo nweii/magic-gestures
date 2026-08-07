@@ -545,6 +545,17 @@ static NSString *resolvedSoundName(NSString *rawName, NSString **outProblem) {
     return problem == nil ? name : nil;
 }
 
+// Validates the text a say: binding speaks when its gesture fires. The payload
+// keeps its case and punctuation; only an empty phrase is meaningless.
+static NSString *resolvedSpeechText(NSString *rawText, NSString **outProblem) {
+    NSString *text = [rawText stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceCharacterSet]];
+    NSString *problem = [text length] == 0 ? @"say needs the words to speak" : nil;
+    if (outProblem != NULL)
+        *outProblem = problem;
+    return problem == nil ? text : nil;
+}
+
 // Returns an engine gesture dictionary, or nil for an unrecognized value.
 // Keystrokes contain modifiers and one key. Actions are dispatched by name.
 static NSDictionary *parseBinding(NSString *rawValue) {
@@ -581,6 +592,15 @@ static NSDictionary *parseBinding(NSString *rawValue) {
         if (name == nil)
             return nil;
         return @{ @"Gesture": @"", @"Command": name, @"PlaySound": name,
+                  @"IsAction": @YES, @"ModifierFlags": @0, @"KeyCode": @0,
+                  @"Enable": @YES };
+    }
+
+    if ([value hasPrefix:@"say:"]) {
+        NSString *text = resolvedSpeechText([unquoted substringFromIndex:4], NULL);
+        if (text == nil)
+            return nil;
+        return @{ @"Gesture": @"", @"Command": text, @"SpeakText": text,
                   @"IsAction": @YES, @"ModifierFlags": @0, @"KeyCode": @0,
                   @"Enable": @YES };
     }
@@ -1199,8 +1219,13 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
                     resolvedSoundName([unquoted substringFromIndex:6], &problem);
                     report(line, problem);
                 }
+                else if ([[unquoted lowercaseString] hasPrefix:@"say:"]) {
+                    NSString *problem = nil;
+                    resolvedSpeechText([unquoted substringFromIndex:4], &problem);
+                    report(line, problem);
+                }
                 else
-                    report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, action, URL, script, or sound", value]);
+                    report(line, [NSString stringWithFormat:@"\"%@\" is not a key, shortcut, action, URL, script, sound, or speech", value]);
                 continue;
             }
 

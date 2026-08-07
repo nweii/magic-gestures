@@ -304,6 +304,14 @@ static NSString *describeBinding(NSDictionary *g) {
     NSString *sound = [g objectForKey:@"PlaySound"];
     if ([sound length] > 0)
         return [NSString stringWithFormat:@"Play sound \"%@\"", sound];
+    NSString *speech = [g objectForKey:@"SpeakText"];
+    if ([speech length] > 0) {
+        const NSUInteger maxLength = 32;
+        NSString *shown = [speech length] > maxLength
+            ? [[speech substringToIndex:maxLength] stringByAppendingString:@"…"]
+            : speech;
+        return [NSString stringWithFormat:@"Say \"%@\"", shown];
+    }
     NSString *url = [g objectForKey:@"OpenURL"];
     if ([url length] > 0) {
         const NSUInteger maxLength = 52;

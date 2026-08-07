@@ -1014,6 +1014,7 @@ static void dispatchCommand(NSString *gesture, int device) {
             [binding objectForKey:@"ScriptPath"] != nil ? @"script" :
             [binding objectForKey:@"OpenURL"] != nil ? @"url" :
             [binding objectForKey:@"PlaySound"] != nil ? @"sound" :
+            [binding objectForKey:@"SpeakText"] != nil ? @"speech" :
             [[binding objectForKey:@"IsAction"] boolValue] ? @"built-in" : @"keystroke";
         MGTraceRecordDispatch(gesture, scope, kind, @"suppressed-for-trace");
         return;
@@ -1468,6 +1469,20 @@ static void doCommand(NSString *gesture, int device, NSDictionary *commandDict,
                                 [sound stop];
                             [sound play];
                         }
+                    });
+                } else if ([commandDict objectForKey:@"SpeakText"]) {
+                    // One shared synthesizer, so a gesture fired mid-sentence
+                    // interrupts the previous phrase the way a sound binding
+                    // restarts its sound: silence never means the gesture
+                    // failed to fire.
+                    NSString *speech = [commandDict objectForKey:@"SpeakText"];
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        static NSSpeechSynthesizer *synthesizer = nil;
+                        if (synthesizer == nil)
+                            synthesizer = [[NSSpeechSynthesizer alloc] init];
+                        if ([synthesizer isSpeaking])
+                            [synthesizer stopSpeaking];
+                        [synthesizer startSpeakingString:speech];
                     });
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
                     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];

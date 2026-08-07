@@ -586,6 +586,24 @@ int main(void) {
         if ([soundProblem rangeOfString:@"not a path"].location == NSNotFound)
             fail(@"sound path explains the requirement", @"not a path", soundProblem);
 
+        // Speech bindings speak arbitrary text so a test binding can say which
+        // gesture fired, not only that one did.
+        s = parse(@"[trackpad]\nthree-finger-tap = \"say:three finger tap\"\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"SpeakText"] isEqualToString:@"three finger tap"])
+            fail(@"speech binding records its text", @"three finger tap",
+                 [g objectForKey:@"SpeakText"] ?: @"missing");
+        if (![[g objectForKey:@"IsAction"] boolValue])
+            fail(@"speech binding is an action", @YES, [g objectForKey:@"IsAction"]);
+
+        NSArray *speechProblems = nil;
+        s = parseWithProblems(@"[trackpad]\nthree-finger-tap = \"say:  \"\n", &speechProblems);
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap") != nil)
+            fail(@"empty speech rejected", @"nothing", @"a binding");
+        NSString *speechProblem = [speechProblems count] > 0 ? [speechProblems objectAtIndex:0] : @"";
+        if ([speechProblem rangeOfString:@"words to speak"].location == NSNotFound)
+            fail(@"empty speech explains the requirement", @"words to speak", speechProblem);
+
         NSDictionary *badURLs = @{
             @"url:raycast//extensions": @"URL is missing a valid scheme followed by \":\"",
             @"url:1raycast://extensions": @"URL scheme must begin with a letter",
