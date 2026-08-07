@@ -586,6 +586,32 @@ int main(void) {
         if ([soundProblem rangeOfString:@"not a path"].location == NSNotFound)
             fail(@"sound path explains the requirement", @"not a path", soundProblem);
 
+        // The sound option confirms a gesture that still does its real work,
+        // where the sound: value form replaces the action entirely.
+        s = parse(@"[trackpad]\nthree-finger-tap = { action = \"cmd+shift+4\", sound = \"Glass\" }\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"ConfirmSound"] isEqualToString:@"Glass"])
+            fail(@"sound option records its system sound name", @"Glass",
+                 [g objectForKey:@"ConfirmSound"] ?: @"missing");
+        if ([g objectForKey:@"PlaySound"] != nil)
+            fail(@"sound option leaves the action alone", @"no PlaySound", @"PlaySound set");
+        if ([[g objectForKey:@"KeyCode"] intValue] == 0)
+            fail(@"sound option keeps its keystroke action", @"a key code", @"none");
+
+        s = parse(@"[trackpad]\nthree-finger-tap = { action = \"cmd+shift+4\", say = \"screenshot\" }\n");
+        g = bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap");
+        if (![[g objectForKey:@"ConfirmSpeech"] isEqualToString:@"screenshot"])
+            fail(@"say option records its text", @"screenshot",
+                 [g objectForKey:@"ConfirmSpeech"] ?: @"missing");
+        if ([[g objectForKey:@"KeyCode"] intValue] == 0)
+            fail(@"say option keeps its keystroke action", @"a key code", @"none");
+
+        NSArray *soundOptionProblems = nil;
+        s = parseWithProblems(@"[trackpad]\nthree-finger-tap = { action = \"escape\", sound = \"NoSuchSound\" }\n",
+                              &soundOptionProblems);
+        if (bindingFor(s, @"TrackpadCommands", @"Three-Finger Tap") != nil)
+            fail(@"unknown sound option rejected", @"nothing", @"a binding");
+
         // Speech bindings speak arbitrary text so a test binding can say which
         // gesture fired, not only that one did.
         s = parse(@"[trackpad]\nthree-finger-tap = \"say:three finger tap\"\n");

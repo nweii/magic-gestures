@@ -34,6 +34,10 @@ When the user wants ideas, find a few concrete options that fit their workflow:
   sound such as `sound:Glass`) or `say:WORDS`, which play or speak and do
   nothing else. Speech can name the gesture, so several test bindings stay
   distinguishable by ear.
+- To confirm a gesture that still does its real work, add `sound` or `say` as
+  a binding option: `{ action = "cmd+shift+4", sound = "Glass" }`. A Magic
+  Mouse has no haptic feedback, so this is the only way to feel or hear one of
+  its gestures fire.
 
 ## Design bindings this person will keep
 

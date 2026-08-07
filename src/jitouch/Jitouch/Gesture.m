@@ -974,6 +974,61 @@ static MGDeferredGestureDispatcher *deferredGestureDispatcher(void) {
     return dispatcher;
 }
 
+// One shared instance per sound name, restarted when a gesture fires during
+// its own tail, so a repeat is always audible.
+static void playSystemSound(NSString *name) {
+    if ([name length] == 0)
+        return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSSound *sound = [NSSound soundNamed:name];
+        if (sound == nil) {
+            NSLog(@"Could not play configured sound \"%@\"", name);
+            return;
+        }
+        if ([sound isPlaying])
+            [sound stop];
+        [sound play];
+    });
+}
+
+// One shared synthesizer, interrupted the way a sound restarts, so a repeat is
+// heard as its own utterance rather than swallowed by the previous one.
+static void speakText(NSString *text) {
+    if ([text length] == 0)
+        return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        static AVSpeechSynthesizer *synthesizer = nil;
+        static AVSpeechSynthesisVoice *voice = nil;
+        if (synthesizer == nil) {
+            synthesizer = [[AVSpeechSynthesizer alloc] init];
+            // An utterance with no voice falls back to the compact default,
+            // which sounds far worse than the voices already installed.
+            NSString *language = [AVSpeechSynthesisVoice currentLanguageCode];
+            for (AVSpeechSynthesisVoice *candidate in [AVSpeechSynthesisVoice speechVoices]) {
+                if (![[candidate language] isEqualToString:language])
+                    continue;
+                if (voice == nil || [candidate quality] > [voice quality])
+                    voice = [candidate retain];
+            }
+        }
+        if ([synthesizer isSpeaking])
+            [synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+        AVSpeechUtterance *utterance = [[[AVSpeechUtterance alloc]
+            initWithString:text] autorelease];
+        if (voice != nil)
+            [utterance setVoice:voice];
+        [synthesizer speakUtterance:utterance];
+    });
+}
+
+// A Magic Mouse has no haptic actuator, so a configured sound or phrase is the
+// only confirmation channel available on that device. Both start immediately
+// and never delay the action they accompany.
+static void confirmBindingDispatch(NSDictionary *binding, int device) {
+    playSystemSound([binding objectForKey:@"ConfirmSound"]);
+    speakText([binding objectForKey:@"ConfirmSpeech"]);
+}
+
 // AppKit chooses the available actuator and may suppress feedback when the
 // trackpad is no longer being touched. The main queue keeps AppKit access on
 // its owning thread while requesting feedback as close to recognition as able.
@@ -1023,8 +1078,10 @@ static void dispatchCommand(NSString *gesture, int device) {
     BOOL deferred = [[binding objectForKey:@"Defer"] boolValue];
     NSString *gestureKey = [NSString stringWithFormat:@"%d:%@", device, gesture];
     dispatch_block_t action = ^{
-        if (deferred && binding != nil)
+        if (deferred && binding != nil) {
             requestHapticFeedbackForBinding(binding, device);
+            confirmBindingDispatch(binding, device);
+        }
         if ([[NSUserDefaults standardUserDefaults] boolForKey:@"InternalGestureDispatchTone"])
             playInternalGestureDispatchTone();
         NSDate *start = [NSDate date];
@@ -1038,8 +1095,10 @@ static void dispatchCommand(NSString *gesture, int device) {
                                                action:action];
     } else {
         [deferredGestureDispatcher() cancelGestureKey:gestureKey];
-        if (binding != nil)
+        if (binding != nil) {
             requestHapticFeedbackForBinding(binding, device);
+            confirmBindingDispatch(binding, device);
+        }
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), action);
     }
 }
@@ -1456,53 +1515,9 @@ static void doCommand(NSString *gesture, int device, NSDictionary *commandDict,
                 } else if ([commandDict objectForKey:@"PlaySound"]) {
                     // NSSound is AppKit, and playback must not hold the
                     // dispatch thread, so the main queue starts it and returns.
-                    NSString *soundName = [commandDict objectForKey:@"PlaySound"];
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        // soundNamed: returns one shared instance per name, and
-                        // play is a no-op while that instance is still playing.
-                        // A gesture fired during the previous sound's tail must
-                        // still be heard, so restart rather than skip.
-                        NSSound *sound = [NSSound soundNamed:soundName];
-                        if (sound == nil) {
-                            NSLog(@"Could not play configured sound \"%@\"", soundName);
-                        } else {
-                            if ([sound isPlaying])
-                                [sound stop];
-                            [sound play];
-                        }
-                    });
+                    playSystemSound([commandDict objectForKey:@"PlaySound"]);
                 } else if ([commandDict objectForKey:@"SpeakText"]) {
-                    // One shared synthesizer, so a gesture fired mid-sentence
-                    // interrupts the previous phrase the way a sound binding
-                    // restarts its sound: silence never means the gesture
-                    // failed to fire.
-                    NSString *speech = [commandDict objectForKey:@"SpeakText"];
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        static AVSpeechSynthesizer *synthesizer = nil;
-                        static AVSpeechSynthesisVoice *voice = nil;
-                        if (synthesizer == nil) {
-                            synthesizer = [[AVSpeechSynthesizer alloc] init];
-                            // An utterance with no voice falls back to the
-                            // compact default, which sounds far worse than the
-                            // voices already installed. Prefer the highest
-                            // quality available for the user's language.
-                            NSString *language = [AVSpeechSynthesisVoice currentLanguageCode];
-                            for (AVSpeechSynthesisVoice *candidate in
-                                 [AVSpeechSynthesisVoice speechVoices]) {
-                                if (![[candidate language] isEqualToString:language])
-                                    continue;
-                                if (voice == nil || [candidate quality] > [voice quality])
-                                    voice = [candidate retain];
-                            }
-                        }
-                        if ([synthesizer isSpeaking])
-                            [synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
-                        AVSpeechUtterance *utterance = [[[AVSpeechUtterance alloc]
-                            initWithString:speech] autorelease];
-                        if (voice != nil)
-                            [utterance setVoice:voice];
-                        [synthesizer speakUtterance:utterance];
-                    });
+                    speakText([commandDict objectForKey:@"SpeakText"]);
                 } else if ([commandDict objectForKey:@"OpenURL"]) {
                     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
                     NSString *configuredURL = [commandDict objectForKey:@"OpenURL"];

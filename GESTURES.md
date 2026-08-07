@@ -107,6 +107,19 @@ An application-specific block may omit `action` to inherit the global action:
 `haptic` is valid only for trackpad bindings. It overrides the global
 `haptic-feedback` setting for that binding.
 
+### Hearing a gesture fire
+
+`sound` plays a macOS system sound and `say` speaks any words when the gesture
+fires, alongside whatever the binding already does:
+
+    three-finger-tap = { action = "cmd+shift+4", sound = "Glass" }
+    three-finger-click = { action = "right-ctrl+space", say = "dictation" }
+
+Both work on either device. A Magic Mouse has no haptic feedback, so this is
+the only way to confirm one of its gestures by ear. Either starts the moment
+the gesture fires and never delays the action or the next gesture, and a
+gesture fired while one is still sounding interrupts it and starts again.
+
 ### Deferring a tap
 
 Set `defer = true` when the first tap also begins a double-tap gesture in macOS
@@ -238,6 +251,10 @@ gesture fired. Speech can carry any words, so several test bindings can each
 announce which gesture fired. A fire during the previous sound or sentence
 interrupts it and starts over, so silence always means the gesture did not
 fire.
+
+Written this way the sound replaces the action, which is what makes it a test.
+To hear a gesture that still does its real work, use the `sound` or `say`
+binding option instead.
 
 A sound name is case-sensitive, carries no extension, and must match a file in
 `/System/Library/Sounds`. Reload Settings reports a name it cannot find, and a

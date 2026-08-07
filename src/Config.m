@@ -1021,7 +1021,7 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
                                   (pendingEquals.location == NSNotFound ||
                                    pendingOpeningBrace.location < pendingEquals.location)) ||
                 (pendingEquals.location != NSNotFound &&
-                 ![@[@"action", @"defer", @"haptic"] containsObject:[pendingKey lowercaseString]]);
+                 ![@[@"action", @"defer", @"haptic", @"sound", @"say"] containsObject:[pendingKey lowercaseString]]);
             if (startsSection || startsBinding) {
                 lineNumber = pendingBlockLine;
                 report(pendingBlock, @"expanded binding is missing a closing }");
@@ -1096,6 +1096,8 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
         NSString *expandedValue = nil;
         NSNumber *expandedDefer = nil;
         NSNumber *expandedHaptic = nil;
+    NSString *expandedSound = nil;
+    NSString *expandedSpeech = nil;
         BOOL expandedInvalid = NO;
         NSRange openingBrace = [line rangeOfString:@"{"];
         NSUInteger closingBraceLocation = unquotedClosingBraceLocation(line);
@@ -1155,6 +1157,24 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
                         break;
                     }
                     expandedHaptic = @(hapticValue);
+                } else if ([propertyName isEqualToString:@"sound"]) {
+                    NSString *problem = nil;
+                    NSString *name = resolvedSoundName(stripQuotes(propertyValue), &problem);
+                    if (name == nil) {
+                        report(line, problem);
+                        expandedInvalid = YES;
+                        break;
+                    }
+                    expandedSound = name;
+                } else if ([propertyName isEqualToString:@"say"]) {
+                    NSString *problem = nil;
+                    NSString *text = resolvedSpeechText(stripQuotes(propertyValue), &problem);
+                    if (text == nil) {
+                        report(line, problem);
+                        expandedInvalid = YES;
+                        break;
+                    }
+                    expandedSpeech = text;
                 } else {
                     report(line, [NSString stringWithFormat:@"no binding property named \"%@\"", propertyName]);
                     expandedInvalid = YES;
@@ -1251,6 +1271,10 @@ static NSString *legacyTextFromTOML(toml_datum_t root, NSMutableArray *problems)
                     [g setObject:expandedDefer forKey:@"Defer"];
                 if (expandedHaptic != nil)
                     [g setObject:expandedHaptic forKey:@"HapticFeedback"];
+                if (expandedSound != nil)
+                    [g setObject:expandedSound forKey:@"ConfirmSound"];
+                if (expandedSpeech != nil)
+                    [g setObject:expandedSpeech forKey:@"ConfirmSpeech"];
                 [target addObject:g];
             }
         } else if ([device isEqualToString:@"general"]) {

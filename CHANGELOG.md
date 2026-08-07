@@ -19,6 +19,12 @@ Released 2026-08-07.
   words, with no other action, so a gesture can be proven before a real
   action rides on it. A gesture fired mid-sound interrupts and restarts it,
   so silence always means the gesture did not fire.
+- Added `sound` and `say` binding options, which play a system sound or speak
+  any words alongside a binding's real action:
+  `{ action = "cmd+shift+4", sound = "Glass" }`. Both work on either device,
+  so a Magic Mouse gesture can be confirmed by ear where haptic feedback is
+  unavailable. Each starts immediately, delays neither the action nor the next
+  gesture, and interrupts itself when the gesture repeats.
 - Showed each binding's own `config.toml` line comment beside it in the
   Current Gestures menu.
 - Added menu key equivalents while the menu is open: `⌘,` opens settings,
