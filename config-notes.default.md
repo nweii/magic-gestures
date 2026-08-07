@@ -26,32 +26,106 @@ When the user wants ideas, find a few concrete options that fit their workflow:
   app does not expose a suitable shortcut or URL.
 - Prefer a built-in action, keyboard shortcut, or app deep link over a custom
   script.
-- Consider existing bindings, accidental activation, comfort and repeatability,
-  mnemonic fit, and how consequential the action is.
+- Consider existing bindings, comfort and repeatability, mnemonic fit, and how
+  consequential the action is.
+- Use an application-specific binding when a gesture makes sense in one app or
+  would conflict elsewhere.
 - To check whether a gesture fires at all, bind it to `sound:NAME` (a system
   sound such as `sound:Glass`) or `say:WORDS`, which play or speak and do
   nothing else. Speech can name the gesture, so several test bindings stay
   distinguishable by ear.
 
-Before proposing or changing a binding, read what macOS has already claimed.
-Run this, substituting the running app path from the prompt:
+## Design bindings this person will keep
 
-```bash
-"<app>/Contents/Resources/system-gestures.sh"
-```
+A good configuration is personal: it reflects one person's apps, habits, and
+taste, and it usually gets there through revision rather than in one pass.
 
-Each line names one gesture slug and whether macOS uses the trigger it overlaps.
-Read `claimed=yes` as taken and choose a different gesture. Read
-`claimed=default` as undecided, because macOS has never written that preference
-and its built-in default applies; ask the user to check System Settings.
+**A binding earns its place in one of a few ways.** Any one of these can
+justify it, and the mix differs per person and per app:
 
-A built-in gesture that uses a double tap contains two single taps, so a
-single-tap binding on the same finger count fires while the user performs it.
-The `defer` option delays a tap so a second tap can cancel it, which depends on
-Trickpad recognizing both taps and costs every single tap that delay. Prefer a
-gesture macOS has not claimed.
-- Use an application-specific binding when a gesture makes sense in one app or
-  would conflict elsewhere.
+- Frequency. Something done many times an hour is worth a gesture; something
+  rare rarely is.
+- Flow. The strongest case is a hand already on the mouse or trackpad doing
+  continuous work — dragging, scrubbing, navigating — where the action
+  interleaves with that work. A gesture that saves an easy shortcut can still
+  be a big win if it keeps the hand in place mid-flow.
+- Ergonomics. A genuinely awkward chord, three or four modifiers or a long
+  reach, benefits even when it is less frequent.
+- No keyboard equivalent. Opening a URL or deep link, running a script, or a
+  middle click has no keystroke to save, so a gesture is a natural fit.
+
+Ask about the person's actual day — the apps they live in, what they do while
+the hand is already on the device — and propose bindings they would plausibly
+try, not a showcase of what the app can do.
+
+**Treat the configuration as a draft, always.** Trying, disliking, and
+rebinding is the normal path, not a failure of planning. The loop is cheap:
+edit, Reload Settings, try it in real work. Offer `sound:NAME` or `say:WORDS`
+when the person wants to feel a gesture out before giving it a real action.
+Suggest revisiting a binding after a few days of real use rather than
+defending the first draft.
+
+**Tend the file the way its owner keeps it.** The configuration is a
+plain-text file the person lives in, so its readability is part of the
+product. Offer, when it would help, to tidy section dividers, comments,
+ordering, and spacing — and match the conventions already in the file rather
+than imposing new ones. If the person has their own formatting rules, treat
+them as the file's lint and keep every edit consistent with them.
+`AGENTS.local.md` beside this file is the durable home for those conventions
+if they want them written down. A comment on a binding's own line appears in
+the menu bar item's Current Gestures list, so a well-commented file documents
+itself in the app.
+
+## Recommend gestures that avoid conflicts
+
+If a recommendation carries a risk, tell the user plainly what could collide
+and when, in terms of what their hand does.
+
+**Many gestures overlap with simpler variants.** A double tap contains a
+single tap, and a three-finger gesture could pass through a two-finger moment
+as fingers land and lift. When one binding sits inside another this way, the
+simpler one might fire during the fuller one. Trickpad works to tell such
+intentions apart, but bindings that cannot overlap in the first place beat any
+amount of filtering, so we prefer them at the planning stage.
+
+**The device counts contacts, not fingers.** A resting finger can add one to
+the count. A light touch or an edge contact can drop one. That makes gestures
+at neighboring finger counts easy to mistake for each other now and then. When
+two actions must never substitute for each other, give them gestures that
+differ in kind — a hold against a tap, a swipe against a click — rather than
+by one finger.
+
+**Conflicts usually come from three places. Check each.**
+
+- Triggers macOS has claimed. Run the claims report, substituting the running
+  app path from the prompt:
+
+  ```bash
+  "<app>/Contents/Resources/system-gestures.sh"
+  ```
+
+  `claimed=yes` means macOS acts on that trigger: prefer a different gesture,
+  or tell the user what would double-fire. `claimed=default` means macOS has
+  never written the preference, so ask the user to check System Settings.
+- The configuration itself. Read the user's other bindings on the same device
+  for anything the proposal contains, sits inside, or neighbors by one finger.
+- The output. The keystroke a binding sends can collide with app or global
+  hotkeys nothing here can see. A Caps Lock remapped to a modifier chord is
+  common; ask.
+
+**Judge a gesture against the hand at rest.** Between gestures a hand is often
+already on or over the device — resting, clicking, scrolling. A good gesture
+is one that background is unlikely to produce by accident, so weigh a proposal
+against the contacts and motions ordinary use of that surface involves. The
+less it resembles them, the more the binding can safely carry.
+
+**Work with the user's associations.** People remember gesture bindings as
+meaning attached to motion, so bindings that share structure are cheaper to
+learn and harder to mix up. Paired actions sit well on paired gestures, the
+way the defaults put escape and return on mirrored hold-taps. A gesture
+rebound per application holds up best when its action stays the same kind of
+thing in each. When the user offers their own mnemonic, build on it rather
+than replacing it.
 
 Some useful app commands appear in the menu bar without their own shortcut.
 Recommend a macOS App Shortcut when appropriate. The user creates one in
