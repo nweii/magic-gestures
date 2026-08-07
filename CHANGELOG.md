@@ -14,12 +14,13 @@ Released 2026-08-07.
 
 ### Fixed
 
-- Report a two-finger trackpad tap as available when tap to click is off. Secondary click answers a two-finger press. It answers a two-finger tap only when tap to click is also on. The error appeared in the reload warning and in the report that agents read.
-- Report a conflict only when the macOS settings show one. Trickpad reads a preference that macOS never wrote as unknown. An unknown preference does not add a conflict and does not remove one. Trickpad also reads a preference whose value is a name, not a number, as unknown.
+- Fix the check for a two-finger trackpad tap. Secondary click claims that tap only when tap to click is also on, so the warning appeared where no conflict existed.
+- Fix conflict warnings that appeared for macOS settings that have never been changed. Trickpad now reports when it cannot tell.
 
 ### Changed
 
-- Rewrite the agent guide that Trickpad installs. The guide starts with the contents of the configuration folder and the goal of the user, not with the choice of a gesture. It describes `AGENTS.local.md`, the file that keeps the user's own conventions when Trickpad refreshes the guide. It also explains how to maintain a configuration as it grows.
+- Improve the agent guidance so that an agent starts from the existing configuration and the request at hand, rather than assuming a new gesture is wanted.
+- Let a user's own conventions survive an update. `AGENTS.local.md` beside the settings holds them, and an agent offers to maintain that file.
 
 ## 0.8.0
 
@@ -28,7 +29,7 @@ Released 2026-08-07.
 ### Added
 
 - Warn about gesture conflicts at every configuration load. Trickpad reads the macOS mouse, trackpad, and accessibility gesture settings. It lists each binding whose trigger a built-in gesture already uses, and it names the System Settings pane that holds that gesture. The bindings continue to run, because Trickpad adds to what the hardware does. Agents read the same report from `Contents/Resources/system-gestures.sh` in the app bundle.
-- Add the `sound:` and `say:` binding values, which test a gesture. `"sound:Glass"` plays a system sound. `"say:three fingers"` speaks the words you give it. Neither does anything else, so you can prove a gesture before you give it a real action. A gesture that fires during a sound interrupts that sound and starts it again. Silence therefore means that the gesture did not fire.
+- Add the `sound:` and `say:` binding values, which test a gesture. `"sound:Glass"` plays a system sound. `"say:three fingers"` speaks any words it is given. Neither does anything else, so a gesture can be proven before a real action rides on it. A gesture that fires during a sound interrupts that sound and starts it again. Silence therefore means that the gesture did not fire.
 - Add the `sound` and `say` binding options. They play a system sound or speak words together with the real action of a binding, as in `{ action = "cmd+shift+4", sound = "Glass" }`. Both work on either device. A Magic Mouse has no haptic feedback, so a sound is the way to confirm one of its gestures. Each starts immediately and delays neither the action nor the next gesture. Each interrupts itself when the gesture repeats.
 - Show the line comment of each binding from `config.toml` beside it in the Current Gestures menu.
 - Add key equivalents that work while the menu is open. `⌘,` opens the settings. `⌘R` reloads them. `⌘C` copies the agent prompt. `⌥⌘C` copies that prompt with `config.toml` attached. `⌘Q` quits.
@@ -72,7 +73,7 @@ Released 2026-08-05.
 
 - Add an experimental physical-click binding for two or three fingers on a Magic Mouse. A click that Trickpad recognizes with confidence replaces the normal click. This binding is off by default. Ambiguous clicks and drags keep their native behavior.
 - Add universal Intel and Apple silicon builds for macOS 11 and later.
-- Add a menu bar icon that you can configure. Use the bundled Trickpad mark, or name an SF Symbol in `config.toml`. Suspended gestures dim either choice.
+- Add a configurable menu bar icon. Use the bundled Trickpad mark, or name an SF Symbol in `config.toml`. Suspended gestures dim either choice.
 - Add a Get Latest Version menu item. It opens the stable download page of Trickpad and does not depend on a store.
 
 ### Changed
@@ -107,7 +108,7 @@ Released 2026-08-03.
 - Change application-specific table headings to TOML nested tables, such as `[TRACKPAD."Final Cut Pro"]`.
 - Reject the reload when the file has a duplicate table, a duplicate key, an unquoted string, or malformed TOML. The running configuration stays in place. Trickpad continues to report each unknown setting and binding on its own.
 
-This changes the alpha configuration interface from version 2 to version 3. Convert a version 2 file before you update.
+This changes the alpha configuration interface from version 2 to version 3. Convert a version 2 file before updating.
 
 ## 0.5.1
 
