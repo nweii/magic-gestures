@@ -4,6 +4,27 @@
 
 # Changelog
 
+## 0.8.1
+
+Released 2026-08-07.
+
+### Fixed
+
+- Stop reporting a two-finger trackpad tap as taken when tap to click is off.
+  Secondary click answers a two-finger press whether or not tap to click is on,
+  so the setting being enabled never meant a tap reached it. Affected both the
+  reload warning and the report agents read.
+- Report a conflict only where macOS proves one. A preference macOS has never
+  written no longer establishes a claim or takes one away, and a setting whose
+  value is a name rather than a number reads as unproven.
+
+### Changed
+
+- Rewrite the installed agent guide to open with what the configuration folder
+  holds and what the user wants, rather than with choosing a gesture. It names
+  `AGENTS.local.md` as the place a user's own conventions survive Trickpad
+  refreshing the guide, and adds guidance on tending a configuration as it grows.
+
 ## 0.8.0
 
 Released 2026-08-07.
